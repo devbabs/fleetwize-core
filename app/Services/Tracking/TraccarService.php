@@ -30,7 +30,7 @@ class TraccarService
     public function findDeviceByImei(string $imei): ?array
     {
         $devices = $this->client()
-            ->get('/api/devices', ['uniqueId' => $imei])
+            ->get('/api/devices', ['uniqueId' => $imei, 'all' => 'true'])
             ->throw()
             ->json();
 
@@ -43,7 +43,7 @@ class TraccarService
     public function latestPosition(int $deviceId): ?array
     {
         $positions = $this->client()
-            ->get('/api/positions', ['deviceId' => $deviceId])
+            ->get('/api/positions', ['deviceId' => $deviceId, 'all' => 'true'])
             ->throw()
             ->json();
 
