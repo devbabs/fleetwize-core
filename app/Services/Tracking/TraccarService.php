@@ -82,6 +82,22 @@ class TraccarService
         );
     }
 
+    /**
+     * Devices auto-registered via Traccar's database.registerUnknown have no
+     * owner, and stay invisible on the map/API to any user (including
+     * admins, without `all=true`) until explicitly linked. Called once per
+     * device by ProcessTrackerTelemetry the first time it's seen.
+     */
+    public function linkDeviceToUser(int $deviceId): void
+    {
+        $this->client()
+            ->post('/api/permissions', [
+                'userId' => config('fleetwize.traccar.owner_user_id'),
+                'deviceId' => $deviceId,
+            ])
+            ->throw();
+    }
+
     protected function client(): PendingRequest
     {
         return Http::baseUrl((string) $this->baseUrl)

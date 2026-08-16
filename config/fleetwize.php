@@ -52,6 +52,12 @@ return [
         'username' => env('TRACCAR_USERNAME'),
         'password' => env('TRACCAR_PASSWORD'),
         'webhook_secret' => env('TRACCAR_WEBHOOK_SECRET'),
+
+        // Devices auto-registered via Traccar's database.registerUnknown have
+        // no owner, and are invisible on the map/API to anyone until linked to
+        // a user (see TraccarService::linkDeviceToUser). This is the Traccar
+        // user ID new devices get linked to — the one admin account, today.
+        'owner_user_id' => env('TRACCAR_OWNER_USER_ID', 1),
     ],
 
 ];

@@ -5,9 +5,12 @@ namespace App\Jobs;
 use App\Models\Vehicle;
 use App\Models\VehicleTrackerState;
 use App\Services\Tracking\TraccarPayloadNormalizer;
+use App\Services\Tracking\TraccarService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ProcessTrackerTelemetry implements ShouldQueue
 {
@@ -22,7 +25,7 @@ class ProcessTrackerTelemetry implements ShouldQueue
         public array $device,
     ) {}
 
-    public function handle(): void
+    public function handle(TraccarService $traccar): void
     {
         $imei = TraccarPayloadNormalizer::imei($this->device);
 
@@ -31,6 +34,8 @@ class ProcessTrackerTelemetry implements ShouldQueue
 
             return;
         }
+
+        $this->linkDeviceIfNeeded($traccar);
 
         $vehicle = Vehicle::query()->where('obd_device_imei', $imei)->first();
 
@@ -44,5 +49,33 @@ class ProcessTrackerTelemetry implements ShouldQueue
             ['vehicle_id' => $vehicle->id],
             TraccarPayloadNormalizer::normalize($this->position, $this->device),
         );
+    }
+
+    /**
+     * Devices auto-registered via Traccar's database.registerUnknown have no
+     * owner and stay invisible on the map/API until linked to a user — do
+     * that once per device, the first time telemetry arrives for it, rather
+     * than requiring a manual step per new tracker.
+     */
+    protected function linkDeviceIfNeeded(TraccarService $traccar): void
+    {
+        $deviceId = $this->device['id'] ?? null;
+
+        if (! $deviceId) {
+            return;
+        }
+
+        $cacheKey = "traccar-device-linked:{$deviceId}";
+
+        if (Cache::has($cacheKey)) {
+            return;
+        }
+
+        try {
+            $traccar->linkDeviceToUser((int) $deviceId);
+            Cache::forever($cacheKey, true);
+        } catch (Throwable $e) {
+            Log::warning("Failed to auto-link Traccar device {$deviceId} to owner user.", ['error' => $e->getMessage()]);
+        }
     }
 }
