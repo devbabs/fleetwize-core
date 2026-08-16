@@ -144,7 +144,7 @@ class VehicleController extends Controller
             'file' => ['required', 'file', 'mimes:csv,txt'],
         ]);
 
-        $rows = SimpleExcelReader::create($request->file('file')->getRealPath())->getRows();
+        $rows = SimpleExcelReader::create($request->file('file')->getRealPath(), 'csv')->getRows();
 
         $created = 0;
         $errors = [];
