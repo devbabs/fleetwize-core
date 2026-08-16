@@ -29,12 +29,16 @@ class TraccarService
      */
     public function findDeviceByImei(string $imei): ?array
     {
+        // Traccar's `uniqueId` filter and `all=true` don't combine correctly
+        // for devices with no owning user (e.g. auto-registered via
+        // database.registerUnknown), silently returning an empty result.
+        // Fetching everything and filtering here avoids that.
         $devices = $this->client()
-            ->get('/api/devices', ['uniqueId' => $imei, 'all' => 'true'])
+            ->get('/api/devices', ['all' => 'true'])
             ->throw()
             ->json();
 
-        return $devices[0] ?? null;
+        return collect($devices)->firstWhere('uniqueId', $imei);
     }
 
     /**
@@ -43,11 +47,11 @@ class TraccarService
     public function latestPosition(int $deviceId): ?array
     {
         $positions = $this->client()
-            ->get('/api/positions', ['deviceId' => $deviceId, 'all' => 'true'])
+            ->get('/api/positions', ['all' => 'true'])
             ->throw()
             ->json();
 
-        return $positions[0] ?? null;
+        return collect($positions)->firstWhere('deviceId', $deviceId);
     }
 
     /**
