@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Events\VehicleTrackerStateUpdated;
 use App\Models\Vehicle;
 use App\Models\VehicleTrackerState;
 use App\Services\Tracking\TraccarPayloadNormalizer;
@@ -45,10 +46,22 @@ class ProcessTrackerTelemetry implements ShouldQueue
             return;
         }
 
-        VehicleTrackerState::query()->updateOrCreate(
+        $trackerState = VehicleTrackerState::query()->updateOrCreate(
             ['vehicle_id' => $vehicle->id],
             TraccarPayloadNormalizer::normalize($this->position, $this->device),
         );
+
+        try {
+            broadcast(new VehicleTrackerStateUpdated($vehicle, $trackerState));
+        } catch (Throwable $e) {
+            // The state write above already succeeded — a broadcast hiccup
+            // shouldn't fail/retry the whole ingestion job, it just means
+            // this one tick doesn't push live; the next report resyncs it.
+            Log::warning('Failed to broadcast vehicle tracker state update.', [
+                'vehicle_id' => $vehicle->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

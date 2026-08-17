@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useVehicleLiveUpdates } from '@/hooks/use-vehicle-live-updates';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { cn } from '@/lib/utils';
 
@@ -91,8 +92,31 @@ return '—';
     return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-export default function VehicleShow({ vehicle }: { vehicle: VehicleDetail }) {
+export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: VehicleDetail }) {
     const [tab, setTab] = useState<Tab>('Overview');
+    const [vehicle, setVehicle] = useState(initialVehicle);
+
+    // The channel carries every vehicle in the company — filter to this one.
+    useVehicleLiveUpdates((update) => {
+        if (update.id !== vehicle.id) {
+            return;
+        }
+
+        setVehicle((prev) => ({
+            ...prev,
+            isOnline: update.isOnline,
+            liveState: {
+                latitude: update.latitude,
+                longitude: update.longitude,
+                speed: update.speed,
+                heading: update.heading,
+                ignitionOn: update.ignitionOn,
+                fuelLevel: update.fuelLevel,
+                batteryVoltage: update.batteryVoltage,
+                reportedAt: update.reportedAt,
+            },
+        }));
+    });
 
     return (
         <CompanyLayout title={vehicle.licensePlate ?? 'Vehicle'}>

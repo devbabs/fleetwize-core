@@ -19,6 +19,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useVehicleLiveUpdates } from '@/hooks/use-vehicle-live-updates';
+import type { VehicleLiveUpdate } from '@/hooks/use-vehicle-live-updates';
 import CompanyLayout from '@/layouts/company/company-layout';
 import type { Paginated } from '@/types/pagination';
 
@@ -67,6 +69,20 @@ const emptyForm: VehicleFormValues = {
     obd_device_imei: '',
     tracker_phone_number: '',
 };
+
+function mergeLiveUpdate(vehicle: VehicleRow, update?: VehicleLiveUpdate): VehicleRow {
+    if (!update) {
+        return vehicle;
+    }
+
+    return {
+        ...vehicle,
+        isOnline: update.isOnline,
+        speed: update.speed,
+        fuelLevel: update.fuelLevel,
+        lastSeenAt: update.reportedAt,
+    };
+}
 
 function statusBadge(vehicle: VehicleRow) {
     if (vehicle.isOnline && (vehicle.speed ?? 0) > 5) {
@@ -294,6 +310,15 @@ export default function VehiclesIndex({ vehicles }: { vehicles: Paginated<Vehicl
     const [deleting, setDeleting] = useState<VehicleRow | null>(null);
     const [importOpen, setImportOpen] = useState(false);
     const [deleteInFlight, setDeleteInFlight] = useState(false);
+    const [liveOverrides, setLiveOverrides] = useState<Record<number, VehicleLiveUpdate>>({});
+
+    // Keyed by id rather than replacing `vehicles.data` wholesale, so
+    // paginating (which re-fetches `vehicles` as a fresh Inertia prop)
+    // isn't fought by stale local state — overrides for ids no longer on
+    // the current page just go unused.
+    useVehicleLiveUpdates((update) => {
+        setLiveOverrides((prev) => ({ ...prev, [update.id]: update }));
+    });
 
     const confirmDelete = () => {
         if (!deleting) {
@@ -351,7 +376,10 @@ return;
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {vehicles.data.map((vehicle) => (
+                            {vehicles.data.map((row) => {
+                                const vehicle = mergeLiveUpdate(row, liveOverrides[row.id]);
+
+                                return (
                                 <tr key={vehicle.id} className="transition-colors hover:bg-muted/40">
                                     <td className="px-6 py-3">
                                         <Link href={`/vehicles/${vehicle.id}`} className="font-medium text-foreground hover:underline">
@@ -385,7 +413,8 @@ return;
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
 
                             {vehicles.data.length === 0 ? (
                                 <tr>

@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
+import type { CircleMarker as LeafletCircleMarker } from 'leaflet';
 import { Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type {
     CircleMarker as CircleMarkerT,
@@ -10,9 +11,11 @@ import type {
     useMap as useMapT,
 } from 'react-leaflet';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useVehicleLiveUpdates } from '@/hooks/use-vehicle-live-updates';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +31,7 @@ type TrackedVehicle = {
     heading: number | null;
     ignitionOn: boolean | null;
     fuelLevel: number | null;
+    batteryVoltage?: number | null;
     reportedAt: string | null;
 };
 
@@ -50,6 +54,42 @@ const statusColor: Record<Exclude<StatusFilter, 'all'>, string> = {
     idle: '#f59e0b',
     offline: '#9ca3af',
 };
+
+function statusBadge(status: Exclude<StatusFilter, 'all'>) {
+    if (status === 'moving') {
+        return <Badge className="border-transparent bg-brand-green/15 text-brand-green">Moving</Badge>;
+    }
+
+    if (status === 'idle') {
+        return <Badge variant="secondary">Idle</Badge>;
+    }
+
+    return <Badge variant="outline">Offline</Badge>;
+}
+
+function relativeTime(iso: string | null): string {
+    if (!iso) {
+        return '—';
+    }
+
+    const diffMinutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+
+    if (diffMinutes < 1) {
+        return 'just now';
+    }
+
+    if (diffMinutes < 60) {
+        return `${diffMinutes}m ago`;
+    }
+
+    const diffHours = Math.round(diffMinutes / 60);
+
+    if (diffHours < 24) {
+        return `${diffHours}h ago`;
+    }
+
+    return `${Math.round(diffHours / 24)}d ago`;
+}
 
 const LAGOS_CENTER: [number, number] = [6.5244, 3.3792];
 
@@ -78,7 +118,9 @@ export default function LiveTrackingIndex({ vehicles: initialVehicles }: { vehic
     const [vehicles, setVehicles] = useState(initialVehicles);
     const [filter, setFilter] = useState<StatusFilter>('all');
     const [search, setSearch] = useState('');
+    const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
     const [leaflet, setLeaflet] = useState<LeafletComponents | null>(null);
+    const markerRefs = useRef(new Map<number, LeafletCircleMarker>());
 
     useEffect(() => {
         let cancelled = false;
@@ -100,16 +142,9 @@ export default function LiveTrackingIndex({ vehicles: initialVehicles }: { vehic
         };
     }, []);
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            fetch('/live-tracking/positions', { headers: { Accept: 'application/json' } })
-                .then((response) => response.json())
-                .then((data: { vehicles: TrackedVehicle[] }) => setVehicles(data.vehicles))
-                .catch(() => undefined);
-        }, 8000);
-
-        return () => clearInterval(interval);
-    }, []);
+    useVehicleLiveUpdates((update) => {
+        setVehicles((prev) => prev.map((vehicle) => (vehicle.id === update.id ? { ...vehicle, ...update } : vehicle)));
+    });
 
     const statusFiltered = useMemo(
         () => (filter === 'all' ? vehicles : vehicles.filter((vehicle) => vehicleStatus(vehicle) === filter)),
@@ -120,25 +155,58 @@ export default function LiveTrackingIndex({ vehicles: initialVehicles }: { vehic
         const query = search.trim().toLowerCase();
 
         if (!query) {
-return statusFiltered;
-}
+            return statusFiltered;
+        }
 
         return statusFiltered.filter((vehicle) =>
             [vehicle.licensePlate, vehicle.name].filter(Boolean).some((value) => value!.toLowerCase().includes(query)),
         );
     }, [statusFiltered, search]);
 
-    const searchMatch = useMemo(() => {
-        const query = search.trim().toLowerCase();
+    const selectedVehicle = useMemo(
+        () => filtered.find((vehicle) => vehicle.id === selectedVehicleId) ?? null,
+        [filtered, selectedVehicleId],
+    );
 
-        if (!query) {
-return null;
-}
+    const flyToPosition = useMemo<[number, number] | null>(
+        () => (selectedVehicle && selectedVehicle.latitude !== null && selectedVehicle.longitude !== null
+            ? [selectedVehicle.latitude, selectedVehicle.longitude]
+            : null),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [selectedVehicle?.latitude, selectedVehicle?.longitude],
+    );
 
-        const match = filtered.find((vehicle) => vehicle.latitude !== null && vehicle.longitude !== null);
+    // Selecting a vehicle — via row click, or by typing a search that
+    // matches one — happens directly in the triggering event handler
+    // (see the row's onClick and the search input's onChange below) rather
+    // than in an effect, so it's a plain user-driven state update instead
+    // of an effect-driven cascade.
+    function selectFirstSearchMatch(query: string) {
+        const trimmed = query.trim().toLowerCase();
 
-        return match ? ([match.latitude as number, match.longitude as number] as [number, number]) : null;
-    }, [filtered, search]);
+        if (!trimmed) {
+            return;
+        }
+
+        const match = statusFiltered.find(
+            (vehicle) =>
+                vehicle.latitude !== null &&
+                vehicle.longitude !== null &&
+                [vehicle.licensePlate, vehicle.name].filter(Boolean).some((value) => value!.toLowerCase().includes(trimmed)),
+        );
+
+        if (match) {
+            setSelectedVehicleId(match.id);
+        }
+    }
+
+    useEffect(() => {
+        if (selectedVehicleId === null) {
+            return;
+        }
+
+        markerRefs.current.get(selectedVehicleId)?.openPopup();
+    }, [selectedVehicleId, flyToPosition]);
 
     const center: [number, number] =
         filtered.length > 0 && filtered[0].latitude !== null && filtered[0].longitude !== null
@@ -155,7 +223,10 @@ return null;
                         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                selectFirstSearchMatch(e.target.value);
+                            }}
                             placeholder="Search plate or name…"
                             className="pl-9"
                         />
@@ -177,51 +248,94 @@ return null;
                     <span className="ml-auto text-xs text-muted-foreground">{filtered.length} vehicle(s)</span>
                 </div>
 
-                <Card className="min-h-0 flex-1 overflow-hidden p-0">
-                    {leaflet ? (
-                        <leaflet.MapContainer center={center} zoom={12} scrollWheelZoom className="h-full w-full">
-                            <leaflet.TileLayer
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            />
-                            {searchMatch ? <FlyTo leaflet={leaflet} position={searchMatch} /> : null}
-                            {filtered
-                                .filter((vehicle) => vehicle.latitude !== null && vehicle.longitude !== null)
-                                .map((vehicle) => {
+                <div className="flex min-h-0 flex-1 gap-4">
+                    <Card className="hidden w-80 shrink-0 flex-col overflow-hidden p-0 md:flex">
+                        <div className="min-h-0 flex-1 overflow-y-auto">
+                            {filtered.length === 0 ? (
+                                <p className="p-4 text-sm text-muted-foreground">No vehicles match.</p>
+                            ) : (
+                                filtered.map((vehicle) => {
                                     const status = vehicleStatus(vehicle);
 
                                     return (
-                                        <leaflet.CircleMarker
+                                        <button
                                             key={vehicle.id}
-                                            center={[vehicle.latitude as number, vehicle.longitude as number]}
-                                            radius={8}
-                                            pathOptions={{
-                                                color: '#ffffff',
-                                                weight: 2,
-                                                fillColor: statusColor[status],
-                                                fillOpacity: 1,
-                                            }}
+                                            type="button"
+                                            onClick={() => setSelectedVehicleId(vehicle.id)}
+                                            className={cn(
+                                                'flex w-full flex-col gap-1 border-b px-4 py-3 text-left transition-colors hover:bg-muted/50',
+                                                selectedVehicleId === vehicle.id && 'bg-muted',
+                                            )}
                                         >
-                                            <leaflet.Popup>
-                                                <div className="space-y-1 text-sm">
-                                                    <p className="font-semibold">{vehicle.licensePlate ?? vehicle.name}</p>
-                                                    <p className="text-muted-foreground capitalize">{status}</p>
-                                                    <p>Speed: {vehicle.speed !== null ? `${Math.round(vehicle.speed)} km/h` : '—'}</p>
-                                                    <p>Ignition: {vehicle.ignitionOn === null ? '—' : vehicle.ignitionOn ? 'On' : 'Off'}</p>
-                                                    <p>Fuel: {vehicle.fuelLevel !== null ? `${Math.round(vehicle.fuelLevel as number)}%` : '—'}</p>
-                                                    <a href={`/vehicles/${vehicle.id}`} className="text-brand-navy underline dark:text-brand-green">
-                                                        View vehicle
-                                                    </a>
-                                                </div>
-                                            </leaflet.Popup>
-                                        </leaflet.CircleMarker>
+                                            <div className="flex items-center gap-2">
+                                                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: statusColor[status] }} />
+                                                <span className="truncate text-sm font-medium">{vehicle.licensePlate ?? vehicle.name ?? `Vehicle #${vehicle.id}`}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between pl-4">
+                                                <span className="text-xs text-muted-foreground">{relativeTime(vehicle.reportedAt)}</span>
+                                                {statusBadge(status)}
+                                            </div>
+                                        </button>
                                     );
-                                })}
-                        </leaflet.MapContainer>
-                    ) : (
-                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading map…</div>
-                    )}
-                </Card>
+                                })
+                            )}
+                        </div>
+                    </Card>
+
+                    <Card className="min-h-0 flex-1 overflow-hidden p-0">
+                        {leaflet ? (
+                            <leaflet.MapContainer center={center} zoom={12} scrollWheelZoom className="h-full w-full">
+                                <leaflet.TileLayer
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                />
+                                {flyToPosition ? <FlyTo leaflet={leaflet} position={flyToPosition} /> : null}
+                                {filtered
+                                    .filter((vehicle) => vehicle.latitude !== null && vehicle.longitude !== null)
+                                    .map((vehicle) => {
+                                        const status = vehicleStatus(vehicle);
+
+                                        return (
+                                            <leaflet.CircleMarker
+                                                key={vehicle.id}
+                                                ref={(marker) => {
+                                                    if (marker) {
+                                                        markerRefs.current.set(vehicle.id, marker);
+                                                    } else {
+                                                        markerRefs.current.delete(vehicle.id);
+                                                    }
+                                                }}
+                                                center={[vehicle.latitude as number, vehicle.longitude as number]}
+                                                radius={8}
+                                                pathOptions={{
+                                                    color: '#ffffff',
+                                                    weight: 2,
+                                                    fillColor: statusColor[status],
+                                                    fillOpacity: 1,
+                                                }}
+                                                eventHandlers={{ click: () => setSelectedVehicleId(vehicle.id) }}
+                                            >
+                                                <leaflet.Popup>
+                                                    <div className="space-y-1 text-sm">
+                                                        <p className="font-semibold">{vehicle.licensePlate ?? vehicle.name}</p>
+                                                        <p className="text-muted-foreground capitalize">{status}</p>
+                                                        <p>Speed: {vehicle.speed !== null ? `${Math.round(vehicle.speed)} km/h` : '—'}</p>
+                                                        <p>Ignition: {vehicle.ignitionOn === null ? '—' : vehicle.ignitionOn ? 'On' : 'Off'}</p>
+                                                        <p>Fuel: {vehicle.fuelLevel !== null ? `${Math.round(vehicle.fuelLevel as number)}%` : '—'}</p>
+                                                        <a href={`/vehicles/${vehicle.id}`} className="text-brand-navy underline dark:text-brand-green">
+                                                            View vehicle
+                                                        </a>
+                                                    </div>
+                                                </leaflet.Popup>
+                                            </leaflet.CircleMarker>
+                                        );
+                                    })}
+                            </leaflet.MapContainer>
+                        ) : (
+                            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Loading map…</div>
+                        )}
+                    </Card>
+                </div>
             </div>
         </CompanyLayout>
     );
