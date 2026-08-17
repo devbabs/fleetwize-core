@@ -88,6 +88,7 @@ type VehicleDetail = {
     } | null;
     trips: Trip[];
     faults: Fault[];
+    alarms: Fault[];
     documents: VehicleDocument[];
     serviceEntries: ServiceEntry[];
     issues: Issue[];
@@ -130,6 +131,17 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
             },
         }));
     });
+
+    // Faults (manual OBD workshop scans) and alarms (live tracker events)
+    // are separate underlying tables — their ids can collide, so tag each
+    // with its source for a stable key before merging into one list of
+    // "something's open for this vehicle".
+    const openAlerts = [
+        ...vehicle.faults.map((fault) => ({ ...fault, key: `fault-${fault.id}` })),
+        ...vehicle.alarms.map((alarm) => ({ ...alarm, key: `alarm-${alarm.id}` })),
+    ]
+        .filter((alert) => !alert.clearedAt)
+        .sort((a, b) => (b.logTime ?? '').localeCompare(a.logTime ?? ''));
 
     return (
         <CompanyLayout title={vehicle.licensePlate ?? 'Vehicle'}>
@@ -215,21 +227,19 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                             <CardTitle>Open Alerts</CardTitle>
                         </CardHeader>
                         <CardContent className="px-0">
-                            {vehicle.faults.filter((f) => !f.clearedAt).length === 0 ? (
+                            {openAlerts.length === 0 ? (
                                 <p className="px-6 text-sm text-muted-foreground">No open alerts.</p>
                             ) : (
                                 <div className="divide-y divide-border">
-                                    {vehicle.faults
-                                        .filter((f) => !f.clearedAt)
-                                        .map((fault) => (
-                                            <div key={fault.id} className="flex items-center justify-between px-6 py-3">
-                                                <div>
-                                                    <p className="text-sm font-medium text-foreground">{fault.code}</p>
-                                                    <p className="text-xs text-muted-foreground">{fault.meaning}</p>
-                                                </div>
-                                                <span className="text-xs text-muted-foreground">{formatDateTime(fault.logTime)}</span>
+                                    {openAlerts.map((alert) => (
+                                        <div key={alert.key} className="flex items-center justify-between px-6 py-3">
+                                            <div>
+                                                <p className="text-sm font-medium text-foreground">{alert.code}</p>
+                                                <p className="text-xs text-muted-foreground">{alert.meaning}</p>
                                             </div>
-                                        ))}
+                                            <span className="text-xs text-muted-foreground">{formatDateTime(alert.logTime)}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </CardContent>
