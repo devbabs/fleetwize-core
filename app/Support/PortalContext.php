@@ -30,11 +30,8 @@ class PortalContext
             return $none;
         }
 
-        $tenantDomain = config('fleetwize.tenant_domain');
-        $host = $request->getHost();
-        $onCompanySubdomain = $host !== $tenantDomain && str_ends_with($host, ".{$tenantDomain}");
-
-        if ($onCompanySubdomain) {
+        if (self::isCompanySubdomain($request)) {
+            $host = $request->getHost();
             $companySlug = explode('.', $host)[0];
             $companyUser = $user->companyUser;
 
@@ -60,5 +57,23 @@ class PortalContext
         }
 
         return $none;
+    }
+
+    /**
+     * True only for a genuine {company_slug}.{tenant_domain} host. app_host
+     * (app.fleetwize.io) is itself a subdomain of tenant_domain but is the
+     * main app's own non-tenant host — excluding it explicitly here is what
+     * stops the super-admin/agent logging in there from being misidentified
+     * as a company user with no matching company (see LoginResponse, which
+     * shares this same check rather than keeping its own copy).
+     */
+    public static function isCompanySubdomain(Request $request): bool
+    {
+        $host = $request->getHost();
+        $tenantDomain = config('fleetwize.tenant_domain');
+
+        return $host !== $tenantDomain
+            && $host !== config('fleetwize.app_host')
+            && str_ends_with($host, ".{$tenantDomain}");
     }
 }

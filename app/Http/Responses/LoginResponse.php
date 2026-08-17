@@ -42,19 +42,11 @@ class LoginResponse implements LoginResponseContract
             'admin' => '/admin/dashboard',
             default => $this->denyAndRedirectToLogin(
                 $request,
-                $this->onCompanySubdomain($request)
+                PortalContext::isCompanySubdomain($request)
                     ? 'Your account does not have access to this company portal.'
                     : 'This account does not have access to the web dashboard.',
             ),
         };
-    }
-
-    protected function onCompanySubdomain(Request $request): bool
-    {
-        $tenantDomain = config('fleetwize.tenant_domain');
-        $host = $request->getHost();
-
-        return $host !== $tenantDomain && str_ends_with($host, ".{$tenantDomain}");
     }
 
     protected function denyAndRedirectToLogin(Request $request, string $message): string

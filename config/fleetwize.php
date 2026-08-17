@@ -29,9 +29,16 @@ return [
     | with slug "acme" is served at "acme.{tenant_domain}". See
     | routes/company.php and App\Http\Middleware\EnsureCompanyTenant.
     |
+    | `app_host` is the main app's own non-tenant host (admin/agent portals,
+    | shared /settings routes) — it's itself a subdomain of tenant_domain
+    | (app.fleetwize.io vs. fleetwize.io), so it must be excluded explicitly
+    | wherever "is this a company subdomain" is decided (App\Support\PortalContext),
+    | or the super-admin logging in there gets misidentified as a company user.
+    |
     */
 
     'tenant_domain' => env('TENANT_DOMAIN', 'fleetwize.test'),
+    'app_host' => env('APP_HOST', 'app.fleetwize.test'),
 
     /*
     |--------------------------------------------------------------------------
