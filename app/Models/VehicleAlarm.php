@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property numeric|null $latitude
  * @property numeric|null $longitude
  * @property CarbonImmutable|null $gps_time
+ * @property CarbonImmutable|null $acknowledged_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property-read Vehicle|null $vehicle
@@ -40,13 +41,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @mixin \Eloquent
  */
-#[Fillable(['obd_device_id', 'alarm_id', 'alarm_type', 'alarm_description', 'description', 'latitude', 'longitude', 'gps_time'])]
+#[Fillable(['vehicle_id', 'obd_device_id', 'alarm_id', 'alarm_type', 'alarm_description', 'description', 'latitude', 'longitude', 'gps_time', 'acknowledged_at'])]
 class VehicleAlarm extends Model
 {
+    /**
+     * High/medium/low severity tiers, matching the badge tiers the Alarms
+     * & Alerts page already renders. Genuine `alarm`-type events (Traccar's
+     * own alarm taxonomy, e.g. sos/tamper/powerCut in attributes.alarm) are
+     * the only ones that warrant "high" — everything else here is a routine
+     * status transition, not something urgent.
+     */
+    private const HIGH_SEVERITY_ALARMS = ['sos', 'tamper', 'powerCut'];
+
     protected function casts(): array
     {
         return [
             'gps_time' => 'datetime',
+            'acknowledged_at' => 'datetime',
         ];
     }
 
@@ -56,5 +67,22 @@ class VehicleAlarm extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    /**
+     * Derived, not stored — a pure function of alarm_type/alarm_description,
+     * so retuning the tier mapping never needs a backfill.
+     */
+    public function severity(): int
+    {
+        if ($this->alarm_type === 'alarm') {
+            return in_array($this->alarm_description, self::HIGH_SEVERITY_ALARMS, true) ? 4 : 2;
+        }
+
+        if ($this->alarm_type === 'deviceOffline') {
+            return 2;
+        }
+
+        return 1;
     }
 }

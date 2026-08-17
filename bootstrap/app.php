@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\SyncVehicleTrips;
 use App\Http\Middleware\EnsureCompanyTenant;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsAgent;
@@ -7,6 +8,7 @@ use App\Http\Middleware\EnsureValidTrackerWebhookSecret;
 use App\Http\Middleware\EnsureWorkshopTenant;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -45,6 +47,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'company-workshop' => EnsureWorkshopTenant::class,
             'tracker-webhook-secret' => EnsureValidTrackerWebhookSecret::class,
         ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command(SyncVehicleTrips::class)->everyFifteenMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

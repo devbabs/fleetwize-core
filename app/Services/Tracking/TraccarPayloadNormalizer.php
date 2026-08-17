@@ -39,4 +39,33 @@ class TraccarPayloadNormalizer
 
         return is_string($uniqueId) && $uniqueId !== '' ? $uniqueId : null;
     }
+
+    /**
+     * Map a Traccar "event" + "device" payload (from event.forward, a
+     * separate mechanism from position forward) to the columns on
+     * VehicleAlarm. Field names follow Traccar's documented Event model
+     * (id, type, eventTime, attributes) — unlike normalize() above, this
+     * hasn't yet been checked against a real captured payload; verify
+     * during rollout (temporary logging in the webhook controller) and
+     * correct here if any field turns out to be named/nested differently.
+     * Traccar events reference a positionId rather than carrying lat/lng
+     * inline, so those are left null unless a real payload shows otherwise.
+     *
+     * @param  array<string, mixed>  $event
+     * @param  array<string, mixed>  $device
+     * @return array<string, mixed>
+     */
+    public static function normalizeEvent(array $event, array $device): array
+    {
+        $attributes = $event['attributes'] ?? [];
+        $type = $event['type'] ?? null;
+
+        return [
+            'obd_device_id' => isset($device['id']) ? (string) $device['id'] : null,
+            'alarm_id' => isset($event['id']) ? (string) $event['id'] : null,
+            'alarm_type' => $type,
+            'alarm_description' => $attributes['alarm'] ?? $type,
+            'gps_time' => $event['eventTime'] ?? null,
+        ];
+    }
 }

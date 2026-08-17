@@ -17,3 +17,10 @@ use Illuminate\Support\Facades\Route;
 Route::post('webhooks/traccar/position', [TrackerWebhookController::class, 'position'])
     ->middleware(['throttle:120,1', 'tracker-webhook-secret'])
     ->name('webhooks.traccar.position');
+
+// Traccar's event.forward — a separate mechanism from position forward
+// (forward.url), configured independently in traccar.xml. Same secret,
+// same middleware — it only checks the header, not the payload shape.
+Route::post('webhooks/traccar/event', [TrackerWebhookController::class, 'event'])
+    ->middleware(['throttle:120,1', 'tracker-webhook-secret'])
+    ->name('webhooks.traccar.event');

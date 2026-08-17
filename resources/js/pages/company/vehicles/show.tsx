@@ -3,7 +3,9 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useVehicleLiveUpdates } from '@/hooks/use-vehicle-live-updates';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { cn } from '@/lib/utils';
@@ -16,6 +18,16 @@ type Trip = {
     averageSpeed: number | null;
     maxSpeed: number | null;
     fuelConsumed: number | null;
+    startOdometer: number | null;
+    endOdometer: number | null;
+    startLatitude: number | null;
+    startLongitude: number | null;
+    endLatitude: number | null;
+    endLongitude: number | null;
+    startAddress: string | null;
+    endAddress: string | null;
+    driverUniqueId: string | null;
+    driverName: string | null;
 };
 
 type Fault = {
@@ -95,6 +107,7 @@ return '—';
 export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: VehicleDetail }) {
     const [tab, setTab] = useState<Tab>('Overview');
     const [vehicle, setVehicle] = useState(initialVehicle);
+    const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
     // The channel carries every vehicle in the company — filter to this one.
     useVehicleLiveUpdates((update) => {
@@ -231,16 +244,21 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                             <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
                                 <tr>
                                     <th className="px-6 py-3 font-medium">Start</th>
+                                    <th className="px-6 py-3 font-medium">Route</th>
                                     <th className="px-6 py-3 font-medium">Distance</th>
                                     <th className="px-6 py-3 font-medium">Avg Speed</th>
                                     <th className="px-6 py-3 font-medium">Max Speed</th>
                                     <th className="px-6 py-3 font-medium">Fuel Used</th>
+                                    <th className="px-6 py-3 font-medium"></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {vehicle.trips.map((trip) => (
                                     <tr key={trip.id}>
                                         <td className="px-6 py-3 text-foreground">{formatDateTime(trip.startTime)}</td>
+                                        <td className="max-w-xs truncate px-6 py-3 text-muted-foreground">
+                                            {trip.startAddress || trip.endAddress ? `${trip.startAddress ?? '—'} → ${trip.endAddress ?? '—'}` : '—'}
+                                        </td>
                                         <td className="px-6 py-3 text-muted-foreground">
                                             {trip.distanceKm !== null ? `${trip.distanceKm.toFixed(1)} km` : '—'}
                                         </td>
@@ -253,11 +271,16 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                         <td className="px-6 py-3 text-muted-foreground">
                                             {trip.fuelConsumed !== null ? `${trip.fuelConsumed.toFixed(1)} L` : '—'}
                                         </td>
+                                        <td className="px-6 py-3 text-right">
+                                            <Button size="sm" variant="outline" onClick={() => setSelectedTrip(trip)}>
+                                                Details
+                                            </Button>
+                                        </td>
                                     </tr>
                                 ))}
                                 {vehicle.trips.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
+                                        <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
                                             No trips recorded yet.
                                         </td>
                                     </tr>
@@ -267,6 +290,70 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                     </div>
                 </Card>
             ) : null}
+
+            <Dialog open={!!selectedTrip} onOpenChange={(open) => !open && setSelectedTrip(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Trip details</DialogTitle>
+                    </DialogHeader>
+                    {selectedTrip ? (
+                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">Start time</dt>
+                                <dd className="text-foreground">{formatDateTime(selectedTrip.startTime)}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">End time</dt>
+                                <dd className="text-foreground">{formatDateTime(selectedTrip.endTime)}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">Start address</dt>
+                                <dd className="text-foreground">{selectedTrip.startAddress ?? '—'}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">End address</dt>
+                                <dd className="text-foreground">{selectedTrip.endAddress ?? '—'}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">Start coordinates</dt>
+                                <dd className="text-foreground">
+                                    {selectedTrip.startLatitude !== null && selectedTrip.startLongitude !== null
+                                        ? `${selectedTrip.startLatitude.toFixed(5)}, ${selectedTrip.startLongitude.toFixed(5)}`
+                                        : '—'}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">End coordinates</dt>
+                                <dd className="text-foreground">
+                                    {selectedTrip.endLatitude !== null && selectedTrip.endLongitude !== null
+                                        ? `${selectedTrip.endLatitude.toFixed(5)}, ${selectedTrip.endLongitude.toFixed(5)}`
+                                        : '—'}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">Start odometer</dt>
+                                <dd className="text-foreground">
+                                    {selectedTrip.startOdometer !== null ? `${selectedTrip.startOdometer.toLocaleString()} km` : '—'}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">End odometer</dt>
+                                <dd className="text-foreground">
+                                    {selectedTrip.endOdometer !== null ? `${selectedTrip.endOdometer.toLocaleString()} km` : '—'}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">Driver</dt>
+                                <dd className="text-foreground">{selectedTrip.driverName ?? '—'}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground uppercase">Driver ID</dt>
+                                <dd className="text-foreground">{selectedTrip.driverUniqueId ?? '—'}</dd>
+                            </div>
+                        </dl>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
 
             {tab === 'Maintenance' ? (
                 <Card className="overflow-hidden py-0">

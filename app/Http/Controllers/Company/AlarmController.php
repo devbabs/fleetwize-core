@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Company\Concerns\ResolvesCompany;
 use App\Http\Controllers\Controller;
-use App\Models\VehicleFault;
+use App\Models\VehicleAlarm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,21 +19,21 @@ class AlarmController extends Controller
         $company = $this->currentCompany($request);
         $vehicleIds = $company->vehicles()->pluck('id');
 
-        $faults = VehicleFault::query()
+        $faults = VehicleAlarm::query()
             ->whereIn('vehicle_id', $vehicleIds)
             ->with('vehicle:id,license_plate,make,model')
-            ->latest('log_time')
+            ->latest('gps_time')
             ->paginate(20)
             ->withQueryString()
-            ->through(fn (VehicleFault $fault) => [
-                'id' => $fault->id,
-                'vehicle' => $fault->vehicle->license_plate ?? '—',
-                'vehicleId' => $fault->vehicle_id,
-                'code' => $fault->obd_code,
-                'meaning' => $fault->meaning,
-                'severity' => $fault->severity,
-                'logTime' => $fault->log_time?->toIso8601String(),
-                'clearedAt' => $fault->cleared_at?->toIso8601String(),
+            ->through(fn (VehicleAlarm $alarm) => [
+                'id' => $alarm->id,
+                'vehicle' => $alarm->vehicle->license_plate ?? '—',
+                'vehicleId' => $alarm->vehicle_id,
+                'code' => $alarm->alarm_type,
+                'meaning' => $alarm->alarm_description ?? $alarm->description,
+                'severity' => $alarm->severity(),
+                'logTime' => $alarm->gps_time?->toIso8601String(),
+                'clearedAt' => $alarm->acknowledged_at?->toIso8601String(),
             ]);
 
         return Inertia::render('company/alarms/index', [
@@ -46,12 +46,12 @@ class AlarmController extends Controller
         $company = $this->currentCompany($request);
         $vehicleIds = $company->vehicles()->pluck('id');
 
-        $fault = VehicleFault::query()
+        $alarm = VehicleAlarm::query()
             ->whereIn('vehicle_id', $vehicleIds)
             ->findOrFail((string) $request->route('fault'));
 
-        $fault->cleared_at = now();
-        $fault->save();
+        $alarm->acknowledged_at = now();
+        $alarm->save();
 
         return back();
     }

@@ -4,6 +4,7 @@ namespace App\Services\Tracking;
 
 use App\Models\Vehicle;
 use App\Models\VehicleTrackerState;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
@@ -80,6 +81,29 @@ class TraccarService
             ['vehicle_id' => $vehicle->id],
             TraccarPayloadNormalizer::normalize($position, $device),
         );
+    }
+
+    /**
+     * Traccar's own pre-computed trip aggregates for a device over a window
+     * — reused rather than building our own trip-boundary detection from
+     * the raw position stream. Note: if this ever comes back empty for a
+     * device with no owning Traccar user (the same gotcha findDeviceByImei/
+     * latestPosition had), try adding ['all' => 'true'] here too — untested,
+     * since /api/reports/trips takes a required deviceId and may authorize
+     * differently than the list endpoints did.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function tripsForDevice(int $deviceId, CarbonInterface $from, CarbonInterface $to): array
+    {
+        return $this->client()
+            ->get('/api/reports/trips', [
+                'deviceId' => $deviceId,
+                'from' => $from->toIso8601String(),
+                'to' => $to->toIso8601String(),
+            ])
+            ->throw()
+            ->json() ?? [];
     }
 
     /**

@@ -28,6 +28,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $trip_date
  * @property CarbonImmutable|null $start_time
  * @property CarbonImmutable|null $end_time
+ * @property float|null $start_odometer
+ * @property float|null $end_odometer
+ * @property numeric|null $start_latitude
+ * @property numeric|null $start_longitude
+ * @property numeric|null $end_latitude
+ * @property numeric|null $end_longitude
+ * @property string|null $start_address
+ * @property string|null $end_address
+ * @property string|null $driver_unique_id
+ * @property string|null $driver_name
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  * @property-read Vehicle|null $vehicle
@@ -64,7 +74,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'obd_device_id', 'fuel_consumed', 'distance_km', 'max_speed_km_per_hr', 'brake_times',
     'emergency_brake_times', 'speed_up_times', 'emergency_speed_up_times', 'average_speed_km_per_hr',
     'max_temperature_celsius', 'max_engine_rpm', 'js_type', 'drive_time_seconds', 'idling_time_seconds',
-    'trip_date', 'start_time', 'end_time',
+    'trip_date', 'start_time', 'end_time', 'start_odometer', 'end_odometer', 'start_latitude',
+    'start_longitude', 'end_latitude', 'end_longitude', 'start_address', 'end_address',
+    'driver_unique_id', 'driver_name',
 ])]
 class VehicleTrip extends Model
 {
