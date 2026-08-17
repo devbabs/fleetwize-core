@@ -71,7 +71,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @mixin \Eloquent
  */
 #[Fillable([
-    'obd_device_id', 'fuel_consumed', 'distance_km', 'max_speed_km_per_hr', 'brake_times',
+    'vehicle_id', 'obd_device_id', 'fuel_consumed', 'distance_km', 'max_speed_km_per_hr', 'brake_times',
     'emergency_brake_times', 'speed_up_times', 'emergency_speed_up_times', 'average_speed_km_per_hr',
     'max_temperature_celsius', 'max_engine_rpm', 'js_type', 'drive_time_seconds', 'idling_time_seconds',
     'trip_date', 'start_time', 'end_time', 'start_odometer', 'end_odometer', 'start_latitude',
