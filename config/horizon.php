@@ -215,7 +215,12 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 10,
+                // Capped for the current VPS's 1.9GB RAM — 10 workers x the
+                // 128MB per-worker memory ceiling above would allow Horizon
+                // alone to claim up to ~1.3GB, well past what this box can
+                // spare alongside Traccar/MySQL/Postgres/PHP-FPM. 3 is still
+                // 3x today's actual concurrency (a single pilot vehicle).
+                'maxProcesses' => 3,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
