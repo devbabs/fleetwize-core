@@ -86,6 +86,12 @@ class VehicleTrip extends Model
             'trip_date' => 'date',
             'start_time' => 'datetime',
             'end_time' => 'datetime',
+            'start_odometer' => 'float',
+            'end_odometer' => 'float',
+            'start_latitude' => 'float',
+            'start_longitude' => 'float',
+            'end_latitude' => 'float',
+            'end_longitude' => 'float',
         ];
     }
 
