@@ -27,6 +27,16 @@ class TraccarPayloadNormalizer
             'fuel_level' => $attributes['fuel'] ?? null,
             'reported_at' => $position['fixTime'] ?? null,
             'raw_payload' => ['position' => $position, 'device' => $device],
+            'engine_rpm' => $attributes['rpm'] ?? null,
+            'engine_load' => $attributes['engineLoad'] ?? null,
+            'obd_speed' => $attributes['obdSpeed'] ?? null, // OBD PID 0x0D, already km/h — no conversion needed
+            'is_moving' => $attributes['motion'] ?? null,
+            'battery_level' => $attributes['batteryLevel'] ?? null,
+            'satellite_count' => $attributes['sat'] ?? null,
+            'signal_strength' => $attributes['rssi'] ?? null,
+            'engine_hours' => $attributes['hours'] ?? null,
+            'is_blocked' => $attributes['blocked'] ?? null,
+            'is_charging' => $attributes['charge'] ?? null,
         ];
     }
 

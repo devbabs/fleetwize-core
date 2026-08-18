@@ -19,6 +19,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool|null $ignition_on
  * @property float|null $battery_voltage
  * @property float|null $fuel_level
+ * @property int|null $engine_rpm
+ * @property float|null $engine_load
+ * @property float|null $obd_speed
+ * @property bool|null $is_moving
+ * @property float|null $battery_level
+ * @property int|null $satellite_count
+ * @property int|null $signal_strength
+ * @property float|null $engine_hours
+ * @property bool|null $is_blocked
+ * @property bool|null $is_charging
  * @property CarbonImmutable|null $reported_at
  * @property array<array-key, mixed>|null $raw_payload
  * @property CarbonImmutable|null $created_at
@@ -44,7 +54,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @mixin \Eloquent
  */
-#[Fillable(['vehicle_id', 'latitude', 'longitude', 'speed', 'heading', 'ignition_on', 'battery_voltage', 'fuel_level', 'reported_at', 'raw_payload'])]
+#[Fillable([
+    'vehicle_id', 'latitude', 'longitude', 'speed', 'heading', 'ignition_on', 'battery_voltage',
+    'fuel_level', 'reported_at', 'raw_payload', 'engine_rpm', 'engine_load', 'obd_speed', 'is_moving',
+    'battery_level', 'satellite_count', 'signal_strength', 'engine_hours', 'is_blocked', 'is_charging',
+])]
 class VehicleTrackerState extends Model
 {
     protected function casts(): array
@@ -59,6 +73,16 @@ class VehicleTrackerState extends Model
             'fuel_level' => 'float',
             'reported_at' => 'datetime',
             'raw_payload' => 'array',
+            'engine_rpm' => 'integer',
+            'engine_load' => 'float',
+            'obd_speed' => 'float',
+            'is_moving' => 'boolean',
+            'battery_level' => 'float',
+            'satellite_count' => 'integer',
+            'signal_strength' => 'integer',
+            'engine_hours' => 'float',
+            'is_blocked' => 'boolean',
+            'is_charging' => 'boolean',
         ];
     }
 

@@ -20,6 +20,16 @@ export type VehicleLiveUpdate = {
     fuelLevel: number | null;
     batteryVoltage: number | null;
     reportedAt: string | null;
+    engineRpm: number | null;
+    engineLoad: number | null;
+    obdSpeed: number | null;
+    isMoving: boolean | null;
+    batteryLevel: number | null;
+    satelliteCount: number | null;
+    signalStrength: number | null;
+    engineHours: number | null;
+    isBlocked: boolean | null;
+    isCharging: boolean | null;
 };
 
 /**

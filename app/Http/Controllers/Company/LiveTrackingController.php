@@ -44,6 +44,16 @@ class LiveTrackingController extends Controller
                 'ignitionOn' => $vehicle->trackerState?->ignition_on,
                 'fuelLevel' => $vehicle->trackerState?->fuel_level,
                 'reportedAt' => $vehicle->trackerState?->reported_at?->toIso8601String(),
+                'engineRpm' => $vehicle->trackerState?->engine_rpm,
+                'engineLoad' => $vehicle->trackerState?->engine_load,
+                'obdSpeed' => $vehicle->trackerState?->obd_speed,
+                'isMoving' => $vehicle->trackerState?->is_moving,
+                'batteryLevel' => $vehicle->trackerState?->battery_level,
+                'satelliteCount' => $vehicle->trackerState?->satellite_count,
+                'signalStrength' => $vehicle->trackerState?->signal_strength,
+                'engineHours' => $vehicle->trackerState?->engine_hours,
+                'isBlocked' => $vehicle->trackerState?->is_blocked,
+                'isCharging' => $vehicle->trackerState?->is_charging,
             ])
             ->filter(fn (array $vehicle) => $vehicle['latitude'] !== null && $vehicle['longitude'] !== null)
             ->values();

@@ -85,6 +85,16 @@ type VehicleDetail = {
         fuelLevel: number | null;
         batteryVoltage: number | null;
         reportedAt: string | null;
+        engineRpm: number | null;
+        engineLoad: number | null;
+        obdSpeed: number | null;
+        isMoving: boolean | null;
+        batteryLevel: number | null;
+        satelliteCount: number | null;
+        signalStrength: number | null;
+        engineHours: number | null;
+        isBlocked: boolean | null;
+        isCharging: boolean | null;
     } | null;
     trips: Trip[];
     faults: Fault[];
@@ -128,6 +138,16 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 fuelLevel: update.fuelLevel,
                 batteryVoltage: update.batteryVoltage,
                 reportedAt: update.reportedAt,
+                engineRpm: update.engineRpm,
+                engineLoad: update.engineLoad,
+                obdSpeed: update.obdSpeed,
+                isMoving: update.isMoving,
+                batteryLevel: update.batteryLevel,
+                satelliteCount: update.satelliteCount,
+                signalStrength: update.signalStrength,
+                engineHours: update.engineHours,
+                isBlocked: update.isBlocked,
+                isCharging: update.isCharging,
             },
         }));
     });
@@ -219,6 +239,129 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm font-medium text-foreground">{formatDateTime(vehicle.liveState?.reportedAt ?? null)}</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Engine RPM</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.engineRpm !== null && vehicle.liveState?.engineRpm !== undefined
+                                    ? vehicle.liveState.engineRpm.toLocaleString()
+                                    : '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Engine Load</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.engineLoad !== null && vehicle.liveState?.engineLoad !== undefined
+                                    ? `${Math.round(vehicle.liveState.engineLoad)}%`
+                                    : '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">OBD Speed</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.obdSpeed !== null && vehicle.liveState?.obdSpeed !== undefined
+                                    ? `${Math.round(vehicle.liveState.obdSpeed)} km/h`
+                                    : '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Motion</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.isMoving === null || vehicle.liveState?.isMoving === undefined
+                                    ? '—'
+                                    : vehicle.liveState.isMoving
+                                      ? 'Moving'
+                                      : 'Stationary'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Battery Level</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.batteryLevel !== null && vehicle.liveState?.batteryLevel !== undefined
+                                    ? `${Math.round(vehicle.liveState.batteryLevel)}%`
+                                    : '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Satellites</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.satelliteCount ?? '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Signal Strength</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.signalStrength ?? '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Engine Hours</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.engineHours !== null && vehicle.liveState?.engineHours !== undefined
+                                    ? vehicle.liveState.engineHours.toLocaleString()
+                                    : '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Immobilizer</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.isBlocked === null || vehicle.liveState?.isBlocked === undefined
+                                    ? '—'
+                                    : vehicle.liveState.isBlocked
+                                      ? 'Blocked'
+                                      : 'Clear'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Charging</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.isCharging === null || vehicle.liveState?.isCharging === undefined
+                                    ? '—'
+                                    : vehicle.liveState.isCharging
+                                      ? 'Charging'
+                                      : 'Not charging'}
+                            </p>
                         </CardContent>
                     </Card>
 

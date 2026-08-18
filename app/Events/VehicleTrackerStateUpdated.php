@@ -59,6 +59,16 @@ class VehicleTrackerStateUpdated implements ShouldBroadcastNow
             'fuelLevel' => $this->trackerState->fuel_level,
             'batteryVoltage' => $this->trackerState->battery_voltage,
             'reportedAt' => $this->trackerState->reported_at?->toIso8601String(),
+            'engineRpm' => $this->trackerState->engine_rpm,
+            'engineLoad' => $this->trackerState->engine_load,
+            'obdSpeed' => $this->trackerState->obd_speed,
+            'isMoving' => $this->trackerState->is_moving,
+            'batteryLevel' => $this->trackerState->battery_level,
+            'satelliteCount' => $this->trackerState->satellite_count,
+            'signalStrength' => $this->trackerState->signal_strength,
+            'engineHours' => $this->trackerState->engine_hours,
+            'isBlocked' => $this->trackerState->is_blocked,
+            'isCharging' => $this->trackerState->is_charging,
         ];
     }
 }
