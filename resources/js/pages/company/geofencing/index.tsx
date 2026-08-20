@@ -85,47 +85,68 @@ function DrawControl({ leaflet, onCreated }: { leaflet: LeafletBag; onCreated: (
         // loosely typed here rather than depending on that.
         const draw = leaflet.L as any;
 
-        const drawnItems = new draw.FeatureGroup();
-        map.addLayer(drawnItems);
+        // leaflet-draw is an unmaintained legacy plugin that's already
+        // surfaced two separate integration quirks (a missing global, a
+        // z-index conflict) — if it throws here for some other reason,
+        // the map should still render without the draw toolbar rather
+        // than taking the whole page down with it.
+        let drawnItems: any;
+        let control: any;
+        let handleCreated: ((e: any) => void) | null = null;
 
-        const control = new draw.Control.Draw({
-            position: 'topright',
-            draw: {
-                circle: { shapeOptions: { color: '#2f6f4f' } },
-                polygon: { shapeOptions: { color: '#2f6f4f' }, allowIntersection: false },
-                polyline: false,
-                rectangle: false,
-                marker: false,
-                circlemarker: false,
-            },
-            edit: false,
-        });
-        map.addControl(control);
+        try {
+            drawnItems = new draw.FeatureGroup();
+            map.addLayer(drawnItems);
 
-        const handleCreated = (e: any) => {
-            if (e.layerType === 'circle') {
-                const center = e.layer.getLatLng();
-                onCreated({
-                    shape: 'circle',
-                    centerLatitude: center.lat,
-                    centerLongitude: center.lng,
-                    radiusMeters: e.layer.getRadius(),
-                    polygon: null,
-                });
-            } else if (e.layerType === 'polygon') {
-                const points: [number, number][] = e.layer
-                    .getLatLngs()[0]
-                    .map((p: { lat: number; lng: number }) => [p.lat, p.lng]);
-                onCreated({ shape: 'polygon', centerLatitude: null, centerLongitude: null, radiusMeters: null, polygon: points });
-            }
-        };
+            control = new draw.Control.Draw({
+                position: 'topright',
+                draw: {
+                    circle: { shapeOptions: { color: '#2f6f4f' } },
+                    polygon: { shapeOptions: { color: '#2f6f4f' }, allowIntersection: false },
+                    polyline: false,
+                    rectangle: false,
+                    marker: false,
+                    circlemarker: false,
+                },
+                edit: false,
+            });
+            map.addControl(control);
 
-        map.on(draw.Draw.Event.CREATED, handleCreated);
+            handleCreated = (e: any) => {
+                if (e.layerType === 'circle') {
+                    const center = e.layer.getLatLng();
+                    onCreated({
+                        shape: 'circle',
+                        centerLatitude: center.lat,
+                        centerLongitude: center.lng,
+                        radiusMeters: e.layer.getRadius(),
+                        polygon: null,
+                    });
+                } else if (e.layerType === 'polygon') {
+                    const points: [number, number][] = e.layer
+                        .getLatLngs()[0]
+                        .map((p: { lat: number; lng: number }) => [p.lat, p.lng]);
+                    onCreated({ shape: 'polygon', centerLatitude: null, centerLongitude: null, radiusMeters: null, polygon: points });
+                }
+            };
+
+            map.on(draw.Draw.Event.CREATED, handleCreated);
+        } catch (error) {
+            console.error('Failed to initialize the geofence draw toolbar.', error);
+        }
 
         return () => {
-            map.off(draw.Draw.Event.CREATED, handleCreated);
-            map.removeControl(control);
-            map.removeLayer(drawnItems);
+            if (handleCreated) {
+                map.off(draw.Draw.Event.CREATED, handleCreated);
+            }
+
+            if (control) {
+                map.removeControl(control);
+            }
+
+            if (drawnItems) {
+                map.removeLayer(drawnItems);
+            }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -359,6 +380,46 @@ function EditGeofenceDialog({
 
 type ReferenceVehicle = { id: number; label: string; latitude: number; longitude: number };
 
+// Loaded once per browser session, not once per mount. leaflet-draw
+// registers a Leaflet map-level init hook the first (and only) time its
+// module body runs, which then fires again for every subsequent `new
+// L.Map()` — including one created after navigating away from this page
+// and back via Inertia's client-side routing, without a full reload. A
+// per-mount effect re-running this whole sequence was the likely source
+// of that inconsistency; a single shared promise guarantees the
+// window.L assignment and leaflet-draw's patching only ever happen once.
+let leafletBagPromise: Promise<LeafletBag> | null = null;
+
+function loadLeafletBag(): Promise<LeafletBag> {
+    leafletBagPromise ??= (async () => {
+        const leafletModule = await import('leaflet');
+
+        // leaflet-draw is a legacy UMD plugin: it expects a global `L` to
+        // already exist and patches Control.Draw/Draw.Event onto it
+        // directly, rather than importing leaflet itself as an ES module.
+        // Vite's bundling doesn't provide that global for a dynamic
+        // import, so it's set explicitly before leaflet-draw's module
+        // body runs — otherwise it throws "L is not defined".
+        (window as unknown as { L: typeof leafletModule }).L = leafletModule;
+
+        await import('leaflet-draw');
+        const reactLeafletModule = await import('react-leaflet');
+
+        return {
+            L: leafletModule,
+            MapContainer: reactLeafletModule.MapContainer,
+            TileLayer: reactLeafletModule.TileLayer,
+            CircleMarker: reactLeafletModule.CircleMarker,
+            Circle: reactLeafletModule.Circle,
+            Polygon: reactLeafletModule.Polygon,
+            Popup: reactLeafletModule.Popup,
+            useMap: reactLeafletModule.useMap,
+        };
+    })();
+
+    return leafletBagPromise;
+}
+
 export default function GeofencingIndex({ geofences, vehicleOptions }: { geofences: GeofenceRow[]; vehicleOptions: VehicleOption[] }) {
     const [leaflet, setLeaflet] = useState<LeafletBag | null>(null);
     const [drawnShape, setDrawnShape] = useState<DrawnShape | null>(null);
@@ -370,33 +431,11 @@ export default function GeofencingIndex({ geofences, vehicleOptions }: { geofenc
     useEffect(() => {
         let cancelled = false;
 
-        (async () => {
-            const leafletModule = await import('leaflet');
-
-            // leaflet-draw is a legacy UMD plugin: it expects a global `L`
-            // to already exist and patches Control.Draw/Draw.Event onto it
-            // directly, rather than importing leaflet itself as an ES
-            // module. Vite's bundling doesn't provide that global for a
-            // dynamic import, so it's set explicitly before leaflet-draw's
-            // module body runs — otherwise it throws "L is not defined".
-            (window as unknown as { L: typeof leafletModule }).L = leafletModule;
-
-            await import('leaflet-draw');
-            const reactLeafletModule = await import('react-leaflet');
-
+        loadLeafletBag().then((bag) => {
             if (!cancelled) {
-                setLeaflet({
-                    L: leafletModule,
-                    MapContainer: reactLeafletModule.MapContainer,
-                    TileLayer: reactLeafletModule.TileLayer,
-                    CircleMarker: reactLeafletModule.CircleMarker,
-                    Circle: reactLeafletModule.Circle,
-                    Polygon: reactLeafletModule.Polygon,
-                    Popup: reactLeafletModule.Popup,
-                    useMap: reactLeafletModule.useMap,
-                });
+                setLeaflet(bag);
             }
-        })();
+        });
 
         return () => {
             cancelled = true;
