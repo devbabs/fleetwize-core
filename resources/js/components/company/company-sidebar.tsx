@@ -7,6 +7,7 @@ import {
     MapPinned,
     Receipt,
     Settings,
+    Shapes,
     ShieldAlert,
     Truck,
     Users,
@@ -30,6 +31,7 @@ import type { NavItem } from '@/types';
 const navItems: NavItem[] = [
     { title: 'Overview', href: '/overview', icon: LayoutDashboard },
     { title: 'Live Tracking', href: '/live-tracking', icon: MapPinned },
+    { title: 'Geofencing', href: '/geofences', icon: Shapes },
     { title: 'Vehicles', href: '/vehicles', icon: Truck },
     { title: 'Company Staff', href: '/drivers', icon: Users },
     { title: 'Maintenance', href: '/maintenance', icon: Wrench },

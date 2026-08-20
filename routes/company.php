@@ -5,6 +5,7 @@ use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\DriverController;
 use App\Http\Controllers\Company\ExpenseController;
 use App\Http\Controllers\Company\FuelController;
+use App\Http\Controllers\Company\GeofenceController;
 use App\Http\Controllers\Company\IssueController;
 use App\Http\Controllers\Company\LiveTrackingController;
 use App\Http\Controllers\Company\MaintenanceController;
@@ -42,6 +43,11 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
 
         Route::get('/live-tracking', [LiveTrackingController::class, 'index'])->name('live-tracking.index');
         Route::get('/live-tracking/positions', [LiveTrackingController::class, 'positions'])->name('live-tracking.positions');
+
+        Route::get('/geofences', [GeofenceController::class, 'index'])->name('geofences.index');
+        Route::post('/geofences', [GeofenceController::class, 'store'])->name('geofences.store');
+        Route::patch('/geofences/{geofence}', [GeofenceController::class, 'update'])->name('geofences.update');
+        Route::delete('/geofences/{geofence}', [GeofenceController::class, 'destroy'])->name('geofences.destroy');
 
         Route::get('/drivers', [DriverController::class, 'index'])->name('drivers.index');
         Route::post('/drivers', [DriverController::class, 'store'])->name('drivers.store');

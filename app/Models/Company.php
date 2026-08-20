@@ -117,6 +117,14 @@ class Company extends Model
     }
 
     /**
+     * @return HasMany<Geofence, $this>
+     */
+    public function geofences(): HasMany
+    {
+        return $this->hasMany(Geofence::class);
+    }
+
+    /**
      * @return HasMany<VehicleExpense, $this>
      */
     public function expenses(): HasMany

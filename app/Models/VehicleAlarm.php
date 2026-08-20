@@ -83,6 +83,12 @@ class VehicleAlarm extends Model
             return 2;
         }
 
+        // Crossing a defined boundary is routine, not urgent, by default —
+        // same tier as any other unrecognized status transition.
+        if ($this->alarm_type === 'geofenceEnter' || $this->alarm_type === 'geofenceExit') {
+            return 1;
+        }
+
         return 1;
     }
 }

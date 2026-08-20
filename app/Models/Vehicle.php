@@ -278,4 +278,12 @@ class Vehicle extends Model
     {
         return $this->belongsToMany(Workshop::class, 'vehicle_workshops');
     }
+
+    /**
+     * @return BelongsToMany<Geofence, $this>
+     */
+    public function geofences(): BelongsToMany
+    {
+        return $this->belongsToMany(Geofence::class, 'vehicle_geofences');
+    }
 }

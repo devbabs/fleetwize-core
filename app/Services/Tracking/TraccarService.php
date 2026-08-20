@@ -122,6 +122,65 @@ class TraccarService
             ->throw();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function createGeofence(string $name, string $area): array
+    {
+        return $this->client()
+            ->post('/api/geofences', ['name' => $name, 'area' => $area])
+            ->throw()
+            ->json();
+    }
+
+    public function updateGeofence(int $traccarGeofenceId, string $name, string $area): void
+    {
+        $this->client()
+            ->put("/api/geofences/{$traccarGeofenceId}", [
+                'id' => $traccarGeofenceId,
+                'name' => $name,
+                'area' => $area,
+            ])
+            ->throw();
+    }
+
+    public function deleteGeofence(int $traccarGeofenceId): void
+    {
+        $this->client()
+            ->delete("/api/geofences/{$traccarGeofenceId}")
+            ->throw();
+    }
+
+    /**
+     * Same shape as linkDeviceToUser() — Traccar's /api/permissions handles
+     * every kind of ownership link (user-device, device-geofence, etc.)
+     * through the same endpoint, keyed by whichever pair of ids is present.
+     */
+    public function linkGeofenceToDevice(int $geofenceId, int $deviceId): void
+    {
+        $this->client()
+            ->post('/api/permissions', [
+                'geofenceId' => $geofenceId,
+                'deviceId' => $deviceId,
+            ])
+            ->throw();
+    }
+
+    /**
+     * Untested: this app has only ever created permissions before, never
+     * removed one. Traccar's DELETE /api/permissions is documented to take
+     * the same body shape as the POST — confirm during rollout.
+     */
+    public function unlinkGeofenceFromDevice(int $geofenceId, int $deviceId): void
+    {
+        $this->client()
+            ->delete('/api/permissions', [
+                'geofenceId' => $geofenceId,
+                'deviceId' => $deviceId,
+            ])
+            ->throw();
+    }
+
     protected function client(): PendingRequest
     {
         return Http::baseUrl((string) $this->baseUrl)

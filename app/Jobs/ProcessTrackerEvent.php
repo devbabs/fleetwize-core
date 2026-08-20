@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Events\VehicleAlarmRecorded;
+use App\Models\Geofence;
 use App\Models\Vehicle;
 use App\Models\VehicleAlarm;
 use App\Services\Tracking\TraccarPayloadNormalizer;
@@ -51,7 +52,7 @@ class ProcessTrackerEvent implements ShouldQueue
 
         $alarm = VehicleAlarm::query()->create([
             'vehicle_id' => $vehicle->id,
-            ...TraccarPayloadNormalizer::normalizeEvent($this->event, $this->device),
+            ...$this->withGeofenceDescription(TraccarPayloadNormalizer::normalizeEvent($this->event, $this->device)),
         ]);
 
         try {
@@ -65,5 +66,33 @@ class ProcessTrackerEvent implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * TraccarPayloadNormalizer::normalizeEvent() stays pure/stateless, so
+     * the geofence-name lookup (which needs the DB) happens here instead —
+     * turns the raw "geofenceEnter"/"geofenceExit" type into something
+     * readable, falling back to the raw type string if the geofence can't
+     * be resolved (e.g. it was deleted locally after Traccar already fired
+     * the event, or the event predates this feature).
+     *
+     * @param  array<string, mixed>  $alarmData
+     * @return array<string, mixed>
+     */
+    protected function withGeofenceDescription(array $alarmData): array
+    {
+        if (! in_array($alarmData['alarm_type'] ?? null, ['geofenceEnter', 'geofenceExit'], true)) {
+            return $alarmData;
+        }
+
+        $geofenceId = $this->event['attributes']['geofenceId'] ?? null;
+        $geofence = $geofenceId ? Geofence::query()->where('traccar_geofence_id', $geofenceId)->first() : null;
+
+        if ($geofence) {
+            $action = $alarmData['alarm_type'] === 'geofenceEnter' ? 'Entered' : 'Exited';
+            $alarmData['alarm_description'] = "{$action} geofence: {$geofence->name}";
+        }
+
+        return $alarmData;
     }
 }
