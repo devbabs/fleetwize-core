@@ -370,7 +370,20 @@ export default function GeofencingIndex({ geofences, vehicleOptions }: { geofenc
     useEffect(() => {
         let cancelled = false;
 
-        Promise.all([import('leaflet'), import('leaflet-draw'), import('react-leaflet')]).then(([leafletModule, , reactLeafletModule]) => {
+        (async () => {
+            const leafletModule = await import('leaflet');
+
+            // leaflet-draw is a legacy UMD plugin: it expects a global `L`
+            // to already exist and patches Control.Draw/Draw.Event onto it
+            // directly, rather than importing leaflet itself as an ES
+            // module. Vite's bundling doesn't provide that global for a
+            // dynamic import, so it's set explicitly before leaflet-draw's
+            // module body runs — otherwise it throws "L is not defined".
+            (window as unknown as { L: typeof leafletModule }).L = leafletModule;
+
+            await import('leaflet-draw');
+            const reactLeafletModule = await import('react-leaflet');
+
             if (!cancelled) {
                 setLeaflet({
                     L: leafletModule,
@@ -383,7 +396,7 @@ export default function GeofencingIndex({ geofences, vehicleOptions }: { geofenc
                     useMap: reactLeafletModule.useMap,
                 });
             }
-        });
+        })();
 
         return () => {
             cancelled = true;
