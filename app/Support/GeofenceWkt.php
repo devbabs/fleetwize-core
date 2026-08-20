@@ -4,11 +4,9 @@ namespace App\Support;
 
 /**
  * Builds the WKT `area` strings Traccar's /api/geofences endpoint expects.
- * Isolated in one place because the exact coordinate order (Traccar uses
- * lat-first, unlike GeoJSON's lon-first convention) was unconfirmed at
- * write time — verify against a geofence created through Traccar's own
- * web UI (inspect `tc_geofences.area` directly) before relying on this,
- * and fix the order here in one spot if it turns out to be wrong.
+ * Coordinate order is lat-first (unlike GeoJSON's lon-first convention) —
+ * confirmed by inspecting `tc_geofences.area` for a geofence created
+ * directly through Traccar's own web UI.
  */
 class GeofenceWkt
 {
