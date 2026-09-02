@@ -32,7 +32,7 @@ type Charts = {
 
 const FLEET_STATUS_COLORS: Record<string, string> = {
     Moving: '#89c44b',
-    'Online - Idle': '#f59e0b',
+    Idle: '#f59e0b',
     Offline: '#9ca3af',
 };
 
