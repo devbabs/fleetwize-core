@@ -205,7 +205,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 ))}
             </div>
 
-            {tab === 'Overview' ? (
+            {/* {tab === 'Overview' ? (
                 <div className="grid gap-4 lg:grid-cols-3">
                     <Card>
                         <CardHeader>
@@ -372,6 +372,103 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                         <CardContent className="px-0">
                             {openAlerts.length === 0 ? (
                                 <p className="px-6 text-sm text-muted-foreground">No open alerts.</p>
+                            ) : (
+                                <div className="divide-y divide-border">
+                                    {openAlerts.map((alert) => (
+                                        <div key={alert.key} className="flex items-center justify-between px-6 py-3">
+                                            <div>
+                                                <p className="text-sm font-medium text-foreground">{alert.code}</p>
+                                                <p className="text-xs text-muted-foreground">{alert.meaning}</p>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground">{formatDateTime(alert.logTime)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            ) : null} */}
+            {tab === 'Overview' ? (
+                <div className="grid gap-4 lg:grid-cols-3">
+                    {/* Status / Ignition */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Operational Status</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center gap-2">
+                                <span className={`h-3 w-3 rounded-full ${vehicle.liveState?.ignitionOn ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
+                                <p className="text-2xl font-semibold text-foreground">
+                                    {vehicle.liveState?.ignitionOn ? 'Engine Running' : 'Engine Off'}
+                                </p>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.isMoving ? 'In Motion' : 'Stationary'}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Battery Health */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Battery Health</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.batteryVoltage ?? '—'}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">Vehicle electrical system</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Total Operating Engine Hours */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Engine Hours</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.engineHoursFormatted ?? '—'}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">Cumulative engine runtime</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Fuel Level (Show only if supported) */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Fuel Level</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.fuelLevel !== null && vehicle.liveState?.fuelLevel !== undefined && vehicle.liveState.fuelLevel > 0
+                                    ? `${Math.round(vehicle.liveState.fuelLevel)}%`
+                                    : 'Calibrating / Sensor N/A'}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Last Communication */}
+                    <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Last Recorded Ping</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-lg font-medium text-foreground">
+                                {formatDateTime(vehicle.liveState?.reportedAt ?? null)}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    {/* Open Alerts / Diagnostics */}
+                    <Card className="lg:col-span-3">
+                        <CardHeader>
+                            <CardTitle>Active Diagnostic & Behavior Alerts</CardTitle>
+                        </CardHeader>
+                        <CardContent className="px-0">
+                            {openAlerts.length === 0 ? (
+                                <p className="px-6 text-sm text-muted-foreground">No active faults or behavioral alerts.</p>
                             ) : (
                                 <div className="divide-y divide-border">
                                     {openAlerts.map((alert) => (

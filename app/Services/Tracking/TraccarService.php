@@ -7,6 +7,7 @@ use App\Models\VehicleTrackerState;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * On-demand REST pulls against the self-hosted Traccar instance — used for
@@ -104,6 +105,29 @@ class TraccarService
             ])
             ->throw()
             ->json() ?? [];
+    }
+
+    public function tripsForDevice(int $deviceId, CarbonInterface $from, CarbonInterface $to): array
+    {
+        Log::info("Pulling trips for device {$deviceId} from {$from->toIso8601String()} to {$to->toIso8601String()}");
+
+        $response = $this->client()->get('/api/reports/trips', [
+            'deviceId' => $deviceId,
+            'from' => $from->toIso8601String(),
+            'to' => $to->toIso8601String(),
+        ]);
+
+        Log::info('Traccar trips response', [
+            'device_id' => $deviceId,
+            'from' => $from->toIso8601String(),
+            'to' => $to->toIso8601String(),
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
+
+        $response->throw();
+
+        return $response->json() ?? [];
     }
 
     /**
