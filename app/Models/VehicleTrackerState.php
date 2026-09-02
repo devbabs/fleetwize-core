@@ -58,6 +58,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'vehicle_id', 'latitude', 'longitude', 'speed', 'heading', 'ignition_on', 'battery_voltage',
     'fuel_level', 'reported_at', 'raw_payload', 'engine_rpm', 'engine_load', 'obd_speed', 'is_moving',
     'battery_level', 'satellite_count', 'signal_strength', 'engine_hours', 'is_blocked', 'is_charging',
+    'unique_id', 'device_status', 'protocol', 'altitude', 'gps_valid', 'device_time', 'server_time', 'odometer',
+    'total_distance', 'hard_cornering_count', 'hard_acceleration_count', 'hard_deceleration_count',
 ])]
 class VehicleTrackerState extends Model
 {

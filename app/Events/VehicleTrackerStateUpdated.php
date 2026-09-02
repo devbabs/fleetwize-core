@@ -69,6 +69,20 @@ class VehicleTrackerStateUpdated implements ShouldBroadcastNow
             'engineHours' => $this->trackerState->engine_hours,
             'isBlocked' => $this->trackerState->is_blocked,
             'isCharging' => $this->trackerState->is_charging,
+
+            'uniqueId' => $this->trackerState->unique_id,
+            'deviceStatus' => $this->trackerState->device_status,
+            'protocol' => $this->trackerState->protocol,
+            'altitude' => $this->trackerState->altitude,
+            'gpsValid' => $this->trackerState->gps_valid,
+            'deviceTime' => $this->trackerState->device_time?->toIso8601String(),
+            'serverTime' => $this->trackerState->server_time?->toIso8601String(),
+            'odometer' => $this->trackerState->odometer,
+            'obdOdometer' => $this->trackerState->obd_odometer,
+            'totalDistance' => $this->trackerState->total_distance,
+            'hardCorneringCount' => $this->trackerState->hard_cornering_count,
+            'hardAccelerationCount' => $this->trackerState->hard_acceleration_count,
+            'hardDecelerationCount' => $this->trackerState->hard_deceleration_count
         ];
     }
 }
