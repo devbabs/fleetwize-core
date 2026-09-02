@@ -61,7 +61,7 @@ function statusBadge(status: Exclude<StatusFilter, 'all'>) {
     }
 
     if (status === 'idle') {
-        return <Badge variant="secondary">Idle</Badge>;
+        return <Badge variant="secondary">Online - Idle</Badge>;
     }
 
     return <Badge variant="outline">Offline</Badge>;

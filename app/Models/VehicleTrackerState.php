@@ -83,6 +83,20 @@ class VehicleTrackerState extends Model
             'engine_hours' => 'float',
             'is_blocked' => 'boolean',
             'is_charging' => 'boolean',
+
+            'unique_id' => 'string',
+            'device_status' => 'string',
+            'protocol' => 'string',
+            'altitude' => 'float',
+            'gps_valid' => 'boolean',
+            'device_time' => 'datetime',
+            'server_time' => 'datetime',
+            'odometer' => 'integer',
+            'total_distance' => 'float',
+            'hard_cornering_count' => 'integer',
+            'hard_acceleration_count' => 'integer',
+            'hard_deceleration_count' => 'integer',
+
         ];
     }
 

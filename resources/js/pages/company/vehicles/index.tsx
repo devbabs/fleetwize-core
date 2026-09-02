@@ -90,7 +90,7 @@ function statusBadge(vehicle: VehicleRow) {
     }
 
     if (vehicle.isOnline) {
-        return <Badge variant="secondary">Idle</Badge>;
+        return <Badge variant="secondary">Online - Idle</Badge>;
     }
 
     return <Badge variant="outline">Offline</Badge>;
