@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('vehicle_tracker_states_tables', function (Blueprint $table) {
+        Schema::table('vehicle_tracker_states', function (Blueprint $table) {
             //
             $table->string('unique_id')->unique()->nullable();
             $table->string('device_status')->nullable();
