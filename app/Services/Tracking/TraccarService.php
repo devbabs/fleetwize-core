@@ -107,29 +107,6 @@ class TraccarService
             ->json() ?? [];
     }
 
-    public function tripsForDevice(int $deviceId, CarbonInterface $from, CarbonInterface $to): array
-    {
-        Log::info("Pulling trips for device {$deviceId} from {$from->toIso8601String()} to {$to->toIso8601String()}");
-
-        $response = $this->client()->get('/api/reports/trips', [
-            'deviceId' => $deviceId,
-            'from' => $from->toIso8601String(),
-            'to' => $to->toIso8601String(),
-        ]);
-
-        Log::info('Traccar trips response', [
-            'device_id' => $deviceId,
-            'from' => $from->toIso8601String(),
-            'to' => $to->toIso8601String(),
-            'status' => $response->status(),
-            'body' => $response->json(),
-        ]);
-
-        $response->throw();
-
-        return $response->json() ?? [];
-    }
-
     /**
      * Devices auto-registered via Traccar's database.registerUnknown have no
      * owner, and stay invisible on the map/API to any user (including
