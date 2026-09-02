@@ -30,6 +30,19 @@ export type VehicleLiveUpdate = {
     engineHours: number | null;
     isBlocked: boolean | null;
     isCharging: boolean | null;
+    uniqueId: string | null;
+    deviceStatus: string | null;
+    protocol: string | null;
+    altitude: number | null;
+    gpsValid: boolean | null;
+    deviceTime: string | null;
+    serverTime: string | null;
+    odometer: number | null;
+    obdOdometer: number | null;
+    totalDistance: number | null;
+    hardCorneringCount: number | null;
+    hardAccelerationCount: number | null;
+    hardDecelerationCount: number | null;
 };
 
 /**

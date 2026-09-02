@@ -37,6 +37,19 @@ class TraccarPayloadNormalizer
             'engine_hours' => $attributes['hours'] ?? null,
             'is_blocked' => $attributes['blocked'] ?? null,
             'is_charging' => $attributes['charge'] ?? null,
+
+            'unique_id' => $device['uniqueId'] ?? null,
+            'device_status' => $device['status'] ?? null,
+            'protocol' => $position['protocol'] ?? null,
+            'altitude' => $position['altitude'] ?? null,
+            'gps_valid' => $position['valid'] ?? null,
+            'device_time' => $position['deviceTime'] ?? null,
+            'server_time' => $position['serverTime'] ?? null,
+            'odometer' => $attributes['odometer'] ?? null,
+            'total_distance' => $attributes['totalDistance'] ?? null,
+            'hard_cornering_count' => $attributes['hardCorneringCount'] ?? null,
+            'hard_acceleration_count' => $attributes['hardAccelerationCount'] ?? null,
+            'hard_deceleration_count' => $attributes['hardDecelerationCount'] ?? null,
         ];
     }
 

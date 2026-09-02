@@ -95,6 +95,19 @@ type VehicleDetail = {
         engineHours: number | null;
         isBlocked: boolean | null;
         isCharging: boolean | null;
+        uniqueId: string | null;
+        deviceStatus: string | null;
+        protocol: string | null;
+        altitude: number | null;
+        gpsValid: boolean | null;
+        deviceTime: string | null;
+        serverTime: string | null;
+        odometer: number | null;
+        obdOdometer: number | null;
+        totalDistance: number | null;
+        hardCorneringCount: number | null;
+        hardAccelerationCount: number | null;
+        hardDecelerationCount: number | null;
     } | null;
     trips: Trip[];
     faults: Fault[];
@@ -148,6 +161,19 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 engineHours: update.engineHours,
                 isBlocked: update.isBlocked,
                 isCharging: update.isCharging,
+                uniqueId: update.uniqueId,
+                deviceStatus: update.deviceStatus,
+                protocol: update.protocol,
+                altitude: update.altitude,
+                gpsValid: update.gpsValid,
+                deviceTime: update.deviceTime,
+                serverTime: update.serverTime,
+                odometer: update.odometer,
+                obdOdometer: update.obdOdometer,
+                totalDistance: update.totalDistance,
+                hardCorneringCount: update.hardCorneringCount,
+                hardAccelerationCount: update.hardAccelerationCount,
+                hardDecelerationCount: update.hardDecelerationCount,
             },
         }));
     });
@@ -209,12 +235,12 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 <div className="grid gap-4 lg:grid-cols-3">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Current Fuel Level</CardTitle>
+                            <CardTitle className="text-sm text-muted-foreground">Odometer</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.fuelLevel !== null && vehicle.liveState?.fuelLevel !== undefined
-                                    ? `${Math.round(vehicle.liveState.fuelLevel)}%`
+                                {vehicle.liveState?.odometer !== null && vehicle.liveState?.odometer !== undefined
+                                    ? `${vehicle.liveState.odometer.toLocaleString()} km`
                                     : '—'}
                             </p>
                         </CardContent>
@@ -244,12 +270,13 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Engine RPM</CardTitle>
+                            <CardTitle className="text-sm text-muted-foreground">Total Distance</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.engineRpm !== null && vehicle.liveState?.engineRpm !== undefined
-                                    ? vehicle.liveState.engineRpm.toLocaleString()
+                                {vehicle.liveState?.totalDistance !== null && vehicle.liveState?.totalDistance !== undefined
+                                    ? vehicle.liveState.totalDistance.toLocaleString()
+                                    
                                     : '—'}
                             </p>
                         </CardContent>
@@ -268,12 +295,12 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">OBD Speed</CardTitle>
+                            <CardTitle className="text-sm text-muted-foreground">OBD Odometer</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.obdSpeed !== null && vehicle.liveState?.obdSpeed !== undefined
-                                    ? `${Math.round(vehicle.liveState.obdSpeed)} km/h`
+                                {vehicle.liveState?.obdOdometer !== null && vehicle.liveState?.obdOdometer !== undefined
+                                    ? `${Math.round(vehicle.liveState.obdOdometer)} km`
                                     : '—'}
                             </p>
                         </CardContent>
@@ -294,12 +321,12 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Battery Level</CardTitle>
+                            <CardTitle className="text-sm text-muted-foreground">Battery Voltage</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
                                 {vehicle.liveState?.batteryVoltage !== null && vehicle.liveState?.batteryVoltage !== undefined
-                                    ? `${Math.round(vehicle.liveState.batteryVoltage)}%`
+                                    ? `${Math.round(vehicle.liveState.batteryVoltage)}V`
                                     : '—'}
                             </p>
                         </CardContent>
@@ -331,7 +358,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
                                 {vehicle.liveState?.engineHours !== null && vehicle.liveState?.engineHours !== undefined
-                                    ? vehicle.liveState.engineHours.toLocaleString()
+                                    ? `${vehicle.liveState.engineHours.toLocaleString()} s`
                                     : '—'}
                             </p>
                         </CardContent>
@@ -352,15 +379,37 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Charging</CardTitle>
+                            <CardTitle className="text-sm text-muted-foreground">Hard Cornering</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.isCharging === null || vehicle.liveState?.isCharging === undefined
-                                    ? '—'
-                                    : vehicle.liveState.isCharging
-                                      ? 'Charging'
-                                      : 'Not charging'}
+                                {vehicle.liveState?.hardCorneringCount !== null && vehicle.liveState?.hardCorneringCount !== undefined
+                                    ? vehicle.liveState.hardCorneringCount.toLocaleString()
+                                    : '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Hard Acceleration</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.hardAccelerationCount !== null && vehicle.liveState?.hardAccelerationCount !== undefined
+                                    ? vehicle.liveState.hardAccelerationCount.toLocaleString()
+                                    : '—'}
+                            </p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm text-muted-foreground">Hard Deceleration</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.hardDecelerationCount !== null && vehicle.liveState?.hardDecelerationCount !== undefined
+                                    ? vehicle.liveState.hardDecelerationCount.toLocaleString()
+                                    : '—'}
                             </p>
                         </CardContent>
                     </Card>
