@@ -271,6 +271,20 @@ class VehicleController extends Controller
                     'engineHours' => $model->trackerState->engine_hours,
                     'isBlocked' => $model->trackerState->is_blocked,
                     'isCharging' => $model->trackerState->is_charging,
+
+                    'unique_id' => $model->trackerState->unique_id,
+                    'device_status' => $model->trackerState->device_status,
+                    'protocol' => $model->trackerState->protocol,
+                    'altitude' => $model->trackerState->altitude,
+                    'gps_valid' => $model->trackerState->gps_valid,
+                    'device_time' => $model->trackerState->device_time,
+                    'server_time' => $model->trackerState->server_time,
+                    'odometer' => $model->trackerState->odometer,
+                    'obd_odometer' => $model->trackerState->obd_odometer,
+                    'total_distance' => $model->trackerState->total_distance,
+                    'hard_cornering_count' => $model->trackerState->hard_cornering_count,
+                    'hard_acceleration_count' => $model->trackerState->hard_acceleration_count,
+                    'hard_deceleration_count' => $model->trackerState->hard_deceleration_count
                 ] : null,
                 'trips' => $model->trips->map(fn ($trip) => [
                     'id' => $trip->id,

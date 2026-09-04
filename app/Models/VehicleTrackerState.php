@@ -94,6 +94,7 @@ class VehicleTrackerState extends Model
             'device_time' => 'datetime',
             'server_time' => 'datetime',
             'odometer' => 'integer',
+            'obd_odometer' => 'integer',
             'total_distance' => 'float',
             'hard_cornering_count' => 'integer',
             'hard_acceleration_count' => 'integer',

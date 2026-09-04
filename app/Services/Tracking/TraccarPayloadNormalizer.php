@@ -46,6 +46,7 @@ class TraccarPayloadNormalizer
             'device_time' => $position['deviceTime'] ?? null,
             'server_time' => $position['serverTime'] ?? null,
             'odometer' => $attributes['odometer'] ?? null,
+            'obd_odometer' => $attributes['obdOdometer'] ?? null,
             'total_distance' => $attributes['totalDistance'] ?? null,
             'hard_cornering_count' => $attributes['hardCorneringCount'] ?? null,
             'hard_acceleration_count' => $attributes['hardAccelerationCount'] ?? null,
