@@ -295,12 +295,12 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">OBD Odometer</CardTitle>
+                            <CardTitle className="text-sm text-muted-foreground">Engine RPM</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.obdOdometer !== null && vehicle.liveState?.obdOdometer !== undefined
-                                    ? `${Math.round(vehicle.liveState.obdOdometer)} km`
+                                {vehicle.liveState?.engineRpm !== null && vehicle.liveState?.engineRpm !== undefined
+                                    ? `${Math.round(vehicle.liveState.engineRpm)} RPM`
                                     : '—'}
                             </p>
                         </CardContent>
