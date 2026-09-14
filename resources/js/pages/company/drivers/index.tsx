@@ -39,6 +39,7 @@ type DriverFormValues = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
+    driver: 'Driver',
     'vehicle-operator': 'Vehicle Operator',
     staff: 'Staff',
     supervisor: 'Supervisor',
@@ -48,16 +49,34 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLES = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }));
 
-function VehicleSelect({ value, onChange, vehicleOptions }: { value: string; onChange: (value: string) => void; vehicleOptions: VehicleOption[] }) {
+function VehicleSelect({
+    value,
+    onChange,
+    vehicleOptions,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    vehicleOptions: VehicleOption[];
+}) {
     return (
-        <Select value={value || 'none'} onValueChange={(v) => onChange(v === 'none' ? '' : v)}>
+        <Select
+            value={value || 'none'}
+            onValueChange={(v) => onChange(v === 'none' ? '' : v)}
+        >
             <SelectTrigger className="w-full">
                 <SelectValue placeholder="No vehicle assigned" />
             </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="none">No vehicle assigned</SelectItem>
+
+            <SelectContent className="z-[9999]">
+                <SelectItem value="none">
+                    No vehicle assigned
+                </SelectItem>
+
                 {vehicleOptions.map((vehicle) => (
-                    <SelectItem key={vehicle.id} value={String(vehicle.id)}>
+                    <SelectItem
+                        key={vehicle.id}
+                        value={String(vehicle.id)}
+                    >
                         {vehicle.label}
                     </SelectItem>
                 ))}
@@ -67,13 +86,16 @@ function VehicleSelect({ value, onChange, vehicleOptions }: { value: string; onC
 }
 
 function CreateDriverDialog({ open, onOpenChange, vehicleOptions }: { open: boolean; onOpenChange: (open: boolean) => void; vehicleOptions: VehicleOption[] }) {
+
+    console.log('VEHICLE OPTIONS:', vehicleOptions);
+
     const { data, setData, post, processing, errors, reset } = useForm<DriverFormValues>({
         first_name: '',
         last_name: '',
         email: '',
         phone: '',
         password: '',
-        role: 'vehicle-operator',
+        role: 'driver',
         vehicle_id: '',
     });
 
@@ -134,11 +156,19 @@ function CreateDriverDialog({ open, onOpenChange, vehicleOptions }: { open: bool
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="role">Role</Label>
-                            <Select value={data.role} onValueChange={(value) => setData('role', value)}>
+
+                            <Select
+                                value={data.role}
+                                onValueChange={(value) => {
+                                    console.log('ROLE SELECTED:', value);
+                                    setData('role', value);
+                                }}
+                            >
                                 <SelectTrigger id="role" className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
+
+                                <SelectContent className="z-[9999]">
                                     {ROLES.map((role) => (
                                         <SelectItem key={role.value} value={role.value}>
                                             {role.label}
@@ -148,8 +178,16 @@ function CreateDriverDialog({ open, onOpenChange, vehicleOptions }: { open: bool
                             </Select>
                         </div>
                         <div className="grid gap-2">
-                            <Label>Assigned vehicle</Label>
-                            <VehicleSelect value={data.vehicle_id} onChange={(v) => setData('vehicle_id', v)} vehicleOptions={vehicleOptions} />
+                            <Label>Assigned Vehicle</Label>
+                            <VehicleSelect
+                                value={data.vehicle_id}
+                                onChange={(v) => {
+                                    console.log('VEHICLE SELECTED:', v);
+                                    setData('vehicle_id', v);
+                                }}
+                                vehicleOptions={vehicleOptions}
+                            />
+                            {/* <VehicleSelect value={data.vehicle_id} onChange={(v) => setData('vehicle_id', v)} vehicleOptions={vehicleOptions} /> */}
                         </div>
                     </div>
 
@@ -249,11 +287,22 @@ return;
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="edit_role">Role</Label>
-                            <Select value={data.role} onValueChange={(value) => setData('role', value)}>
-                                <SelectTrigger id="edit_role" className="w-full">
-                                    <SelectValue />
+
+                            <Select
+                                value={data.role}
+                                onValueChange={(value) => setData('role', value)}
+                            >
+                                <SelectTrigger
+                                    id="edit_role"
+                                    className="w-full"
+                                >
+                                    <SelectValue placeholder="Select role" />
                                 </SelectTrigger>
-                                <SelectContent>
+
+                                <SelectContent
+                                    position="popper"
+                                    className="z-[9999]"
+                                >
                                     {ROLES.map((role) => (
                                         <SelectItem key={role.value} value={role.value}>
                                             {role.label}
@@ -374,6 +423,8 @@ return;
                                 <th className="px-6 py-3 font-medium">Role</th>
                                 <th className="px-6 py-3 font-medium">Assigned Vehicle</th>
                                 <th className="px-6 py-3 font-medium">Check-ins</th>
+                                <th className="px-6 py-3 font-medium">Last Check-in</th>
+                                <th className="px-6 py-3 font-medium">Status</th>
                                 <th className="px-6 py-3 font-medium"></th>
                             </tr>
                         </thead>

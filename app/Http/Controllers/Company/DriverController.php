@@ -17,7 +17,7 @@ class DriverController extends Controller
 {
     use ResolvesCompany;
 
-    protected const ROLES = ['admin', 'supervisor', 'staff', 'vehicle-operator', 'workshop-admin'];
+    protected const ROLES = ['admin', 'supervisor', 'staff', 'vehicle-operator', 'workshop-admin', 'driver'];
 
     public function index(Request $request): Response
     {
@@ -84,7 +84,7 @@ class DriverController extends Controller
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'string', 'max:50', 'unique:users,phone'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::in(self::ROLES)],
             'vehicle_id' => ['nullable', 'integer', Rule::exists('vehicles', 'id')->where('company_id', $company->id)],

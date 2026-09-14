@@ -77,6 +77,19 @@ class CompanyUser extends Model
         return $this->hasMany(VehicleAssignment::class);
     }
 
+    public function activeAssignment(): ?VehicleAssignment
+    {
+        return $this->assignments()
+            ->whereDate('start_date', '<=', today())
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', today());
+            })
+            ->with('vehicle')
+            ->latest()
+            ->first();
+    }
+
     /**
      * @return HasMany<VehicleStaffAssignment, $this>
      */

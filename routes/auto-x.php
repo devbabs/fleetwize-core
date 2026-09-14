@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AutoX\AuthController;
+use App\Http\Controllers\Api\AutoX\DriverCheckInController;
+use App\Http\Controllers\Api\AutoX\DriverStatusController;
 use App\Http\Controllers\Api\AutoX\ProfileController;
 use App\Http\Controllers\Api\AutoX\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -32,4 +34,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('profile', [ProfileController::class, 'update']);
     Route::post('profile/avatar', [ProfileController::class, 'updateAvatar']);
     Route::put('profile/password', [ProfileController::class, 'updatePassword']);
+
+    Route::get('check-ins/today', [DriverCheckInController::class, 'today']);
+    Route::post('check-ins', [DriverCheckInController::class, 'store']);
+
+    Route::get('status-updates', [DriverStatusController::class, 'index']);
+    Route::post('status-updates', [DriverStatusController::class, 'store']);
+
+    // Route::apiResource('incidents', DriverIncidentController::class)
+    //     ->only(['index', 'store', 'show']);
+
+    // Route::post(
+    //     'incidents/{incident}/attachments',
+    //     [DriverIncidentAttachmentController::class, 'store']
+    // );
 });

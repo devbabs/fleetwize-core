@@ -34,7 +34,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @mixin \Eloquent
  */
-#[Fillable(['tyre', 'vehicle_condition', 'engine_oil', 'water_level', 'image'])]
+#[Fillable(['tyre', 'vehicle_condition', 'engine_oil', 'water_level', 'image', 'company_user_id',
+    'vehicle_id',
+    'tyre',
+    'vehicle_condition',
+    'engine_oil',
+    'water_level',
+    'status',
+    'odometer',
+    'fuel_percentage',
+    'notes',
+    'latitude',
+    'longitude',
+    'created_at',
+    'updated_at'
+])]
 class DriverCheckIn extends Model
 {
     /**
@@ -43,5 +57,10 @@ class DriverCheckIn extends Model
     public function companyUser(): BelongsTo
     {
         return $this->belongsTo(CompanyUser::class);
+    }
+
+    public function vehicle(): BelongsTo
+    {
+        return $this->belongsTo(Vehicle::class);
     }
 }
