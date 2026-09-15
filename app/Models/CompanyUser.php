@@ -124,4 +124,9 @@ class CompanyUser extends Model
             get: fn () => str($this->role)->headline()->toString(),
         );
     }
+
+    public function latestCheckIn(): HasOne
+    {
+        return $this->hasOne(DriverCheckIn::class)->latestOfMany();
+    }
 }

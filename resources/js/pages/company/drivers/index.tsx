@@ -24,6 +24,9 @@ type StaffRow = {
     assignedVehicleId: number | null;
     assignedVehicle: { id: number; label: string } | null;
     checkInsCount: number;
+
+    lastCheckInAt?: string | null;
+    currentStatus?: string | null;
 };
 
 type VehicleOption = { id: number; label: string };
@@ -443,12 +446,46 @@ return;
                                     </td>
                                     <td className="px-6 py-3 text-muted-foreground">{member.assignedVehicle?.label ?? '—'}</td>
                                     <td className="px-6 py-3 text-muted-foreground">{member.checkInsCount}</td>
+                                    <td className="px-6 py-3 text-muted-foreground">
+                                        {member.lastCheckInAt ?? '—'}
+                                    </td>
+
+                                    <td className="px-6 py-3">
+                                        <Badge variant="secondary">
+                                            {member.currentStatus ?? 'Offline'}
+                                        </Badge>
+                                    </td>
                                     <td className="px-6 py-3 text-right">
-                                        <div className="flex justify-end gap-2">
+                                        {/* <div className="flex justify-end gap-2">
                                             <Button size="sm" variant="outline" onClick={() => setEditing(member)}>
                                                 Edit
                                             </Button>
                                             <Button size="sm" variant="outline" onClick={() => setDeleting(member)}>
+                                                <Trash2 className="size-4 text-destructive" />
+                                            </Button>
+                                        </div> */}
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => router.visit(route('company.drivers.show', member.id))}
+                                            >
+                                                View
+                                            </Button>
+
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setEditing(member)}
+                                            >
+                                                Edit
+                                            </Button>
+
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setDeleting(member)}
+                                            >
                                                 <Trash2 className="size-4 text-destructive" />
                                             </Button>
                                         </div>
@@ -458,7 +495,7 @@ return;
 
                             {staff.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
+                                    <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
                                         No staff found.
                                     </td>
                                 </tr>

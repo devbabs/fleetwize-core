@@ -27,7 +27,12 @@ class DriverController extends Controller
         $role = $request->string('role')->toString();
 
         $staff = $company->companyUsers()
-            ->with(['user:id,first_name,last_name,email,phone', 'currentAssignment.vehicle:id,license_plate,make,model'])
+            // ->with(['user:id,first_name,last_name,email,phone', 'currentAssignment.vehicle:id,license_plate,make,model'])
+            ->with([
+                'user:id,first_name,last_name,email,phone',
+                'currentAssignment.vehicle:id,license_plate,make,model',
+                'latestCheckIn',
+            ])
             ->when($search !== '', fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery
                 ->where('first_name', 'like', "%{$search}%")
                 ->orWhere('last_name', 'like', "%{$search}%")
@@ -57,6 +62,7 @@ class DriverController extends Controller
                     ]
                     : null,
                 'checkInsCount' => $companyUser->check_ins_count,
+                'lastCheckInAt' => $companyUser->latestCheckIn?->created_at?->diffForHumans(),
             ]);
 
         return Inertia::render('company/drivers/index', [
