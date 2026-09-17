@@ -6,7 +6,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleTrip;
 use App\Services\Tracking\TraccarService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
