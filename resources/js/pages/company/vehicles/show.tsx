@@ -162,69 +162,69 @@ function AcknowledgeButton({ faultId }: { faultId: number }) {
     );
 }
 
-export interface TraccarTrip {
-  deviceId: number;
-  deviceName: string;
-  distance: number; // meters
-  averageSpeed: number; // knots
-  maxSpeed: number; // knots
-  spentFuel: number; // liters
-  startOdometer: number;
-  endOdometer: number;
-  startTime: string;
-  endTime: string;
-  startPositionId: number;
-  endPositionId: number;
-  startLat: number;
-  startLon: number;
-  endLat: number;
-  endLon: number;
-  startAddress: string | null;
-  endAddress: string | null;
-  duration: number; // ms
-}
+// export interface TraccarTrip {
+//   deviceId: number;
+//   deviceName: string;
+//   distance: number; // meters
+//   averageSpeed: number; // knots
+//   maxSpeed: number; // knots
+//   spentFuel: number; // liters
+//   startOdometer: number;
+//   endOdometer: number;
+//   startTime: string;
+//   endTime: string;
+//   startPositionId: number;
+//   endPositionId: number;
+//   startLat: number;
+//   startLon: number;
+//   endLat: number;
+//   endLon: number;
+//   startAddress: string | null;
+//   endAddress: string | null;
+//   duration: number; // ms
+// }
 
-export interface FormattedTrip {
-  id: string;
-  startTime: string;
-  endTime: string;
-  durationMinutes: number;
-  startLocation: string;
-  endLocation: string;
-  distanceKm: number;
-  averageSpeedKmH: number;
-  maxSpeedKmH: number | null;
-  fuelConsumed: number | null;
-  rawTrip: TraccarTrip;
-}
+// export interface FormattedTrip {
+//   id: string;
+//   startTime: string;
+//   endTime: string;
+//   durationMinutes: number;
+//   startLocation: string;
+//   endLocation: string;
+//   distanceKm: number;
+//   averageSpeedKmH: number;
+//   maxSpeedKmH: number | null;
+//   fuelConsumed: number | null;
+//   rawTrip: TraccarTrip;
+// }
 
-export function formatTraccarTrips(trips: TraccarTrip[]): FormattedTrip[] {
-  return trips.map((trip, idx) => {
-    const KNOTS_TO_KMH = 1.852;
-    const distanceKm = trip.distance / 1000;
-    const averageSpeedKmH = trip.averageSpeed * KNOTS_TO_KMH;
-    const maxSpeedKmH = trip.maxSpeed > 0 ? trip.maxSpeed * KNOTS_TO_KMH : null;
+// export function formatTraccarTrips(trips: TraccarTrip[]): FormattedTrip[] {
+//   return trips.map((trip, idx) => {
+//     const KNOTS_TO_KMH = 1.852;
+//     const distanceKm = trip.distance / 1000;
+//     const averageSpeedKmH = trip.averageSpeed * KNOTS_TO_KMH;
+//     const maxSpeedKmH = trip.maxSpeed > 0 ? trip.maxSpeed * KNOTS_TO_KMH : null;
 
-    const startLocation =
-      trip.startAddress || `${trip.startLat.toFixed(4)}, ${trip.startLon.toFixed(4)}`;
-    const endLocation =
-      trip.endAddress || `${trip.endLat.toFixed(4)}, ${trip.endLon.toFixed(4)}`;
+//     const startLocation =
+//       trip.startAddress || `${trip.startLat.toFixed(4)}, ${trip.startLon.toFixed(4)}`;
+//     const endLocation =
+//       trip.endAddress || `${trip.endLat.toFixed(4)}, ${trip.endLon.toFixed(4)}`;
 
-    return {
-      id: `${trip.deviceId}-${trip.startPositionId}-${idx}`,
-      startTime: trip.startTime,
-      endTime: trip.endTime,
-      durationMinutes: Math.round(trip.duration / 60000),
-      startLocation,
-      endLocation,
-      distanceKm: Number(distanceKm.toFixed(1)),
-      averageSpeedKmH: Math.round(averageSpeedKmH),
-      maxSpeedKmH: maxSpeedKmH ? Math.round(maxSpeedKmH) : null,
-      fuelConsumed: trip.spentFuel > 0 ? Number(trip.spentFuel.toFixed(1)) : null,
-      rawTrip: trip,
-    };
-  });
-}
+//     return {
+//       id: `${trip.deviceId}-${trip.startPositionId}-${idx}`,
+//       startTime: trip.startTime,
+//       endTime: trip.endTime,
+//       durationMinutes: Math.round(trip.duration / 60000),
+//       startLocation,
+//       endLocation,
+//       distanceKm: Number(distanceKm.toFixed(1)),
+//       averageSpeedKmH: Math.round(averageSpeedKmH),
+//       maxSpeedKmH: maxSpeedKmH ? Math.round(maxSpeedKmH) : null,
+//       fuelConsumed: trip.spentFuel > 0 ? Number(trip.spentFuel.toFixed(1)) : null,
+//       rawTrip: trip,
+//     };
+//   });
+// }
 
 export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: VehicleDetail }) {
     const [tab, setTab] = useState<Tab>('Overview');
@@ -537,7 +537,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 </div>
             ) : null}
 
-            {/* {tab === 'Trip History' ? (
+            {tab === 'Trip History' ? (
                 <Card className="overflow-hidden py-0">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -587,70 +587,6 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                 ) : null}
                             </tbody>
                         </table>
-                    </div>
-                </Card>
-            ) : null} */}
-
-            {tab === 'Trip History' ? (
-                <Card className="overflow-hidden py-0">
-                    <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                        <tr>
-                            <th className="px-6 py-3 font-medium">Start Time</th>
-                            <th className="px-6 py-3 font-medium">Route</th>
-                            <th className="px-6 py-3 font-medium">Duration</th>
-                            <th className="px-6 py-3 font-medium">Distance</th>
-                            <th className="px-6 py-3 font-medium">Avg Speed</th>
-                            <th className="px-6 py-3 font-medium">Max Speed</th>
-                            <th className="px-6 py-3 font-medium">Fuel Used</th>
-                            <th className="px-6 py-3 font-medium"></th>
-                        </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                        {formattedTrips.map((trip) => (
-                            <tr key={trip.id} className="hover:bg-muted/20">
-                            <td className="px-6 py-3 whitespace-nowrap text-foreground font-medium">
-                                {formatDateTime(trip.startTime)}
-                            </td>
-                            <td className="max-w-xs truncate px-6 py-3 text-muted-foreground" title={`${trip.startLocation} → ${trip.endLocation}`}>
-                                {trip.startLocation} → {trip.endLocation}
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-muted-foreground">
-                                {trip.durationMinutes} mins
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-muted-foreground">
-                                {trip.distanceKm} km
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-muted-foreground">
-                                {trip.averageSpeedKmH > 0 ? `${trip.averageSpeedKmH} km/h` : '—'}
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-muted-foreground">
-                                {trip.maxSpeedKmH !== null ? `${trip.maxSpeedKmH} km/h` : '—'}
-                            </td>
-                            <td className="px-6 py-3 whitespace-nowrap text-muted-foreground">
-                                {trip.fuelConsumed !== null ? `${trip.fuelConsumed} L` : '—'}
-                            </td>
-                            <td className="px-6 py-3 text-right">
-                                <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setSelectedTrip(trip.rawTrip)}
-                                >
-                                Details
-                                </Button>
-                            </td>
-                            </tr>
-                        ))}
-                        {formattedTrips.length === 0 ? (
-                            <tr>
-                            <td colSpan={8} className="px-6 py-10 text-center text-muted-foreground">
-                                No trips recorded yet.
-                            </td>
-                            </tr>
-                        ) : null}
-                        </tbody>
-                    </table>
                     </div>
                 </Card>
             ) : null}
