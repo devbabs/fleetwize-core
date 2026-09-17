@@ -25,7 +25,7 @@ class BackFillTrips extends Command
     public function handle(TraccarService $traccar): int
     {
         $from = Carbon::create(2026, 9, 1, 0, 0, 0);
-        $to = now();
+        $to = Carbon::now();
 
         $vehicles = Vehicle::query()
             ->whereNotNull('obd_device_imei')
