@@ -40,59 +40,134 @@ class SyncVehicleTrips extends Command
 
     protected function syncVehicle(Vehicle $vehicle, TraccarService $traccar): void
     {
+        if ($vehicle->id === 13) {
+            Log::info('Vehicle 13 sync started', [
+                'vehicle_id' => $vehicle->id,
+                'vehicle_name' => $vehicle->name,
+                'imei' => $vehicle->obd_device_imei,
+            ]);
+        }
+
         $device = $traccar->findDeviceByImei((string) $vehicle->obd_device_imei);
 
-        Log::info("Syncing trips for vehicle {$vehicle->id} ({$vehicle->name}) with device: " . json_encode($device));
+        if ($vehicle->id === 13) {
+            Log::info('Vehicle 13 device lookup result', [
+                'device' => $device,
+            ]);
+        }
 
         if (! $device) {
+
+            if ($vehicle->id === 13) {
+                Log::warning('Vehicle 13 device not found in Traccar');
+            }
+
             return;
         }
 
         $deviceId = (int) $device['id'];
-        $trips = $traccar->tripsForDevice($deviceId, now()->subHours(6), now());
 
-        foreach ($trips as $trip) {
+        $from = now()->subHours(6);
+        $to = now();
+
+        if ($vehicle->id === 13) {
+            Log::info('Vehicle 13 trip query window', [
+                'device_id' => $deviceId,
+                'from' => $from->toIso8601String(),
+                'to' => $to->toIso8601String(),
+            ]);
+        }
+
+        $trips = $traccar->tripsForDevice($deviceId, $from, $to);
+
+        if ($vehicle->id === 13) {
+            Log::info('Vehicle 13 trips returned', [
+                'count' => count($trips),
+            ]);
+
+            Log::info('Vehicle 13 raw trip payload', [
+                'trips' => $trips,
+            ]);
+        }
+
+        foreach ($trips as $index => $trip) {
+
+            if ($vehicle->id === 13) {
+                Log::info('Vehicle 13 processing trip', [
+                    'index' => $index,
+                    'trip' => $trip,
+                ]);
+            }
+
             if (! isset($trip['startTime'], $trip['endTime'])) {
+
+                if ($vehicle->id === 13) {
+                    Log::warning('Vehicle 13 skipped trip - missing times', [
+                        'trip' => $trip,
+                    ]);
+                }
+
                 continue;
             }
 
             $startTime = Carbon::parse($trip['startTime']);
             $endTime = Carbon::parse($trip['endTime']);
 
-            VehicleTrip::query()->updateOrCreate(
+            $data = [
+                'obd_device_id' => (string) $deviceId,
+
+                'distance_km' => $this->metersToKilometers($trip['distance'] ?? null),
+
+                'average_speed_km_per_hr' => $this->knotsToKmPerHour($trip['averageSpeed'] ?? null),
+
+                'max_speed_km_per_hr' => $this->knotsToKmPerHour($trip['maxSpeed'] ?? null),
+
+                'fuel_consumed' => $trip['spentFuel'] ?? null,
+
+                'trip_date' => $startTime->toDateString(),
+
+                'start_odometer' => $this->sanitizeOdometer($trip['startOdometer'] ?? null),
+                'end_odometer' => $this->sanitizeOdometer($trip['endOdometer'] ?? null),
+
+                'start_latitude' => $trip['startLat'] ?? null,
+                'start_longitude' => $trip['startLon'] ?? null,
+                'end_latitude' => $trip['endLat'] ?? null,
+                'end_longitude' => $trip['endLon'] ?? null,
+
+                'start_address' => $trip['startAddress'] ?? null,
+                'end_address' => $trip['endAddress'] ?? null,
+
+                'driver_unique_id' => $trip['driverUniqueId'] ?? null,
+                'driver_name' => $trip['driverName'] ?? null,
+            ];
+
+            if ($vehicle->id === 13) {
+                Log::info('Vehicle 13 transformed trip data', [
+                    'start_time' => $startTime->toIso8601String(),
+                    'end_time' => $endTime->toIso8601String(),
+                    'data' => $data,
+                ]);
+            }
+
+            $tripRecord = VehicleTrip::query()->updateOrCreate(
                 [
                     'vehicle_id' => $vehicle->id,
                     'start_time' => $startTime,
                     'end_time' => $endTime,
                 ],
-                [
-                    'obd_device_id' => (string) $deviceId,
-
-                    'distance_km' => $this->metersToKilometers($trip['distance'] ?? null),
-
-                    'average_speed_km_per_hr' => $this->knotsToKmPerHour($trip['averageSpeed'] ?? null),
-
-                    'max_speed_km_per_hr' => $this->knotsToKmPerHour($trip['maxSpeed'] ?? null),
-
-                    'fuel_consumed' => $trip['spentFuel'] ?? null,
-
-                    'trip_date' => $startTime->toDateString(),
-
-                    'start_odometer' => $this->sanitizeOdometer($trip['startOdometer'] ?? null),
-                    'end_odometer' => $this->sanitizeOdometer($trip['endOdometer'] ?? null),
-
-                    'start_latitude' => $trip['startLat'] ?? null,
-                    'start_longitude' => $trip['startLon'] ?? null,
-                    'end_latitude' => $trip['endLat'] ?? null,
-                    'end_longitude' => $trip['endLon'] ?? null,
-
-                    'start_address' => $trip['startAddress'] ?? null,
-                    'end_address' => $trip['endAddress'] ?? null,
-
-                    'driver_unique_id' => $trip['driverUniqueId'] ?? null,
-                    'driver_name' => $trip['driverName'] ?? null,
-                ],
+                $data
             );
+
+            if ($vehicle->id === 13) {
+                Log::info('Vehicle 13 trip saved', [
+                    'trip_id' => $tripRecord->id,
+                    'was_recently_created' => $tripRecord->wasRecentlyCreated,
+                ]);
+            }
+        }
+
+        if ($vehicle->id === 13) {
+            Log::info('Vehicle 13 sync completed');
         }
     }
 
