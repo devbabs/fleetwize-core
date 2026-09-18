@@ -42,6 +42,8 @@ class SyncVehicleTrips extends Command
     {
         $device = $traccar->findDeviceByImei((string) $vehicle->obd_device_imei);
 
+        Log::info("Syncing trips for vehicle {$vehicle->id} ({$vehicle->name}) with device: " . json_encode($device));
+
         if (! $device) {
             return;
         }

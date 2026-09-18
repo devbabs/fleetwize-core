@@ -456,7 +456,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
                                 {vehicle.liveState?.engineHours !== null && vehicle.liveState?.engineHours !== undefined
-                                    ? `${vehicle.liveState.engineHours.toLocaleString()} s`
+                                    ? `${(vehicle.liveState.engineHours / 3600).toFixed(1)} h`
                                     : '—'}
                             </p>
                         </CardContent>
