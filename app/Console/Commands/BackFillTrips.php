@@ -5,9 +5,11 @@ namespace App\Console\Commands;
 use App\Models\Vehicle;
 use App\Models\VehicleTrip;
 use App\Services\Tracking\TraccarService;
-use Illuminate\Console\Command;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 /**
@@ -18,77 +20,95 @@ use Throwable;
  */
 class BackFillTrips extends Command
 {
-    protected $signature = 'tracker:backfill-trips';
+    protected $signature = 'tracker:backfill-trips 
+                            {--fresh : Truncate the vehicle_trips table before starting}
+                            {--from=2026-09-01 : Start date for backfill}
+                            {--vehicle= : Backfill for a single vehicle ID}';
 
-    protected $description = "Backfill completed trips from Traccar for every vehicle with a tracker attached, and sync them into vehicle_trips.";
+    protected $description = 'Wipe and backfill vehicle trips day-by-day from Traccar up until today.';
 
     public function handle(TraccarService $traccar): int
     {
-        $from = Carbon::create(2026, 9, 1, 0, 0, 0);
-        $to = Carbon::now();
+        // 1. Wipe existing trips if --fresh is provided
+        if ($this->option('fresh')) {
+            $this->warn('Truncating vehicle_trips table...');
+            Schema::disableForeignKeyConstraints();
+            DB::table('vehicle_trips')->truncate();
+            Schema::enableForeignKeyConstraints();
+            $this->info('vehicle_trips table cleared.');
+        }
 
-        $vehicles = Vehicle::query()
-            ->whereNotNull('obd_device_imei')
-            ->get();
+        $startDate = Carbon::parse($this->option('from'))->startOfDay();
+        $today = now();
 
-        $this->info("Backfilling trips from {$from} to {$to}");
-        $this->info("Vehicles found: {$vehicles->count()}");
+        $query = Vehicle::query()->whereNotNull('obd_device_imei');
+
+        if ($vehicleId = $this->option('vehicle')) {
+            $query->where('id', $vehicleId);
+        }
+
+        $vehicles = $query->get();
+
+        $this->info("Starting backfill from {$startDate->toDateString()} to {$today->toDateString()}");
+        $this->info("Vehicles to process: {$vehicles->count()}");
 
         foreach ($vehicles as $vehicle) {
+            $this->line("--------------------------------------------------");
+            $this->info("Processing Vehicle #{$vehicle->id}: {$vehicle->name} (IMEI: {$vehicle->obd_device_imei})");
+
             try {
-                $this->info("Syncing vehicle {$vehicle->id} ({$vehicle->name})...");
+                $device = $traccar->findDeviceByImei((string) $vehicle->obd_device_imei);
 
-                $this->syncVehicle($vehicle, $traccar, $from, $to);
+                if (! $device) {
+                    $this->warn("Device not found in Traccar for Vehicle #{$vehicle->id}. Skipping.");
+                    continue;
+                }
 
-                $this->info("Vehicle {$vehicle->id} completed.");
+                $deviceId = (int) $device['id'];
+                $totalVehicleTrips = 0;
+
+                // 2. Iterate Day by Day
+                $currentDay = $startDate->copy();
+
+                while ($currentDay->lte($today)) {
+                    $dayStart = $currentDay->copy()->startOfDay();
+                    // If it's today, only query up to the current minute
+                    $dayEnd = $currentDay->isSameDay($today) ? $today->copy() : $currentDay->copy()->endOfDay();
+
+                    $this->line("  -> Fetching {$dayStart->toDateString()} ({$dayStart->format('H:i')} - {$dayEnd->format('H:i')})...");
+
+                    $trips = $traccar->tripsForDevice($deviceId, $dayStart, $dayEnd);
+                    $count = count($trips);
+                    $totalVehicleTrips += $count;
+
+                    if ($count > 0) {
+                        $this->saveTrips($vehicle->id, $deviceId, $trips);
+                        $this->line("     Saved {$count} trip(s).");
+                    }
+
+                    // Move to the next day
+                    $currentDay->addDay();
+
+                    // Optional 100ms throttle to prevent Traccar request flood
+                    usleep(100000);
+                }
+
+                $this->info("Finished Vehicle #{$vehicle->id}. Total synced: {$totalVehicleTrips} trips.");
+
             } catch (Throwable $e) {
-                Log::warning(
-                    "Failed to backfill trips for vehicle {$vehicle->id}.",
-                    ['error' => $e->getMessage()]
-                );
-
-                $this->error(
-                    "Vehicle {$vehicle->id}: {$e->getMessage()}"
-                );
+                Log::warning("Failed backfilling for vehicle {$vehicle->id}.", ['error' => $e->getMessage()]);
+                $this->error("Vehicle {$vehicle->id} failed: {$e->getMessage()}");
             }
         }
 
-        $this->info('Trip backfill completed.');
+        $this->info('====================================');
+        $this->info('Trip backfill completed successfully.');
 
         return self::SUCCESS;
     }
 
-    protected function syncVehicle(
-        Vehicle $vehicle,
-        TraccarService $traccar,
-        Carbon $from,
-        Carbon $to
-    ): void 
+    protected function saveTrips(int $vehicleId, int $deviceId, array $trips): void
     {
-        $device = $traccar->findDeviceByImei(
-            (string) $vehicle->obd_device_imei
-        );
-
-        if (! $device) {
-            $this->warn(
-                "No Traccar device found for vehicle {$vehicle->id}."
-            );
-
-            return;
-        }
-
-        $deviceId = (int) $device['id'];
-
-        $trips = $traccar->tripsForDevice(
-            $deviceId,
-            $from,
-            $to
-        );
-
-        $this->line(
-            "  Traccar returned " . count($trips) . " trips."
-        );
-
         foreach ($trips as $trip) {
             if (! isset($trip['startTime'], $trip['endTime'])) {
                 continue;
@@ -99,80 +119,44 @@ class BackFillTrips extends Command
 
             VehicleTrip::query()->updateOrCreate(
                 [
-                    'vehicle_id' => $vehicle->id,
+                    'vehicle_id' => $vehicleId,
                     'start_time' => $startTime,
-                    'end_time' => $endTime,
+                    'end_time'   => $endTime,
                 ],
                 [
-                    'obd_device_id' => (string) $deviceId,
-
-                    'distance_km' => $this->metersToKilometers(
-                        $trip['distance'] ?? null
-                    ),
-
-                    'average_speed_km_per_hr' => $this->knotsToKmPerHour(
-                        $trip['averageSpeed'] ?? null
-                    ),
-
-                    'max_speed_km_per_hr' => $this->knotsToKmPerHour(
-                        $trip['maxSpeed'] ?? null
-                    ),
-
-                    'fuel_consumed' => $trip['spentFuel'] ?? null,
-
-                    'trip_date' => $startTime->toDateString(),
-
-                    'start_odometer' => $this->sanitizeOdometer(
-                        $trip['startOdometer'] ?? null
-                    ),
-
-                    'end_odometer' => $this->sanitizeOdometer(
-                        $trip['endOdometer'] ?? null
-                    ),
-
-                    'start_latitude' => $trip['startLat'] ?? null,
-                    'start_longitude' => $trip['startLon'] ?? null,
-
-                    'end_latitude' => $trip['endLat'] ?? null,
-                    'end_longitude' => $trip['endLon'] ?? null,
-
-                    'start_address' => $trip['startAddress'] ?? null,
-                    'end_address' => $trip['endAddress'] ?? null,
-
-                    'driver_unique_id' => $trip['driverUniqueId'] ?? null,
-                    'driver_name' => $trip['driverName'] ?? null,
-                ],
+                    'obd_device_id'           => (string) $deviceId,
+                    'distance_km'             => $this->metersToKilometers($trip['distance'] ?? null),
+                    'average_speed_km_per_hr' => $this->knotsToKmPerHour($trip['averageSpeed'] ?? null),
+                    'max_speed_km_per_hr'     => $this->knotsToKmPerHour($trip['maxSpeed'] ?? null),
+                    'fuel_consumed'           => $trip['spentFuel'] ?? null,
+                    'trip_date'               => $startTime->toDateString(),
+                    'start_odometer'          => $this->sanitizeOdometer($trip['startOdometer'] ?? null),
+                    'end_odometer'            => $this->sanitizeOdometer($trip['endOdometer'] ?? null),
+                    'start_latitude'          => $trip['startLat'] ?? null,
+                    'start_longitude'         => $trip['startLon'] ?? null,
+                    'end_latitude'            => $trip['endLat'] ?? null,
+                    'end_longitude'           => $trip['endLon'] ?? null,
+                    'start_address'           => $trip['startAddress'] ?? null,
+                    'end_address'             => $trip['endAddress'] ?? null,
+                    'driver_unique_id'        => $trip['driverUniqueId'] ?? null,
+                    'driver_name'             => $trip['driverName'] ?? null,
+                ]
             );
         }
     }
 
-    /**
-     * This device's odometer readings overflow to a ~2^32-1 sentinel
-     * (confirmed via direct inspection of Traccar's Postgres data) instead
-     * of reporting a real value — Traccar's trip report inherits the same
-     * garbage since it derives startOdometer/endOdometer from the device's
-     * own odometer attribute. Anything implausibly large is treated as
-     * unavailable rather than stored.
-     */
     protected function sanitizeOdometer(?float $value): ?float
     {
-        return $value !== null && $value < 1_000_000
-            ? $value
-            : null;
+        return $value !== null && $value < 1_000_000 ? $value : null;
     }
 
     protected function metersToKilometers(?float $meters): ?float
     {
-        return $meters !== null
-            ? round($meters / 1000, 2)
-            : null;
+        return $meters !== null ? round($meters / 1000, 2) : null;
     }
 
     protected function knotsToKmPerHour(?float $knots): ?float
     {
-        return $knots !== null
-            ? round($knots * 1.852, 2)
-            : null;
+        return $knots !== null ? round($knots * 1.852, 2) : null;
     }
-
 }

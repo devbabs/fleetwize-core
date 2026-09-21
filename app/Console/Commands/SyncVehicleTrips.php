@@ -67,7 +67,7 @@ class SyncVehicleTrips extends Command
 
         $deviceId = (int) $device['id'];
 
-        $from = now()->subHours(6);
+        $from = now()->subHours(2);
         $to = now();
 
         if ($vehicle->id === 13) {
@@ -171,14 +171,6 @@ class SyncVehicleTrips extends Command
         }
     }
 
-    /**
-     * This device's odometer readings overflow to a ~2^32-1 sentinel
-     * (confirmed via direct inspection of Traccar's Postgres data) instead
-     * of reporting a real value — Traccar's trip report inherits the same
-     * garbage since it derives startOdometer/endOdometer from the device's
-     * own odometer attribute. Anything implausibly large is treated as
-     * unavailable rather than stored.
-     */
     protected function sanitizeOdometer(?float $value): ?float
     {
         return $value !== null && $value < 1_000_000 ? $value : null;
