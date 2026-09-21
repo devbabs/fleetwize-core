@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\SystemLogService;
 
 class DriverController extends Controller
 {
@@ -82,7 +83,7 @@ class DriverController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
 
@@ -115,12 +116,24 @@ class DriverController extends Controller
             $this->assignVehicle($company->id, $companyUser->id, (int) $validated['vehicle_id']);
         }
 
+        $systemLog->log(
+            event: 'driver.created',
+            description: "Created driver {$user->first_name} {$user->last_name}.",
+            subject: $user,
+            company: $company,
+            metadata: [
+                'email' => $user->email,
+                'role' => $companyUser->role,
+                'vehicle_id' => $validated['vehicle_id'] ?? null,
+            ],
+        );
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Driver added.']);
 
         return back();
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $companyUser = $company->companyUsers()->with('user')->findOrFail((string) $request->route('driver'));
@@ -154,15 +167,58 @@ class DriverController extends Controller
             }
         }
 
+        $originalUser = $companyUser->user->toArray();
+
+        $originalRole = $companyUser->role;
+
+        $originalVehicleId = $companyUser->currentAssignment?->vehicle_id;
+
+        $systemLog->log(
+            event: 'driver.updated',
+            description: "Updated driver {$companyUser->user->first_name} {$companyUser->user->last_name}.",
+            subject: $companyUser->user,
+            company: $company,
+            metadata: [
+                'before' => [
+                    'first_name' => $originalUser['first_name'],
+                    'last_name' => $originalUser['last_name'],
+                    'email' => $originalUser['email'],
+                    'phone' => $originalUser['phone'],
+                    'role' => $originalRole,
+                    'vehicle_id' => $originalVehicleId,
+                ],
+                'after' => [
+                    'first_name' => $companyUser->user->first_name,
+                    'last_name' => $companyUser->user->last_name,
+                    'email' => $companyUser->user->email,
+                    'phone' => $companyUser->user->phone,
+                    'role' => $companyUser->role,
+                    'vehicle_id' => $nextVehicleId,
+                ],
+            ],
+        );
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Driver updated.']);
 
         return back();
     }
 
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $companyUser = $company->companyUsers()->findOrFail((string) $request->route('driver'));
+
+        $systemLog->log(
+            event: 'driver.deleted',
+            description: "Deleted driver {$companyUser->user?->first_name} {$companyUser->user?->last_name}.",
+            subject: $companyUser->user,
+            company: $company,
+            metadata: [
+                'email' => $companyUser->user?->email,
+                'role' => $companyUser->role,
+                'vehicle_id' => $companyUser->currentAssignment?->vehicle_id,
+            ],
+        );
 
         $companyUser->delete();
 

@@ -15,6 +15,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
+use App\Services\SystemLogService;
 
 class GeofenceController extends Controller
 {
@@ -57,7 +58,7 @@ class GeofenceController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $validated = $this->validateGeofence($request, $company->id);
@@ -67,6 +68,16 @@ class GeofenceController extends Controller
         $this->fillGeofence($geofence, $validated);
         $geofence->save();
 
+        $systemLog->log(
+            event: 'geofence.created',
+            description: "Created geofence {$geofence->name}.",
+            subject: $geofence,
+            company: $company,
+            metadata: [
+                'vehicle_ids' => $validated['vehicle_ids'] ?? [],
+            ],
+        );
+
         $synced = $this->syncToTraccar($geofence);
         $this->syncVehicles($geofence, $validated['vehicle_ids'] ?? []);
 
@@ -75,15 +86,29 @@ class GeofenceController extends Controller
         return back();
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $geofence = $company->geofences()->findOrFail((string) $request->route('geofence'));
 
         $validated = $this->validateGeofence($request, $company->id);
 
+        $original = $geofence->toArray();
+
         $this->fillGeofence($geofence, $validated);
         $geofence->save();
+
+        $systemLog->log(
+            event: 'geofence.updated',
+            description: "Updated geofence {$geofence->name}.",
+            subject: $geofence,
+            company: $company,
+            metadata: [
+                'before' => $original,
+                'changes' => $geofence->getChanges(),
+                'vehicle_ids' => $validated['vehicle_ids'] ?? [],
+            ],
+        );
 
         $synced = $this->syncToTraccar($geofence);
         $this->syncVehicles($geofence, $validated['vehicle_ids'] ?? []);
@@ -93,12 +118,23 @@ class GeofenceController extends Controller
         return back();
     }
 
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $geofence = $company->geofences()->findOrFail((string) $request->route('geofence'));
 
         $traccarGeofenceId = $geofence->traccar_geofence_id;
+
+        $systemLog->log(
+            event: 'geofence.deleted',
+            description: "Deleted geofence {$geofence->name}.",
+            subject: $geofence,
+            company: $company,
+            metadata: [
+                'name' => $geofence->name,
+                'traccar_id' => $geofence->traccar_id,
+            ],
+        );
 
         $geofence->delete();
 

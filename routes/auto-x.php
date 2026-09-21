@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AutoX\AuthController;
 use App\Http\Controllers\Api\AutoX\DriverCheckInController;
 use App\Http\Controllers\Api\AutoX\DriverStatusController;
+use App\Http\Controllers\Api\AutoX\MaintenanceController;
 use App\Http\Controllers\Api\AutoX\ProfileController;
 use App\Http\Controllers\Api\AutoX\VehicleController;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('status-updates', [DriverStatusController::class, 'index']);
     Route::post('status-updates', [DriverStatusController::class, 'store']);
+
+    Route::get('vehicles/{vehicle}/maintenance-schedules', [MaintenanceController::class, 'schedules']);
+
+    Route::get('vehicles/{vehicle}/maintenance-alerts',[MaintenanceController::class, 'alerts']);
+
+    Route::post('vehicles/{vehicle}/maintenance-records',[MaintenanceController::class, 'storeRecord']);
 
     // Route::apiResource('incidents', DriverIncidentController::class)
     //     ->only(['index', 'store', 'show']);

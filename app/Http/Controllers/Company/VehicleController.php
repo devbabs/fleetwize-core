@@ -14,6 +14,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\SimpleExcel\SimpleExcelReader;
 use Spatie\SimpleExcel\SimpleExcelWriter;
+use App\Services\SystemLogService;
 
 class VehicleController extends Controller
 {
@@ -36,21 +37,49 @@ class VehicleController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $validated = $this->validatedVehicle($request);
 
         $this->assertTrackerImeiIsValid($validated['obd_device_imei'] ?? null);
 
-        $company->vehicles()->create($validated);
+        $vehicle = $company->vehicles()->create($validated);
+
+        $vehicle->maintenanceSchedules()->createMany([
+            [
+                'name' => 'Oil Change',
+                'distance_interval_km' => 5000,
+                'time_interval_days' => 180,
+                'active' => true,
+            ],
+            [
+                'name' => 'Tire Rotation',
+                'distance_interval_km' => 10000,
+                'time_interval_days' => 365,
+                'active' => true,
+            ],
+            [
+                'name' => 'General Service',
+                'distance_interval_km' => 20000,
+                'time_interval_days' => 365,
+                'active' => true,
+            ],
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehicle added.']);
+
+        $systemLog->log(
+            event: 'vehicle.created',
+            description: "Created vehicle {$vehicle->license_plate} ({$vehicle->name}).",
+            subject: $vehicle,
+            company: $company,
+        );
 
         return back();
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $vehicle = $company->vehicles()->findOrFail((string) $request->route('vehicle'));
@@ -61,17 +90,42 @@ class VehicleController extends Controller
             $this->assertTrackerImeiIsValid($validated['obd_device_imei'] ?? null);
         }
 
+        $original = $vehicle->getOriginal();
+
         $vehicle->fill($validated)->save();
+
+        $systemLog->log(
+            event: 'vehicle.updated',
+            description: "Updated vehicle {$vehicle->license_plate}.",
+            subject: $vehicle,
+            company: $company,
+            metadata: [
+                'before' => $original,
+                'changes' => $vehicle->getChanges(),
+            ],
+        );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehicle updated.']);
 
         return back();
     }
 
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $vehicle = $company->vehicles()->findOrFail((string) $request->route('vehicle'));
+
+        $systemLog->log(
+            event: 'vehicle.deleted',
+            description: "Deleted vehicle {$vehicle->license_plate}.",
+            subject: $vehicle,
+            company: $company,
+            metadata: [
+                'license_plate' => $vehicle->license_plate,
+                'make' => $vehicle->make,
+                'model' => $vehicle->model,
+            ],
+        );
 
         $vehicle->delete();
 
@@ -136,7 +190,7 @@ class VehicleController extends Controller
         $writer->toBrowser();
     }
 
-    public function import(Request $request): RedirectResponse
+    public function import(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
 
@@ -208,6 +262,16 @@ class VehicleController extends Controller
             $message .= ' '.count($errors).' row(s) skipped.';
         }
 
+        $systemLog->log(
+            event: 'vehicle.imported',
+            description: "Imported {$created} vehicle(s).",
+            company: $company,
+            metadata: [
+                'created_count' => $created,
+                'skipped_count' => count($errors),
+            ],
+        );
+
         Inertia::flash('toast', [
             'type' => $errors === [] ? 'success' : 'warning',
             'message' => $message,
@@ -233,6 +297,19 @@ class VehicleController extends Controller
                 'documents.document',
                 'serviceEntries' => fn ($query) => $query->latest('starts_at')->limit(10),
                 'issues' => fn ($query) => $query->latest('reported_at')->limit(20),
+
+                // Maintenance
+                'maintenanceSchedules' => fn ($query) => $query
+                    ->where('active', true)
+                    ->latest(),
+
+                'maintenanceRecords' => fn ($query) => $query
+                    ->latest('maintained_at')
+                    ->limit(20),
+
+                'maintenanceAlerts' => fn ($query) => $query
+                    ->where('acknowledged', false)
+                    ->latest('alerted_at'),
             ])
             ->findOrFail((string) $request->route('vehicle'));
 
@@ -333,6 +410,32 @@ class VehicleController extends Controller
                     'endsAt' => $entry->ends_at?->toIso8601String(),
                     'comments' => $entry->comments,
                 ]),
+
+                'maintenanceSchedules' => $model->maintenanceSchedules->map(fn ($schedule) => [
+                    'id' => $schedule->id,
+                    'name' => $schedule->name,
+                    'distanceIntervalKm' => $schedule->distance_interval_km,
+                    'timeIntervalDays' => $schedule->time_interval_days,
+                    'active' => $schedule->active,
+                ]),
+
+                'maintenanceRecords' => $model->maintenanceRecords->map(fn ($record) => [
+                    'id' => $record->id,
+                    'maintainedAt' => $record->maintained_at?->toDateString(),
+                    'odometerKm' => $record->odometer_km,
+                    'notes' => $record->notes,
+                    'maintenanceScheduleId' => $record->maintenance_schedule_id ?? null,
+                ]),
+
+                'maintenanceAlerts' => $model->maintenanceAlerts->map(fn ($alert) => [
+                    'id' => $alert->id,
+                    'maintenanceScheduleId' => $alert->maintenance_schedule_id,
+                    'title' => $alert->title,
+                    'description' => $alert->description,
+                    'alertedAt' => $alert->alerted_at?->toDateString(),
+                    'acknowledged' => $alert->acknowledged,
+                ]),
+
                 'issues' => $model->issues->map(fn ($issue) => [
                     'id' => $issue->id,
                     'summary' => $issue->summary,

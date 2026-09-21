@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\CheckMaintenanceSchedules;
 use App\Console\Commands\SyncVehicleTrips;
 use App\Http\Middleware\EnsureCompanyTenant;
 use App\Http\Middleware\EnsureUserIsAdmin;
@@ -49,7 +50,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->command(SyncVehicleTrips::class)->everyFifteenMinutes();
+        $schedule->command(SyncVehicleTrips::class)
+            ->everyFifteenMinutes();
+
+        $schedule->command(CheckMaintenanceSchedules::class)
+            ->everyFifteenMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\SystemLogService;
 
 class AlarmController extends Controller
 {
@@ -17,6 +18,12 @@ class AlarmController extends Controller
     public function index(Request $request): Response
     {
         $company = $this->currentCompany($request);
+
+        $vehicles = $company->vehicles()
+                ->select('id', 'license_plate')
+                ->orderBy('license_plate')
+                ->get();
+
         $vehicleIds = $company->vehicles()->pluck('id');
 
         $faults = VehicleAlarm::query()
@@ -38,10 +45,14 @@ class AlarmController extends Controller
 
         return Inertia::render('company/alarms/index', [
             'faults' => $faults,
+            'vehicles' => $vehicles,
+            'filters' => [
+                'vehicle_id' => $request->vehicle_id,
+            ],
         ]);
     }
 
-    public function clear(Request $request): RedirectResponse
+    public function clear(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $vehicleIds = $company->vehicles()->pluck('id');
@@ -52,6 +63,19 @@ class AlarmController extends Controller
 
         $alarm->acknowledged_at = now();
         $alarm->save();
+
+         $systemLog->log(
+            event: 'alarm.acknowledged',
+            description: "Acknowledged alarm {$alarm->alarm_type} for vehicle ID {$alarm->vehicle_id}.",
+            subject: $alarm,
+            company: $company,
+            metadata: [
+                'alarm_id' => $alarm->id,
+                'alarm_type' => $alarm->alarm_type,
+                'vehicle_id' => $alarm->vehicle_id,
+                'gps_time' => $alarm->gps_time?->toIso8601String(),
+            ],
+        );
 
         return back();
     }

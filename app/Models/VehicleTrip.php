@@ -42,7 +42,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable|null $updated_at
  * @property-read Vehicle|null $vehicle
  *
- * @method static \Illuminate\Database\Eloquent\Builder<static>|VehicleTrip newModelQuery()
+ * @method static \Illuminate\Database\Elovequent\Builder<static>|VehicleTrip newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|VehicleTrip newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|VehicleTrip query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|VehicleTrip sinceLastMaintenance(\App\Models\Vehicle $vehicle)

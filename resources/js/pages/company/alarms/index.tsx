@@ -7,6 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import CompanyLayout from '@/layouts/company/company-layout';
 import type { Paginated } from '@/types/pagination';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 type Fault = {
     id: number;
@@ -17,6 +24,21 @@ type Fault = {
     severity: number | null;
     logTime: string | null;
     clearedAt: string | null;
+};
+
+type VehicleOption = {
+    id: number;
+    license_plate: string;
+};
+
+type Filters = {
+    vehicle_id?: string | null;
+};
+
+type Props = {
+    faults: PaginatedResponse<Fault>;
+    vehicles: VehicleOption[];
+    filters: Filters;
 };
 
 function formatDateTime(value: string | null) {
@@ -61,10 +83,45 @@ function AcknowledgeButton({ faultId }: { faultId: number }) {
     );
 }
 
-export default function AlarmsIndex({ faults }: { faults: Paginated<Fault> }) {
+export default function AlarmsIndex({faults, vehicles, filters,}: Props) {
     return (
         <CompanyLayout title="Alarms & Alerts">
             <Head title="Alarms & Alerts" />
+
+            <div className="mb-4 flex items-center gap-4">
+                <Select
+                    value={filters.vehicle_id ?? 'all'}
+                    onValueChange={(value) => {
+                        router.get(
+                            route('company.alarms.index'),
+                            {
+                                vehicle_id: value === 'all' ? undefined : value,
+                            },
+                            {
+                                preserveState: true,
+                                replace: true,
+                            }
+                        );
+                    }}
+                >
+                    <SelectTrigger className="w-[240px]">
+                        <SelectValue placeholder="Filter by vehicle" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                        <SelectItem value="all">All Vehicles</SelectItem>
+
+                        {vehicles.map((vehicle) => (
+                            <SelectItem
+                                key={vehicle.id}
+                                value={vehicle.id.toString()}
+                            >
+                                {vehicle.license_plate}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
 
             <Card className="overflow-hidden py-0">
                 <div className="overflow-x-auto">

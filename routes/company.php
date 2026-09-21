@@ -12,6 +12,7 @@ use App\Http\Controllers\Company\MaintenanceController;
 use App\Http\Controllers\Company\ReportController;
 use App\Http\Controllers\Company\SettingsController;
 use App\Http\Controllers\Company\VehicleController;
+use App\Http\Controllers\SystemLogController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -69,6 +70,8 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
 
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
+
+        Route::get('/system-logs', [SystemLogController::class, 'index'])->name('system-logs.index');
     });
 
     require __DIR__.'/company-workshop.php';

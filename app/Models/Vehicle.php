@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\MaintenanceSchedule;
 use Carbon\CarbonImmutable;
 use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -242,10 +243,6 @@ class Vehicle extends Model
     /**
      * @return HasMany<VehicleMaintenanceRecord, $this>
      */
-    public function maintenanceRecords(): HasMany
-    {
-        return $this->hasMany(VehicleMaintenanceRecord::class);
-    }
 
     /**
      * @return HasMany<VehicleServiceEntry, $this>
@@ -285,5 +282,21 @@ class Vehicle extends Model
     public function geofences(): BelongsToMany
     {
         return $this->belongsToMany(Geofence::class, 'vehicle_geofences');
+    }
+
+    public function maintenanceSchedules(): HasMany
+    {
+        return $this->hasMany(MaintenanceSchedule::class);
+    }
+
+    public function maintenanceRecords(): HasMany
+    {
+        return $this->hasMany(MaintenanceRecord::class);
+    }
+
+
+    public function maintenanceAlerts(): HasMany
+    {
+        return $this->hasMany(MaintenanceAlert::class);
     }
 }

@@ -115,6 +115,35 @@ type VehicleDetail = {
     documents: VehicleDocument[];
     serviceEntries: ServiceEntry[];
     issues: Issue[];
+
+    maintenanceSchedules: MaintenanceSchedule[];
+    maintenanceRecords: MaintenanceRecord[];
+    maintenanceAlerts: MaintenanceAlert[];
+};
+
+type MaintenanceSchedule = {
+    id: number;
+    name: string;
+    distanceIntervalKm: number | null;
+    timeIntervalDays: number | null;
+    active: boolean;
+};
+
+type MaintenanceRecord = {
+    id: number;
+    maintainedAt: string | null;
+    odometerKm: number;
+    notes: string | null;
+    maintenanceScheduleId: number | null;
+};
+
+type MaintenanceAlert = {
+    id: number;
+    maintenanceScheduleId: number;
+    title: string;
+    description: string | null;
+    alertedAt: string | null;
+    acknowledged: boolean;
 };
 
 const tabs = ['Overview', 'Trip History', 'Alarms', 'Maintenance', 'Documents', 'Issues'] as const;
@@ -724,7 +753,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 </DialogContent>
             </Dialog>
 
-            {tab === 'Maintenance' ? (
+            {/* {tab === 'Maintenance' ? (
                 <Card className="overflow-hidden py-0">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -754,6 +783,159 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                         </table>
                     </div>
                 </Card>
+            ) : null} */}
+
+            {tab === 'Maintenance' ? (
+                <div className="space-y-6">
+
+                    {/* Active Maintenance Alerts */}
+                    {vehicle.maintenanceAlerts.length > 0 ? (
+                        <Card className="border-destructive/30">
+                            <CardHeader>
+                                <CardTitle>Maintenance Alerts</CardTitle>
+                            </CardHeader>
+
+                            <CardContent className="space-y-3">
+                                {vehicle.maintenanceAlerts.map((alert) => (
+                                    <div
+                                        key={alert.id}
+                                        className="rounded-lg border border-destructive/30 bg-destructive/5 p-4"
+                                    >
+                                        <p className="font-medium text-foreground">
+                                            {alert.title}
+                                        </p>
+
+                                        {alert.description ? (
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {alert.description}
+                                            </p>
+                                        ) : null}
+
+                                        {alert.alertedAt ? (
+                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                Alerted {formatDateTime(alert.alertedAt)}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    ) : null}
+
+                    {/* Maintenance Schedules */}
+                    <Card className="overflow-hidden py-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
+                                    <tr>
+                                        <th className="px-6 py-3 font-medium">
+                                            Maintenance
+                                        </th>
+                                        <th className="px-6 py-3 font-medium">
+                                            Distance Interval
+                                        </th>
+                                        <th className="px-6 py-3 font-medium">
+                                            Time Interval
+                                        </th>
+                                        <th className="px-6 py-3 font-medium">
+                                            Status
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody className="divide-y divide-border">
+                                    {vehicle.maintenanceSchedules.map((schedule) => (
+                                        <tr key={schedule.id}>
+                                            <td className="px-6 py-3 font-medium text-foreground">
+                                                {schedule.name}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {schedule.distanceIntervalKm !== null
+                                                    ? `${schedule.distanceIntervalKm.toLocaleString()} km`
+                                                    : '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {schedule.timeIntervalDays !== null
+                                                    ? `${schedule.timeIntervalDays} days`
+                                                    : '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3">
+                                                <Badge variant="outline">
+                                                    Active
+                                                </Badge>
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {vehicle.maintenanceSchedules.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={4}
+                                                className="px-6 py-10 text-center text-muted-foreground"
+                                            >
+                                                No maintenance schedules configured.
+                                            </td>
+                                        </tr>
+                                    ) : null}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+
+                    {/* Existing Service History */}
+                    <Card className="overflow-hidden py-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
+                                    <tr>
+                                        <th className="px-6 py-3 font-medium">
+                                            Scheduled
+                                        </th>
+                                        <th className="px-6 py-3 font-medium">
+                                            Completed
+                                        </th>
+                                        <th className="px-6 py-3 font-medium">
+                                            Notes
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody className="divide-y divide-border">
+                                    {vehicle.serviceEntries.map((entry) => (
+                                        <tr key={entry.id}>
+                                            <td className="px-6 py-3 text-foreground">
+                                                {formatDateTime(entry.startsAt)}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {formatDateTime(entry.endsAt)}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {entry.comments ?? '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {vehicle.serviceEntries.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={3}
+                                                className="px-6 py-10 text-center text-muted-foreground"
+                                            >
+                                                No service history yet.
+                                            </td>
+                                        </tr>
+                                    ) : null}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+
+                </div>
             ) : null}
 
             {tab === 'Documents' ? (

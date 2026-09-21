@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\SystemLogService;
 
 class SettingsController extends Controller
 {
@@ -36,7 +37,7 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
 
@@ -48,6 +49,19 @@ class SettingsController extends Controller
         ]);
 
         $company->fill($validated)->save();
+
+        $systemLog->log(
+            event: 'company.updated',
+            description: "Updated company profile for {$company->name}.",
+            subject: $company,
+            company: $company,
+            metadata: [
+                'name' => $company->name,
+                'email' => $company->email,
+                'phone' => $company->phone,
+                'website' => $company->website,
+            ],
+        );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Company profile updated.']);
 

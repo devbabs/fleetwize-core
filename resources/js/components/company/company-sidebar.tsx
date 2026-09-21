@@ -41,6 +41,7 @@ const navItems: NavItem[] = [
     { title: 'Issues', href: '/issues', icon: ClipboardList },
     { title: 'Reports', href: '/reports', icon: FileText },
     { title: 'Settings', href: '/settings', icon: Settings },
+    { title: 'System Logs', href: '/system-logs', icon: FileText },
 ];
 
 export function CompanySidebar() {
