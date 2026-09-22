@@ -51,7 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command(SyncVehicleTrips::class)
-            ->hourly()
+            ->everyFifteenMinutes()
             ->withoutOverlapping()
             ->runInBackground();
 
