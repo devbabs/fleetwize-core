@@ -82,7 +82,7 @@ class BackFillTrips extends Command
                     $totalVehicleTrips += $count;
 
                     if ($count > 0) {
-                        $this->saveTrips($vehicle->id, $deviceId, $trips);
+                        $this->saveTrips($vehicle->id, $deviceId, $trips, $traccar);
                         $this->line("     Saved {$count} trip(s).");
                     }
 
@@ -111,7 +111,7 @@ class BackFillTrips extends Command
         return self::SUCCESS;
     }
 
-    protected function saveTrips(int $vehicleId, int $deviceId, array $trips): void
+    protected function saveTrips(int $vehicleId, int $deviceId, array $trips, TraccarService $traccar): void
     {
         foreach ($trips as $trip) {
             if (! isset($trip['startTime'], $trip['endTime'])) {
@@ -120,6 +120,20 @@ class BackFillTrips extends Command
 
             $startTime = Carbon::parse($trip['startTime']);
             $endTime = Carbon::parse($trip['endTime']);
+
+            $startAddress = $this->resolveTripAddress(
+                $traccar,
+                $trip['startAddress'] ?? null,
+                isset($trip['startLat']) ? (float) $trip['startLat'] : null,
+                isset($trip['startLon']) ? (float) $trip['startLon'] : null
+            );
+
+            $endAddress = $this->resolveTripAddress(
+                $traccar,
+                $trip['endAddress'] ?? null,
+                isset($trip['endLat']) ? (float) $trip['endLat'] : null,
+                isset($trip['endLon']) ? (float) $trip['endLon'] : null
+            );
 
             VehicleTrip::query()->updateOrCreate(
                 [
@@ -169,13 +183,40 @@ class BackFillTrips extends Command
                     'start_longitude'          => $trip['startLon'] ?? null,
                     'end_latitude'             => $trip['endLat'] ?? null,
                     'end_longitude'            => $trip['endLon'] ?? null,
-                    'start_address'            => $trip['startAddress'] ?? null,
-                    'end_address'              => $trip['endAddress'] ?? null,
+                    'start_address'            => $startAddress,
+                    'end_address'              => $endAddress,
                     'driver_unique_id'         => $trip['driverUniqueId'] ?? null,
                     'driver_name'              => $trip['driverName'] ?? null,
                 ]
             );
 
+        }
+    }
+
+    protected function resolveTripAddress(
+        TraccarService $traccar,
+        ?string $address,
+        ?float $latitude,
+        ?float $longitude
+    ): ?string {
+        if (!empty($address)) {
+            return $address;
+        }
+
+        if ($latitude === null || $longitude === null) {
+            return null;
+        }
+
+        try {
+            return $traccar->geocode($latitude, $longitude);
+        } catch (Throwable $e) {
+            Log::warning('Failed to geocode trip address.', [
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
         }
     }
 

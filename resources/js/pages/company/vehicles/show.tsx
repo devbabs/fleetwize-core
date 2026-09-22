@@ -191,69 +191,21 @@ function AcknowledgeButton({ faultId }: { faultId: number }) {
     );
 }
 
-// export interface TraccarTrip {
-//   deviceId: number;
-//   deviceName: string;
-//   distance: number; // meters
-//   averageSpeed: number; // knots
-//   maxSpeed: number; // knots
-//   spentFuel: number; // liters
-//   startOdometer: number;
-//   endOdometer: number;
-//   startTime: string;
-//   endTime: string;
-//   startPositionId: number;
-//   endPositionId: number;
-//   startLat: number;
-//   startLon: number;
-//   endLat: number;
-//   endLon: number;
-//   startAddress: string | null;
-//   endAddress: string | null;
-//   duration: number; // ms
-// }
+const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
 
-// export interface FormattedTrip {
-//   id: string;
-//   startTime: string;
-//   endTime: string;
-//   durationMinutes: number;
-//   startLocation: string;
-//   endLocation: string;
-//   distanceKm: number;
-//   averageSpeedKmH: number;
-//   maxSpeedKmH: number | null;
-//   fuelConsumed: number | null;
-//   rawTrip: TraccarTrip;
-// }
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
 
-// export function formatTraccarTrips(trips: TraccarTrip[]): FormattedTrip[] {
-//   return trips.map((trip, idx) => {
-//     const KNOTS_TO_KMH = 1.852;
-//     const distanceKm = trip.distance / 1000;
-//     const averageSpeedKmH = trip.averageSpeed * KNOTS_TO_KMH;
-//     const maxSpeedKmH = trip.maxSpeed > 0 ? trip.maxSpeed * KNOTS_TO_KMH : null;
+    if (minutes > 0) {
+        return `${minutes}m ${remainingSeconds}s`;
+    }
 
-//     const startLocation =
-//       trip.startAddress || `${trip.startLat.toFixed(4)}, ${trip.startLon.toFixed(4)}`;
-//     const endLocation =
-//       trip.endAddress || `${trip.endLat.toFixed(4)}, ${trip.endLon.toFixed(4)}`;
-
-//     return {
-//       id: `${trip.deviceId}-${trip.startPositionId}-${idx}`,
-//       startTime: trip.startTime,
-//       endTime: trip.endTime,
-//       durationMinutes: Math.round(trip.duration / 60000),
-//       startLocation,
-//       endLocation,
-//       distanceKm: Number(distanceKm.toFixed(1)),
-//       averageSpeedKmH: Math.round(averageSpeedKmH),
-//       maxSpeedKmH: maxSpeedKmH ? Math.round(maxSpeedKmH) : null,
-//       fuelConsumed: trip.spentFuel > 0 ? Number(trip.spentFuel.toFixed(1)) : null,
-//       rawTrip: trip,
-//     };
-//   });
-// }
+    return `${remainingSeconds}s`;
+};
 
 export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: VehicleDetail }) {
     const [tab, setTab] = useState<Tab>('Overview');
@@ -566,7 +518,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 </div>
             ) : null}
 
-            {tab === 'Trip History' ? (
+            {/* {tab === 'Trip History' ? (
                 <Card className="overflow-hidden py-0">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -610,6 +562,85 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                 {vehicle.trips.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
+                                            No trips recorded yet.
+                                        </td>
+                                    </tr>
+                                ) : null}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            ) : null} */}
+
+            {tab === 'Trip History' ? (
+                <Card className="overflow-hidden py-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
+                                <tr>
+                                    <th className="px-6 py-3 font-medium">Start</th>
+                                    <th className="px-6 py-3 font-medium">Route</th>
+                                    <th className="px-6 py-3 font-medium">Duration</th>
+                                    <th className="px-6 py-3 font-medium">Distance</th>
+                                    <th className="px-6 py-3 font-medium">Avg Speed</th>
+                                    <th className="px-6 py-3 font-medium">Driver</th>
+                                    <th className="px-6 py-3 font-medium"></th>
+                                </tr>
+                            </thead>
+
+                            <tbody className="divide-y divide-border">
+                                {vehicle.trips.map((trip) => (
+                                    <tr key={trip.id}>
+                                        <td className="px-6 py-3 text-foreground">
+                                            {formatDateTime(trip.startTime)}
+                                        </td>
+
+                                        <td className="max-w-xs truncate px-6 py-3 text-muted-foreground">
+                                            {trip.startAddress || trip.endAddress
+                                                ? `${trip.startAddress ?? '—'} → ${trip.endAddress ?? '—'}`
+                                                : '—'}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {trip.durationSeconds !== null
+                                                ? formatDuration(trip.durationSeconds)
+                                                : '—'}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {trip.distanceKm !== null
+                                                ? `${trip.distanceKm.toFixed(1)} km`
+                                                : '—'}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {trip.averageSpeed !== null
+                                                ? `${Math.round(trip.averageSpeed)} km/h`
+                                                : '—'}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {trip.driverName ?? '—'}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-right">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setSelectedTrip(trip)}
+                                            >
+                                                Details
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+
+                                {vehicle.trips.length === 0 ? (
+                                    <tr>
+                                        <td
+                                            colSpan={7}
+                                            className="px-6 py-10 text-center text-muted-foreground"
+                                        >
                                             No trips recorded yet.
                                         </td>
                                     </tr>
@@ -689,69 +720,208 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 </Card>
             ) : null}
 
-            <Dialog open={!!selectedTrip} onOpenChange={(open) => !open && setSelectedTrip(null)}>
-                <DialogContent>
+            <Dialog
+                open={!!selectedTrip}
+                onOpenChange={(open) => !open && setSelectedTrip(null)}
+            >
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Trip details</DialogTitle>
                     </DialogHeader>
+
                     {selectedTrip ? (
-                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                        <div className="space-y-6">
+
+                            {/* Trip Summary */}
                             <div>
-                                <dt className="text-xs text-muted-foreground uppercase">Start time</dt>
-                                <dd className="text-foreground">{formatDateTime(selectedTrip.startTime)}</dd>
+                                <h3 className="mb-3 text-sm font-semibold text-foreground">
+                                    Trip summary
+                                </h3>
+
+                                <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Start time
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {formatDateTime(selectedTrip.startTime)}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            End time
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {formatDateTime(selectedTrip.endTime)}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Duration
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.durationSeconds !== null
+                                                ? formatDuration(selectedTrip.durationSeconds)
+                                                : '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Distance
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.distanceKm !== null
+                                                ? `${selectedTrip.distanceKm.toFixed(1)} km`
+                                                : '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Average speed
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.averageSpeed !== null
+                                                ? `${Math.round(selectedTrip.averageSpeed)} km/h`
+                                                : '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Maximum speed
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.maxSpeed !== null &&
+                                            selectedTrip.maxSpeed > 0
+                                                ? `${Math.round(selectedTrip.maxSpeed)} km/h`
+                                                : '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Fuel used
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.fuelConsumed !== null
+                                                ? `${selectedTrip.fuelConsumed.toFixed(1)} L`
+                                                : '—'}
+                                        </dd>
+                                    </div>
+                                </dl>
                             </div>
+
+                            {/* Route */}
                             <div>
-                                <dt className="text-xs text-muted-foreground uppercase">End time</dt>
-                                <dd className="text-foreground">{formatDateTime(selectedTrip.endTime)}</dd>
+                                <h3 className="mb-3 text-sm font-semibold text-foreground">
+                                    Route
+                                </h3>
+
+                                <dl className="grid grid-cols-1 gap-4">
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Start address
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.startAddress ?? '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            End address
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.endAddress ?? '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div>
+                                            <dt className="text-xs text-muted-foreground uppercase">
+                                                Start coordinates
+                                            </dt>
+                                            <dd className="mt-1 text-sm text-foreground">
+                                                {selectedTrip.startLatitude !== null &&
+                                                selectedTrip.startLongitude !== null
+                                                    ? `${selectedTrip.startLatitude.toFixed(5)}, ${selectedTrip.startLongitude.toFixed(5)}`
+                                                    : '—'}
+                                            </dd>
+                                        </div>
+
+                                        <div>
+                                            <dt className="text-xs text-muted-foreground uppercase">
+                                                End coordinates
+                                            </dt>
+                                            <dd className="mt-1 text-sm text-foreground">
+                                                {selectedTrip.endLatitude !== null &&
+                                                selectedTrip.endLongitude !== null
+                                                    ? `${selectedTrip.endLatitude.toFixed(5)}, ${selectedTrip.endLongitude.toFixed(5)}`
+                                                    : '—'}
+                                            </dd>
+                                        </div>
+                                    </div>
+                                </dl>
                             </div>
+
+                            {/* Vehicle / Driver */}
                             <div>
-                                <dt className="text-xs text-muted-foreground uppercase">Start address</dt>
-                                <dd className="text-foreground">{selectedTrip.startAddress ?? '—'}</dd>
+                                <h3 className="mb-3 text-sm font-semibold text-foreground">
+                                    Vehicle & driver
+                                </h3>
+
+                                <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Start odometer
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.startOdometer !== null
+                                                ? `${selectedTrip.startOdometer.toLocaleString()} km`
+                                                : '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            End odometer
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.endOdometer !== null
+                                                ? `${selectedTrip.endOdometer.toLocaleString()} km`
+                                                : '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Driver
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.driverName ?? '—'}
+                                        </dd>
+                                    </div>
+
+                                    <div>
+                                        <dt className="text-xs text-muted-foreground uppercase">
+                                            Driver ID
+                                        </dt>
+                                        <dd className="mt-1 text-sm text-foreground">
+                                            {selectedTrip.driverUniqueId ?? '—'}
+                                        </dd>
+                                    </div>
+                                </dl>
                             </div>
-                            <div>
-                                <dt className="text-xs text-muted-foreground uppercase">End address</dt>
-                                <dd className="text-foreground">{selectedTrip.endAddress ?? '—'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-muted-foreground uppercase">Start coordinates</dt>
-                                <dd className="text-foreground">
-                                    {selectedTrip.startLatitude !== null && selectedTrip.startLongitude !== null
-                                        ? `${selectedTrip.startLatitude.toFixed(5)}, ${selectedTrip.startLongitude.toFixed(5)}`
-                                        : '—'}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-muted-foreground uppercase">End coordinates</dt>
-                                <dd className="text-foreground">
-                                    {selectedTrip.endLatitude !== null && selectedTrip.endLongitude !== null
-                                        ? `${selectedTrip.endLatitude.toFixed(5)}, ${selectedTrip.endLongitude.toFixed(5)}`
-                                        : '—'}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-muted-foreground uppercase">Start odometer</dt>
-                                <dd className="text-foreground">
-                                    {selectedTrip.startOdometer !== null ? `${selectedTrip.startOdometer.toLocaleString()} km` : '—'}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-muted-foreground uppercase">End odometer</dt>
-                                <dd className="text-foreground">
-                                    {selectedTrip.endOdometer !== null ? `${selectedTrip.endOdometer.toLocaleString()} km` : '—'}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-muted-foreground uppercase">Driver</dt>
-                                <dd className="text-foreground">{selectedTrip.driverName ?? '—'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-xs text-muted-foreground uppercase">Driver ID</dt>
-                                <dd className="text-foreground">{selectedTrip.driverUniqueId ?? '—'}</dd>
-                            </div>
-                        </dl>
+
+                        </div>
                     ) : null}
                 </DialogContent>
             </Dialog>
+
 
             {/* {tab === 'Maintenance' ? (
                 <Card className="overflow-hidden py-0">

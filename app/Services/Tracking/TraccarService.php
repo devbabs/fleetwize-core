@@ -108,6 +108,26 @@ class TraccarService
     }
 
     /**
+     * Resolve coordinates to a human-readable address using Traccar's
+     * geocoding endpoint.
+     */
+    public function geocode(float $latitude, float $longitude): ?string
+    {
+        $response = $this->client()
+            ->get('/api/server/geocode', [
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+            ])
+            ->throw();
+
+        $address = $response->json();
+
+        return is_string($address) && $address !== ''
+            ? $address
+            : null;
+    }
+
+    /**
      * Devices auto-registered via Traccar's database.registerUnknown have no
      * owner, and stay invisible on the map/API to any user (including
      * admins, without `all=true`) until explicitly linked. Called once per
