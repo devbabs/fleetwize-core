@@ -120,7 +120,20 @@ class TraccarService
             ])
             ->throw();
 
+        Log::alert('Traccar geocode response', [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'status' => $response->status(),
+            'body' => $response->body(),
+        ]);
+
         $address = $response->json();
+
+        Log::alert('Traccar geocode result', [
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'address' => $address,
+        ]);
 
         return is_string($address) && $address !== ''
             ? $address
