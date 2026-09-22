@@ -70,16 +70,31 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @mixin \Eloquent
  */
-#[Fillable([
-    'vehicle_id', 'obd_device_id', 'fuel_consumed', 'distance_km', 'max_speed_km_per_hr', 'brake_times',
-    'emergency_brake_times', 'speed_up_times', 'emergency_speed_up_times', 'average_speed_km_per_hr',
-    'max_temperature_celsius', 'max_engine_rpm', 'js_type', 'drive_time_seconds', 'idling_time_seconds',
-    'trip_date', 'start_time', 'end_time', 'start_odometer', 'end_odometer', 'start_latitude',
-    'start_longitude', 'end_latitude', 'end_longitude', 'start_address', 'end_address',
-    'driver_unique_id', 'driver_name',
-])]
+// #[Fillable([
+//     'vehicle_id', 'obd_device_id', 'fuel_consumed', 'distance_km', 'max_speed_km_per_hr', 'brake_times',
+//     'emergency_brake_times', 'speed_up_times', 'emergency_speed_up_times', 'average_speed_km_per_hr',
+//     'max_temperature_celsius', 'max_engine_rpm', 'js_type', 'drive_time_seconds', 'idling_time_seconds',
+//     'trip_date', 'start_time', 'end_time', 'start_odometer', 'end_odometer', 'start_latitude',
+//     'start_longitude', 'end_latitude', 'end_longitude', 'start_address', 'end_address',
+//     'driver_unique_id', 'driver_name',
+// ])]
+
 class VehicleTrip extends Model
 {
+    protected $guarded = [];
+
+    protected $casts = [
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
+        'trip_date' => 'date',
+        'distance_km' => 'float',
+        'average_speed_km_per_hr' => 'float',
+        'max_speed_km_per_hr' => 'float',
+        'start_odometer' => 'float',
+        'end_odometer' => 'float',
+        'duration_seconds' => 'integer',
+    ];
+
     protected function casts(): array
     {
         return [
