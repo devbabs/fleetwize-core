@@ -114,21 +114,28 @@ class TraccarService
     public function geocode(float $latitude, float $longitude): ?string
     {
         $response = $this->client()
+            ->accept('text/plain, application/json, */*')
             ->get('/api/server/geocode', [
                 'latitude' => $latitude,
                 'longitude' => $longitude,
             ]);
 
         Log::alert('Traccar geocode response', [
-            'url' => $response->effectiveUri()?->toString(),
+            'latitude' => $latitude,
+            'longitude' => $longitude,
             'status' => $response->status(),
-            'headers' => $response->headers(),
             'body' => $response->body(),
         ]);
 
-        $response->throw();
+        // Traccar returns 204 when the upstream geocoder has no match or is throttled
+        if ($response->status() === 204 || ! $response->successful()) {
+            return null;
+        }
 
         $address = trim($response->body());
+
+        // Strip surrounding quotes if Traccar returns a quoted JSON string
+        $address = trim($address, '"');
 
         Log::alert('Traccar geocode result', [
             'latitude' => $latitude,
