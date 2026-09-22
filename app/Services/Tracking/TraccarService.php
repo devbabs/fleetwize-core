@@ -117,17 +117,18 @@ class TraccarService
             ->get('/api/server/geocode', [
                 'latitude' => $latitude,
                 'longitude' => $longitude,
-            ])
-            ->throw();
+            ]);
 
         Log::alert('Traccar geocode response', [
-            'latitude' => $latitude,
-            'longitude' => $longitude,
+            'url' => $response->effectiveUri()?->toString(),
             'status' => $response->status(),
+            'headers' => $response->headers(),
             'body' => $response->body(),
         ]);
 
-        $address = $response->json();
+        $response->throw();
+
+        $address = trim($response->body());
 
         Log::alert('Traccar geocode result', [
             'latitude' => $latitude,
@@ -135,9 +136,7 @@ class TraccarService
             'address' => $address,
         ]);
 
-        return is_string($address) && $address !== ''
-            ? $address
-            : null;
+        return $address !== '' ? $address : null;
     }
 
     /**
