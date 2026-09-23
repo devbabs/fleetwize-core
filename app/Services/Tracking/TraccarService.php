@@ -6,6 +6,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleTrackerState;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -111,39 +112,45 @@ class TraccarService
      * Resolve coordinates to a human-readable address using Traccar's
      * geocoding endpoint.
      */
-    public function geocode(float $latitude, float $longitude): ?string
+    public function geocode(float $latitude,float $longitude): ?string 
     {
-        $response = $this->client()
-            ->accept('text/plain, application/json, */*')
-            ->get('/api/server/geocode', [
-                'latitude' => $latitude,
-                'longitude' => $longitude,
-            ]);
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
 
-        Log::alert('Traccar geocode response', [
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-            'status' => $response->status(),
-            'body' => $response->body(),
-        ]);
+            $response = $this->client()->get(
+                '/api/server/geocode',
+                [
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                ]
+            );
 
-        // Traccar returns 204 when the upstream geocoder has no match or is throttled
-        if ($response->status() === 204 || ! $response->successful()) {
-            return null;
+            if ($response->status() === 200) {
+                return trim($response->body());
+            }
+
+            if ($response->status() !== 204) {
+                $response->throw();
+            }
+
+            sleep(1);
         }
 
-        $address = trim($response->body());
+        return null;
+    }
 
-        // Strip surrounding quotes if Traccar returns a quoted JSON string
-        $address = trim($address, '"');
+    public function reverseGeocode(float $lat, float $lon): ?string 
+    {
+        $key = sprintf(
+            'geocode:%s:%s',
+            round($lat, 4),
+            round($lon, 4)
+        );
 
-        Log::alert('Traccar geocode result', [
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-            'address' => $address,
-        ]);
-
-        return $address !== '' ? $address : null;
+        return Cache::remember(
+            $key,
+            now()->addDays(30),
+            fn () => $this->geocode($lat, $lon)
+        );
     }
 
     /**
