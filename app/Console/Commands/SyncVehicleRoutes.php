@@ -63,7 +63,6 @@ class SyncVehicleRoutes extends Command
 
     protected function syncTrip(Vehicle $vehicle, VehicleTrip $trip, TraccarService $traccar): void 
     {
-
         $positions = $traccar->routeReport(
             $vehicle->traccar_device_id,
             Carbon::parse($trip->start_time),

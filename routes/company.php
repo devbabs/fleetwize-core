@@ -74,7 +74,7 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
 
         Route::get('/system-logs', [SystemLogController::class, 'index'])->name('system-logs.index');
 
-        Route::get('/vehicles/{vehicle}/trips/{trip}/playback', [PlaybackController::class, 'show'])->name('playback.show');
+        Route::get('/vehicles/{vehicle}/trips/{trip}/playback', [PlaybackController::class, 'show'])->name('vehicles.trips.playback');
     });
 
     require __DIR__.'/company-workshop.php';

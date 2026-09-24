@@ -15,6 +15,7 @@ type Trip = {
     startTime: string | null;
     endTime: string | null;
     distanceKm: number | null;
+    durationSeconds: number | null;
     averageSpeed: number | null;
     maxSpeed: number | null;
     fuelConsumed: number | null;
@@ -585,6 +586,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                     <th className="px-6 py-3 font-medium">Avg Speed</th>
                                     <th className="px-6 py-3 font-medium">Max Speed</th>
                                     <th className="px-6 py-3 font-medium">Driver</th>
+                                    <th className="px-6 py-3 font-medium">Playback</th>
                                     <th className="px-6 py-3 font-medium"></th>
                                 </tr>
                             </thead>
@@ -628,6 +630,22 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
 
                                         <td className="px-6 py-3 text-muted-foreground">
                                             {trip.driverName ?? '—'}
+                                        </td>
+
+                                        <td>
+                                            <Button asChild size="sm">
+                                                <Link
+                                                    href={route(
+                                                        'vehicles.trips.playback',
+                                                        [
+                                                            vehicle.id,
+                                                            trip.id
+                                                        ]
+                                                    )}
+                                                >
+                                                    Playback
+                                                </Link>
+                                            </Button>
                                         </td>
 
                                         <td className="px-6 py-3 text-right">
