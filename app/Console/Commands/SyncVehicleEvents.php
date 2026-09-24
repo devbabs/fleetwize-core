@@ -35,10 +35,11 @@ class SyncVehicleEvents extends Command
             ]
         );
 
-        $from = $syncState->last_synced_at->copy();
-        $to = now();
+        $from = Carbon::parse($syncState->last_synced_at);
+        $to = Carbon::now();
 
         $hadErrors = false;
+        $totalEvents = 0;
 
         $this->info("Syncing events from {$from} to {$to}");
 
@@ -48,7 +49,8 @@ class SyncVehicleEvents extends Command
                 $traccar,
                 $from,
                 $to,
-                &$hadErrors
+                &$hadErrors,
+                &$totalEvents
             ) {
 
                 foreach ($vehicles as $vehicle) {
@@ -62,8 +64,6 @@ class SyncVehicleEvents extends Command
                         );
 
                         foreach ($events as $event) {
-
-                            $totalEvents += count($events);
 
                             VehicleEvent::updateOrCreate(
                                 [
@@ -80,9 +80,7 @@ class SyncVehicleEvents extends Command
                                 ]
                             );
 
-                            $this->info(
-                                "Event sync completed. {$totalEvents} events processed."
-                            );
+                            $totalEvents++;
                         }
 
                         $this->line(
@@ -104,20 +102,22 @@ class SyncVehicleEvents extends Command
                 }
             });
 
-            if (! $hadErrors) {
+        if (! $hadErrors) {
 
-                $syncState->update([
-                    'last_synced_at' => $to,
-                ]);
+            $syncState->update([
+                'last_synced_at' => $to,
+            ]);
 
-            } else {
+        } else {
 
-                $this->warn(
-                    'Some vehicles failed. Sync cursor not advanced.'
-                );
-            }
+            $this->warn(
+                'Some vehicles failed. Sync cursor not advanced.'
+            );
+        }
 
-        $this->info('Event sync completed.');
+        $this->info(
+            "Event sync completed. {$totalEvents} events processed."
+        );
 
         return self::SUCCESS;
     }
