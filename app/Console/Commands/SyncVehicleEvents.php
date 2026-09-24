@@ -63,7 +63,24 @@ class SyncVehicleEvents extends Command
                             $to
                         );
 
+                        $allowedEvents = [
+                            'ignitionOn',
+                            'ignitionOff',
+                            'deviceMoving',
+                            'deviceStopped',
+                            'alarm',
+                            'geofenceEnter',
+                            'geofenceExit',
+                            'maintenance',
+                        ];
+
                         foreach ($events as $event) {
+
+                                $eventType = $event['type'] ?? null;
+
+                                if (! in_array($eventType, $allowedEvents, true)) {
+                                    continue;
+                                }
 
                             VehicleEvent::updateOrCreate(
                                 [
@@ -120,19 +137,5 @@ class SyncVehicleEvents extends Command
         );
 
         return self::SUCCESS;
-    }
-
-    protected function metersToKilometers(?float $meters): ?float
-    {
-        return $meters !== null
-            ? round($meters / 1000, 2)
-            : null;
-    }
-
-    protected function knotsToKmPerHour(?float $knots): ?float
-    {
-        return $knots !== null
-            ? round($knots * 1.852, 2)
-            : null;
     }
 }

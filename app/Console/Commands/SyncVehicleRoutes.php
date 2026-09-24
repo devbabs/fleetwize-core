@@ -81,36 +81,64 @@ class SyncVehicleRoutes extends Command
                     'traccar_device_id' => $vehicle->traccar_device_id,
                     'vehicle_trip_id' => $trip->id,
 
-                    'latitude' => $position['latitude'],
-                    'longitude' => $position['longitude'],
+                    'latitude' => $position['latitude'] ?? null,
+                    'longitude' => $position['longitude'] ?? null,
 
-                    'speed_kmh' => round(
-                        ($position['speed'] ?? 0) * 1.852,
-                        2
-                    ),
+                    'altitude' => $position['altitude'] ?? null,
+                    'accuracy' => $position['accuracy'] ?? null,
+                    'valid' => $position['valid'] ?? null,
 
                     'course' => $position['course'] ?? null,
 
-                    'ignition' => data_get(
-                        $position,
-                        'attributes.ignition'
-                    ),
+                    'speed_kmh' => $this->knotsToKmPerHour($position['speed'] ?? null),
 
-                    'motion' => data_get(
-                        $position,
-                        'attributes.motion'
-                    ),
+                    'obd_speed_kmh' => $this->knotsToKmPerHour(data_get($position, 'attributes.obdSpeed')),
 
-                    'odometer' => data_get(
-                        $position,
-                        'attributes.odometer'
-                    ),
+                    'ignition' => data_get($position,'attributes.ignition'),
 
-                    'fix_time' => $position['fixTime'],
+                    'motion' => data_get($position,'attributes.motion'),
 
-                    'device_time' => $position['deviceTime'],
+                    'blocked' => data_get($position,'attributes.blocked'),
 
-                    'server_time' => $position['serverTime'],
+                    'charge' => data_get($position,'attributes.charge'),
+
+                    'odometer' => $this->metersToKilometers(data_get($position, 'attributes.odometer')),
+
+                    'obd_odometer' => $this->metersToKilometers(data_get($position, 'attributes.obdOdometer')),
+
+                    'distance' => $this->metersToKilometers(data_get($position, 'attributes.distance')),
+
+                    'total_distance' => $this->metersToKilometers(data_get($position, 'attributes.totalDistance')),
+
+                    'fuel' => data_get($position,'attributes.fuel'),
+
+                    'fuel_consumption' => data_get($position,'attributes.fuelConsumption'),
+
+                    'rpm' => data_get($position,'attributes.rpm'),
+
+                    'engine_load' => data_get($position,'attributes.engineLoad'),
+
+                    'power' => data_get($position,'attributes.power'),
+
+                    'battery' => data_get($position,'attributes.battery'),
+
+                    'battery_level' => data_get($position,'attributes.batteryLevel'),
+
+                    'sat' => data_get($position,'attributes.sat'),
+
+                    'rssi' => data_get($position,'attributes.rssi'),
+
+                    'hours' => data_get($position,'attributes.hours'),
+
+                    'hard_acceleration_count' => data_get($position,'attributes.hardAccelerationCount'),
+
+                    'hard_deceleration_count' => data_get($position,'attributes.hardDecelerationCount'),
+
+                    'hard_cornering_count' => data_get($position,'attributes.hardCorneringCount'),
+
+                    'fix_time' => $position['fixTime'] ?? null,
+                    'device_time' => $position['deviceTime'] ?? null,
+                    'server_time' => $position['serverTime'] ?? null,
 
                     'raw_payload' => $position,
                 ]
@@ -120,5 +148,19 @@ class SyncVehicleRoutes extends Command
         $trip->update([
             'route_synced_at' => now(),
         ]);
+    }
+
+    protected function metersToKilometers(?float $meters): ?float
+    {
+        return $meters !== null
+            ? round($meters / 1000, 2)
+            : null;
+    }
+
+    protected function knotsToKmPerHour(?float $knots): ?float
+    {
+        return $knots !== null
+            ? round($knots * 1.852, 2)
+            : null;
     }
 }
