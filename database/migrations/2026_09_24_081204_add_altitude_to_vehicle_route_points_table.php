@@ -58,7 +58,6 @@ return new class extends Migration
 
                 $table->integer('hard_cornering_count')->nullable();
 
-                $table->boolean('blocked')->nullable();
                 $table->boolean('charge')->nullable();
                 $table->bigInteger('hours')->nullable();
                 $table->decimal('power', 10, 3)->nullable();
