@@ -2,6 +2,7 @@
 
 use App\Console\Commands\CheckMaintenanceSchedules;
 use App\Console\Commands\SyncVehicleEvents;
+use App\Console\Commands\SyncVehicleRoutes;
 use App\Console\Commands\SyncVehicleTrips;
 use App\Http\Middleware\EnsureCompanyTenant;
 use App\Http\Middleware\EnsureUserIsAdmin;
@@ -61,7 +62,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->runInBackground();
 
-        $schedule->command(SyncVehicleEvents::class)
+        $schedule->command(SyncVehicleRoutes::class)
             ->everyFiveMinutes()
             ->withoutOverlapping()
             ->runInBackground();

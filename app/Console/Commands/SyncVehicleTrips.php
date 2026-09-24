@@ -52,19 +52,19 @@ class SyncVehicleTrips extends Command
         Vehicle $vehicle,
         TraccarService $traccar
     ): void {
-        $device = $traccar->findDeviceByImei(
-            (string) $vehicle->obd_device_imei
-        );
+        // $device = $traccar->findDeviceByImei(
+        //     (string) $vehicle->obd_device_imei
+        // );
 
-        if (! $device) {
-            $this->warn(
-                "Traccar device not found for Vehicle {$vehicle->id}."
-            );
+        // if (! $device) {
+        //     $this->warn(
+        //         "Traccar device not found for Vehicle {$vehicle->id}."
+        //     );
 
-            return;
-        }
+        //     return;
+        // }
 
-        $deviceId = (int) $device['id'];
+        // $deviceId = (int) $device['id'];
 
         $lastSyncAt = $vehicle->last_trip_sync_at;
 
@@ -81,13 +81,13 @@ class SyncVehicleTrips extends Command
 
         Log::info('Trip sync window', [
             'vehicle_id' => $vehicle->id,
-            'device_id' => $deviceId,
+            'device_id' => $vehicle->traccar_device_id,
             'from' => $from->toIso8601String(),
             'to' => $to->toIso8601String(),
         ]);
 
         $trips = $traccar->tripsForDevice(
-            $deviceId,
+            $vehicle->traccar_device_id,
             $from,
             $to
         );
@@ -129,7 +129,7 @@ class SyncVehicleTrips extends Command
                     ],
                     [
                         'obd_device_id' =>
-                            (string) $deviceId,
+                            (string) $vehicle->traccar_device_id,
 
                         'distance_km' =>
                             $this->metersToKilometers(
