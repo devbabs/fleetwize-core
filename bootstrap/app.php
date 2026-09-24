@@ -62,10 +62,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping()
             ->runInBackground();
 
-        // $schedule->command(SyncVehicleRoutes::class)
-        //     ->everyFiveMinutes()
-        //     ->withoutOverlapping()
-        //     ->runInBackground();
+        $schedule->command(SyncVehicleRoutes::class)
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
 
         $schedule->command(CheckMaintenanceSchedules::class)
             ->everyFifteenMinutes();
