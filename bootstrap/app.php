@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\CheckMaintenanceSchedules;
+use App\Console\Commands\SyncVehicleEvents;
 use App\Console\Commands\SyncVehicleTrips;
 use App\Http\Middleware\EnsureCompanyTenant;
 use App\Http\Middleware\EnsureUserIsAdmin;
@@ -52,6 +53,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command(SyncVehicleTrips::class)
             ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        $schedule->command(SyncVehicleEvents::class)
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        $schedule->command(SyncVehicleEvents::class)
+            ->everyFiveMinutes()
             ->withoutOverlapping()
             ->runInBackground();
 

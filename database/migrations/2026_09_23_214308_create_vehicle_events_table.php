@@ -1,0 +1,37 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('vehicle_events', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('vehicle_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('traccar_event_id')->unique();
+            $table->unsignedBigInteger('traccar_position_id')->nullable();
+            $table->unsignedBigInteger('traccar_device_id')->nullable();
+            $table->string('event_type');
+            $table->string('alarm')->nullable();
+            $table->timestamp('event_time');
+            $table->json('attributes')->nullable();
+            $table->index(['vehicle_id', 'event_time']);
+            $table->index(['event_type']);
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('vehicle_events');
+    }
+};

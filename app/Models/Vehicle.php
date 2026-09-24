@@ -127,6 +127,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'mileage', 'is_owned', 'is_active', 'color', 'fuel_type', 'body_type', 'body_subtype', 'msrp',
     'obd_device_id', 'obd_device_imei', 'tracker_phone_number', 'maintenance_limit_km', 'status',
     'transmission_type', 'business_critical', 'warranty_expires_at', 'purchase_year', 'purchase_condition',
+    'traccar_device_id',
 ])]
 class Vehicle extends Model
 {

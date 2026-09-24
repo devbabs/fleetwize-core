@@ -6,6 +6,8 @@ use App\Http\Controllers\Company\Concerns\ResolvesCompany;
 use App\Http\Controllers\Company\Concerns\ValidatesTrackerImei;
 use App\Http\Controllers\Controller;
 use App\Models\Vehicle;
+use App\Services\SystemLogService;
+use App\Services\Tracking\TraccarService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,7 +16,6 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\SimpleExcel\SimpleExcelReader;
 use Spatie\SimpleExcel\SimpleExcelWriter;
-use App\Services\SystemLogService;
 
 class VehicleController extends Controller
 {
@@ -37,7 +38,7 @@ class VehicleController extends Controller
         ]);
     }
 
-    public function store(Request $request, SystemLogService $systemLog): RedirectResponse
+    public function store(Request $request, SystemLogService $systemLog, TraccarService $traccar): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $validated = $this->validatedVehicle($request);
@@ -45,6 +46,11 @@ class VehicleController extends Controller
         $this->assertTrackerImeiIsValid($validated['obd_device_imei'] ?? null);
 
         $vehicle = $company->vehicles()->create($validated);
+
+        $this->syncTraccarDeviceId(
+            $vehicle,
+            $traccar
+        );
 
         $vehicle->maintenanceSchedules()->createMany([
             [
@@ -79,7 +85,7 @@ class VehicleController extends Controller
         return back();
     }
 
-    public function update(Request $request, SystemLogService $systemLog): RedirectResponse
+    public function update(Request $request, SystemLogService $systemLog, TraccarService $traccar): RedirectResponse
     {
         $company = $this->currentCompany($request);
         $vehicle = $company->vehicles()->findOrFail((string) $request->route('vehicle'));
@@ -93,6 +99,13 @@ class VehicleController extends Controller
         $original = $vehicle->getOriginal();
 
         $vehicle->fill($validated)->save();
+
+        if ($vehicle->wasChanged('obd_device_imei')) {
+            $this->syncTraccarDeviceId(
+                $vehicle,
+                $traccar
+            );
+        }
 
         $systemLog->log(
             event: 'vehicle.updated',
@@ -150,6 +163,7 @@ class VehicleController extends Controller
             'obd_device_id' => ['nullable', 'string', 'max:100'],
             'obd_device_imei' => ['nullable', 'string', 'max:50'],
             'tracker_phone_number' => ['nullable', 'string', 'max:50'],
+            'traccar_device_id' => ['nullable', 'integer'],
         ]);
     }
 
@@ -468,5 +482,24 @@ class VehicleController extends Controller
             'openFaultsCount' => $vehicle->faults_count,
             'lastSeenAt' => $vehicle->trackerState?->reported_at?->toIso8601String(),
         ];
+    }
+    
+    protected function syncTraccarDeviceId(Vehicle $vehicle, TraccarService $traccar): void 
+    {
+        if (! $vehicle->obd_device_imei) {
+            return;
+        }
+
+        $device = $traccar->findDeviceByImei(
+            (string) $vehicle->obd_device_imei
+        );
+
+        if (! $device) {
+            return;
+        }
+
+        $vehicle->updateQuietly([
+            'traccar_device_id' => $device['id'],
+        ]);
     }
 }

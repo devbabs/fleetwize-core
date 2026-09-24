@@ -583,6 +583,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                     <th className="px-6 py-3 font-medium">Duration</th>
                                     <th className="px-6 py-3 font-medium">Distance</th>
                                     <th className="px-6 py-3 font-medium">Avg Speed</th>
+                                    <th className="px-6 py-3 font-medium">Max Speed</th>
                                     <th className="px-6 py-3 font-medium">Driver</th>
                                     <th className="px-6 py-3 font-medium"></th>
                                 </tr>
@@ -616,6 +617,12 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                         <td className="px-6 py-3 text-muted-foreground">
                                             {trip.averageSpeed !== null
                                                 ? `${Math.round(trip.averageSpeed)} km/h`
+                                                : '—'}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {trip.maxSpeed !== null
+                                                ? `${Math.round(trip.maxSpeed)} km/h`
                                                 : '—'}
                                         </td>
 

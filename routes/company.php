@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Company\PlaybackController;
 use App\Http\Controllers\Company\AlarmController;
 use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\DriverController;
@@ -72,6 +73,8 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
         Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
         Route::get('/system-logs', [SystemLogController::class, 'index'])->name('system-logs.index');
+
+        Route::get('/vehicles/{vehicle}/trips/{trip}/playback', [PlaybackController::class, 'show'])->name('playback.show');
     });
 
     require __DIR__.'/company-workshop.php';

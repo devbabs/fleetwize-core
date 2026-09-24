@@ -205,6 +205,7 @@ class SyncVehicleTrips extends Command
          */
         $vehicle->update([
             'last_trip_sync_at' => $to,
+            'route_synced_at' => now(),
         ]);
 
         $this->info(

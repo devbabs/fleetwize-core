@@ -6,6 +6,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleTrackerState;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -233,5 +234,33 @@ class TraccarService
         return Http::baseUrl((string) $this->baseUrl)
             ->withBasicAuth((string) $this->username, (string) $this->password)
             ->acceptJson();
+    }
+
+    public function routeReport(
+        int $deviceId,
+        Carbon $from,
+        Carbon $to
+    ): array {
+        return $this->client()
+            ->get('/api/reports/route', [
+                'deviceId' => $deviceId,
+                'from' => $from->toIso8601String(),
+                'to' => $to->toIso8601String(),
+            ])
+            ->throw()
+            ->json();
+    }
+
+
+    public function eventReport(int $deviceId, Carbon $from, Carbon $to): array 
+    {
+        return $this->client()
+            ->get('/api/reports/events', [
+                'deviceId' => $deviceId,
+                'from' => $from->toIso8601String(),
+                'to' => $to->toIso8601String(),
+            ])
+            ->throw()
+            ->json();
     }
 }
