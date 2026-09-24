@@ -57,14 +57,14 @@ class BackFillTrips extends Command
             $this->info("Processing Vehicle #{$vehicle->id}: {$vehicle->name} (IMEI: {$vehicle->obd_device_imei})");
 
             try {
-                $device = $traccar->findDeviceByImei((string) $vehicle->obd_device_imei);
+                // $device = $traccar->findDeviceByImei((string) $vehicle->obd_device_imei);
 
-                if (! $device) {
-                    $this->warn("Device not found in Traccar for Vehicle #{$vehicle->id}. Skipping.");
-                    continue;
-                }
+                // if (! $device) {
+                //     $this->warn("Device not found in Traccar for Vehicle #{$vehicle->id}. Skipping.");
+                //     continue;
+                // }
 
-                $deviceId = (int) $device['id'];
+                // $deviceId = (int) $device['id'];
                 $totalVehicleTrips = 0;
 
                 // 2. Iterate Day by Day
@@ -77,12 +77,12 @@ class BackFillTrips extends Command
 
                     $this->line("  -> Fetching {$dayStart->toDateString()} ({$dayStart->format('H:i')} - {$dayEnd->format('H:i')})...");
 
-                    $trips = $traccar->tripsForDevice($deviceId, $dayStart, $dayEnd);
+                    $trips = $traccar->tripsForDevice($vehicle->traccar_device_id, $dayStart, $dayEnd);
                     $count = count($trips);
                     $totalVehicleTrips += $count;
 
                     if ($count > 0) {
-                        $this->saveTrips($vehicle->id, $deviceId, $trips, $traccar);
+                        $this->saveTrips($vehicle->id, $vehicle->traccar_device_id, $trips, $traccar);
                         $this->line("     Saved {$count} trip(s).");
                     }
 

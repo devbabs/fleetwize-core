@@ -27,7 +27,8 @@ class SyncVehicleRoutes extends Command
     {
         Vehicle::query()
             ->whereNotNull('traccar_device_id')
-            ->chunk(100, function ($vehicles) use ($traccar) {
+            // ->chunk(100, function ($vehicles) use ($traccar) {
+            ->chunkById(100, function ($vehicles) use ($traccar) {
 
                 foreach ($vehicles as $vehicle) {
 
@@ -115,6 +116,10 @@ class SyncVehicleRoutes extends Command
                 ]
             );
         }
+
+        $trip->update([
+            'route_synced_at' => now(),
+        ]);
     }
 
     protected function metersToKilometers(?float $meters): ?float

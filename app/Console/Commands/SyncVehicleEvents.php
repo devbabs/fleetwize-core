@@ -31,13 +31,11 @@ class SyncVehicleEvents extends Command
         $syncState = TrackerSyncState::firstOrCreate(
             ['type' => 'events'],
             [
-                'last_synced_at' => now()
-                    ->subDay()
-                    ->startOfDay(),
+                'last_synced_at' => now()->startOfMonth(),
             ]
         );
 
-        $from = $syncState->last_synced_at->copy()->subMinutes(5);
+        $from = $syncState->last_synced_at->copy();
         $to = now();
 
         $hadErrors = false;
