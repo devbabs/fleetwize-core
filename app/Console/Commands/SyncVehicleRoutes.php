@@ -66,8 +66,8 @@ class SyncVehicleRoutes extends Command
 
         $positions = $traccar->routeReport(
             $vehicle->traccar_device_id,
-            $trip->start_time,
-            $trip->end_time
+            Carbon::parse($trip->start_time),
+            Carbon::parse($trip->end_time)
         );
 
         foreach ($positions as $position) {
@@ -120,19 +120,5 @@ class SyncVehicleRoutes extends Command
         $trip->update([
             'route_synced_at' => now(),
         ]);
-    }
-
-    protected function metersToKilometers(?float $meters): ?float
-    {
-        return $meters !== null
-            ? round($meters / 1000, 2)
-            : null;
-    }
-
-    protected function knotsToKmPerHour(?float $knots): ?float
-    {
-        return $knots !== null
-            ? round($knots * 1.852, 2)
-            : null;
     }
 }
