@@ -12,23 +12,6 @@ import L from 'leaflet';
 
 import 'leaflet/dist/leaflet.css';
 
-interface Trip {
-    id: number;
-
-    startTime: string | null;
-    endTime: string | null;
-
-    distanceKm: number | null;
-    durationSeconds: number | null;
-    averageSpeed: number | null;
-    maxSpeed: number | null;
-
-    startAddress?: string | null;
-    endAddress?: string | null;
-
-    driverName?: string | null;
-}
-
 interface RoutePoint {
     id: number;
     lat: number;
@@ -163,87 +146,30 @@ export default function Playback({
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-4">
-                    {/* Start */}
                     <div className="rounded border p-4">
                         <p className="text-xs text-muted-foreground">
                             Start
                         </p>
 
                         <p>
-                            {trip.startTime
-                                ? new Date(
-                                    trip.startTime
-                                ).toLocaleString()
-                                : '-'}
+                            {new Date(
+                                trip.startTime
+                            ).toLocaleString()}
                         </p>
                     </div>
 
-                    {/* End */}
                     <div className="rounded border p-4">
                         <p className="text-xs text-muted-foreground">
                             End
                         </p>
 
                         <p>
-                            {trip.endTime
-                                ? new Date(
-                                    trip.endTime
-                                ).toLocaleString()
-                                : '-'}
+                            {new Date(
+                                trip.endTime
+                            ).toLocaleString()}
                         </p>
                     </div>
 
-                    {/* Distance */}
-                    <div className="rounded border p-4">
-                        <p className="text-xs text-muted-foreground">
-                            Distance
-                        </p>
-
-                        <p>
-                            {trip.distanceKm?.toFixed(2) ?? '0.00'} km
-                        </p>
-                    </div>
-
-                    {/* Avg Speed */}
-                    <div className="rounded border p-4">
-                        <p className="text-xs text-muted-foreground">
-                            Avg Speed
-                        </p>
-
-                        <p>
-                            {Math.round(
-                                trip.averageSpeed ?? 0
-                            )}{' '}
-                            km/h
-                        </p>
-                    </div>
-
-                    {/* Max Speed */}
-                    <div className="rounded border p-4">
-                        <p className="text-xs text-muted-foreground">
-                            Max Speed
-                        </p>
-
-                        <p>
-                            {Math.round(
-                                trip.maxSpeed ?? 0
-                            )}{' '}
-                            km/h
-                        </p>
-                    </div>
-
-                    {/* Driver */}
-                    <div className="rounded border p-4">
-                        <p className="text-xs text-muted-foreground">
-                            Driver
-                        </p>
-
-                        <p>
-                            {trip.driverName ?? 'N/A'}
-                        </p>
-                    </div>
-
-                    {/* Route Points */}
                     <div className="rounded border p-4">
                         <p className="text-xs text-muted-foreground">
                             Route Points
@@ -252,16 +178,14 @@ export default function Playback({
                         <p>{routePoints.length}</p>
                     </div>
 
-                    {/* Progress */}
                     <div className="rounded border p-4">
                         <p className="text-xs text-muted-foreground">
                             Progress
                         </p>
 
                         <p>
-                            {routePoints.length > 0
-                                ? `${index + 1} / ${routePoints.length}`
-                                : '0 / 0'}
+                            {index + 1} /{' '}
+                            {routePoints.length}
                         </p>
                     </div>
                 </div>
