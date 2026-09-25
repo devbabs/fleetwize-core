@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
+import { route } from 'ziggy-js';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -635,13 +636,10 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                         <td>
                                             <Button asChild size="sm">
                                                 <Link
-                                                    href={route(
-                                                        'vehicles.trips.playback',
-                                                        [
-                                                            vehicle.id,
-                                                            trip.id
-                                                        ]
-                                                    )}
+                                                    href={route('vehicles.trips.playback', {
+                                                        vehicle: vehicle.id,
+                                                        trip: trip.id,
+                                                    })}
                                                 >
                                                     Playback
                                                 </Link>
