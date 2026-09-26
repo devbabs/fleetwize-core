@@ -636,7 +636,8 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                         <td>
                                             <Button asChild size="sm">
                                                 <Link
-                                                    href={route('vehicles.trips.playback', {
+                                                    href={route('company.vehicles.trips.playback', {
+                                                        company_slug: route().params.company_slug,
                                                         vehicle: vehicle.id,
                                                         trip: trip.id,
                                                     })}
