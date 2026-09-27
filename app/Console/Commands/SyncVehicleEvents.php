@@ -63,24 +63,24 @@ class SyncVehicleEvents extends Command
                             $to
                         );
 
-                        $allowedEvents = [
-                            'ignitionOn',
-                            'ignitionOff',
-                            'deviceMoving',
-                            'deviceStopped',
-                            'alarm',
-                            'geofenceEnter',
-                            'geofenceExit',
-                            'maintenance',
-                        ];
+                        // $allowedEvents = [
+                        //     'ignitionOn',
+                        //     'ignitionOff',
+                        //     'deviceMoving',
+                        //     'deviceStopped',
+                        //     'alarm',
+                        //     'geofenceEnter',
+                        //     'geofenceExit',
+                        //     'maintenance',
+                        // ];
 
                         foreach ($events as $event) {
 
-                                $eventType = $event['type'] ?? null;
+                                // $eventType = $event['type'] ?? null;
 
-                                if (! in_array($eventType, $allowedEvents, true)) {
-                                    continue;
-                                }
+                                // if (! in_array($eventType, $allowedEvents, true)) {
+                                //     continue;
+                                // }
 
                             VehicleEvent::updateOrCreate(
                                 [

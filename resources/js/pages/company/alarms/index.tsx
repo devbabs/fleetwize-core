@@ -15,15 +15,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 
-type Fault = {
+type AlarmEvent = {
     id: number;
     vehicle: string;
     vehicleId: number;
-    code: string | null;
-    meaning: string | null;
-    severity: number | null;
+    eventType: string;
+    alarm: string | null;
     logTime: string | null;
-    clearedAt: string | null;
+    attributes: Record<string, unknown>;
 };
 
 type VehicleOption = {
@@ -33,12 +32,25 @@ type VehicleOption = {
 
 type Filters = {
     vehicle_id?: string | null;
+    event_type?: string | null;
 };
 
 type Props = {
-    faults: PaginatedResponse<Fault>;
+    events: PaginatedResponse<AlarmEvent>;
     vehicles: VehicleOption[];
+    eventTypes: string[];
     filters: Filters;
+};
+
+const eventTypeLabels: Record<string, string> = {
+    ignitionOn: 'Ignition On',
+    ignitionOff: 'Ignition Off',
+    deviceMoving: 'Vehicle Moving',
+    deviceStopped: 'Vehicle Stopped',
+    alarm: 'Alarm',
+    geofenceEnter: 'Geofence Enter',
+    geofenceExit: 'Geofence Exit',
+    maintenance: 'Maintenance',
 };
 
 function formatDateTime(value: string | null) {
@@ -46,22 +58,30 @@ function formatDateTime(value: string | null) {
         return '—';
     }
 
-    return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    return new Date(value).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
 }
 
-function severityBadge(severity: number | null) {
-    if (severity !== null && severity >= 4) {
-return <Badge variant="destructive">High</Badge>;
+function eventTypeBadge(eventType: string) {
+    switch (eventType) {
+        case 'alarm':
+            return <Badge variant="destructive">Alarm</Badge>;
+
+        case 'maintenance':
+            return <Badge variant="secondary">Maintenance</Badge>;
+
+        case 'geofenceEnter':
+        case 'geofenceExit':
+            return <Badge variant="outline">Geofence</Badge>;
+
+        default:
+            return <Badge variant="outline">{eventTypeLabels[eventType] ?? eventType}</Badge>;
+    }
 }
 
-    if (severity !== null && severity >= 2) {
-return <Badge variant="secondary">Medium</Badge>;
-}
-
-    return <Badge variant="outline">Low</Badge>;
-}
-
-function AcknowledgeButton({ faultId }: { faultId: number }) {
+function AcknowledgeButton({ eventId }: { eventId: number }) {
     const [loading, setLoading] = useState(false);
 
     return (
@@ -71,10 +91,14 @@ function AcknowledgeButton({ faultId }: { faultId: number }) {
             loading={loading}
             onClick={() => {
                 setLoading(true);
+
                 router.patch(
-                    `/alarms/${faultId}/clear`,
+                    `/alarms/${eventId}/clear`,
                     {},
-                    { preserveScroll: true, onFinish: () => setLoading(false) },
+                    {
+                        preserveScroll: true,
+                        onFinish: () => setLoading(false),
+                    },
                 );
             }}
         >
@@ -83,7 +107,12 @@ function AcknowledgeButton({ faultId }: { faultId: number }) {
     );
 }
 
-export default function AlarmsIndex({faults, vehicles, filters,}: Props) {
+export default function AlarmsIndex({
+    events,
+    vehicles,
+    eventTypes,
+    filters,
+}: Props) {
     return (
         <CompanyLayout title="Alarms & Alerts">
             <Head title="Alarms & Alerts" />
@@ -121,6 +150,38 @@ export default function AlarmsIndex({faults, vehicles, filters,}: Props) {
                         ))}
                     </SelectContent>
                 </Select>
+
+                <Select
+                    value={filters.event_type ?? 'all'}
+                    onValueChange={(value) => {
+                        router.get(
+                            route('company.alarms.index'),
+                            {
+                                vehicle_id: filters.vehicle_id || undefined,
+                                event_type:
+                                    value === 'all' ? undefined : value,
+                            },
+                            {
+                                preserveState: true,
+                                replace: true,
+                            }
+                        );
+                    }}
+                >
+                    <SelectTrigger className="w-[240px]">
+                        <SelectValue placeholder="Filter by event type" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                        <SelectItem value="all">All Event Types</SelectItem>
+
+                        {eventTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                                {type}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
             <Card className="overflow-hidden py-0">
@@ -128,47 +189,63 @@ export default function AlarmsIndex({faults, vehicles, filters,}: Props) {
                     <table className="w-full text-sm">
                         <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
                             <tr>
-                                <th className="px-6 py-3 font-medium">Severity</th>
+                                <th className="px-6 py-3 font-medium">Event Type</th>
                                 <th className="px-6 py-3 font-medium">Logged</th>
                                 <th className="px-6 py-3 font-medium">Vehicle</th>
-                                <th className="px-6 py-3 font-medium">Fault</th>
-                                <th className="px-6 py-3 font-medium">Status</th>
-                                <th className="px-6 py-3 font-medium"></th>
+                                <th className="px-6 py-3 font-medium">Alarm</th>
+                                <th className="px-6 py-3 font-medium">Details</th>
                             </tr>
                         </thead>
+
                         <tbody className="divide-y divide-border">
-                            {faults.data.map((fault) => (
-                                <tr key={fault.id}>
-                                    <td className="px-6 py-3">{severityBadge(fault.severity)}</td>
-                                    <td className="px-6 py-3 text-muted-foreground">{formatDateTime(fault.logTime)}</td>
-                                    <td className="px-6 py-3 font-medium text-foreground">{fault.vehicle}</td>
-                                    <td className="px-6 py-3 text-muted-foreground">
-                                        <span className="font-medium text-foreground">{fault.code}</span> — {fault.meaning}
-                                    </td>
+                            {events.data.map((event) => (
+                                <tr key={event.id}>
                                     <td className="px-6 py-3">
-                                        {fault.clearedAt ? (
-                                            <Badge variant="outline">Cleared</Badge>
-                                        ) : (
-                                            <Badge className="border-transparent bg-brand-green/15 text-brand-green">Open</Badge>
-                                        )}
+                                        <Badge variant="outline">
+                                            {event.eventType}
+                                        </Badge>
                                     </td>
-                                    <td className="px-6 py-3 text-right">
-                                        {!fault.clearedAt ? <AcknowledgeButton faultId={fault.id} /> : null}
+
+                                    <td className="px-6 py-3 text-muted-foreground">
+                                        {formatDateTime(event.logTime)}
+                                    </td>
+
+                                    <td className="px-6 py-3 font-medium text-foreground">
+                                        {event.vehicle}
+                                    </td>
+
+                                    <td className="px-6 py-3 text-muted-foreground">
+                                        {event.alarm || '—'}
+                                    </td>
+
+                                    <td className="px-6 py-3 text-muted-foreground">
+                                        {event.attributes?.message
+                                            ? String(event.attributes.message)
+                                            : '—'}
                                     </td>
                                 </tr>
                             ))}
 
-                            {faults.data.length === 0 ? (
+                            {events.data.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-10 text-center text-muted-foreground">
-                                        No alerts logged yet.
+                                    <td
+                                        colSpan={5}
+                                        className="px-6 py-10 text-center text-muted-foreground"
+                                    >
+                                        No events logged yet.
                                     </td>
                                 </tr>
                             ) : null}
                         </tbody>
                     </table>
                 </div>
-                <Pagination links={faults.links} from={faults.from} to={faults.to} total={faults.total} />
+
+                <Pagination
+                    links={faults.links}
+                    from={faults.from}
+                    to={faults.to}
+                    total={faults.total}
+                />
             </Card>
         </CompanyLayout>
     );

@@ -41,6 +41,14 @@ type Fault = {
     clearedAt: string | null;
 };
 
+type VehicleEvent = {
+    id: number;
+    eventType: string;
+    alarm: string | null;
+    logTime: string | null;
+    attributes: Record<string, unknown>;
+};
+
 type VehicleDocument = {
     id: number;
     title: string | null;
@@ -114,6 +122,7 @@ type VehicleDetail = {
     trips: Trip[];
     faults: Fault[];
     alarms: Fault[];
+    events: VehicleEvent[];
     documents: VehicleDocument[];
     serviceEntries: ServiceEntry[];
     issues: Issue[];
@@ -153,7 +162,7 @@ interface Props {
     vehicle: VehicleDetail;
 }
 
-const tabs = ['Overview', 'Trip History', 'Alarms', 'Maintenance', 'Documents', 'Issues'] as const;
+const tabs = ['Overview', 'Trip History', 'Alarms/Alerts', 'Maintenance', 'Documents', 'Issues'] as const;
 type Tab = (typeof tabs)[number];
 
 function formatDateTime(value: string | null) {
@@ -676,66 +685,72 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                 </Card>
             ) : null}
 
-            {tab === 'Alarms' ? (
+            {tab === 'Alarms/Alerts' ? (
                 <Card className="overflow-hidden py-0">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
                                 <tr>
-                                    <th className="px-6 py-3 font-medium">Severity</th>
-                                    <th className="px-6 py-3 font-medium">Logged</th>
-                                    <th className="px-6 py-3 font-medium">Fault</th>
-                                    <th className="px-6 py-3 font-medium">Status</th>
-                                    <th className="px-6 py-3 font-medium"></th>
+                                    <th className="px-6 py-3 font-medium">
+                                        Event
+                                    </th>
+
+                                    <th className="px-6 py-3 font-medium">
+                                        Logged
+                                    </th>
+
+                                    <th className="px-6 py-3 font-medium">
+                                        Details
+                                    </th>
+
+                                    <th className="px-6 py-3 font-medium">
+                                        Status
+                                    </th>
                                 </tr>
                             </thead>
 
                             <tbody className="divide-y divide-border">
-                                {vehicle.alarms.map((alarm) => (
-                                    <tr key={alarm.id}>
+                                {vehicle.events.map((event) => (
+                                    <tr key={event.id}>
                                         <td className="px-6 py-3">
-                                            {severityBadge(alarm.severity)}
-                                        </td>
-
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {formatDateTime(alarm.logTime)}
-                                        </td>
-
-                                        <td className="px-6 py-3 text-muted-foreground">
                                             <span className="font-medium text-foreground">
-                                                {alarm.code}
+                                                {eventTypeLabels[event.eventType] ??
+                                                    event.eventType}
                                             </span>
-                                            {' — '}
-                                            {alarm.meaning || '—'}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {formatDateTime(event.logTime)}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {event.alarm ??
+                                                (event.attributes?.message
+                                                    ? String(event.attributes.message)
+                                                    : '—')}
                                         </td>
 
                                         <td className="px-6 py-3">
-                                            {alarm.clearedAt ? (
-                                                <Badge variant="outline">
-                                                    Cleared
+                                            {event.eventType === 'alarm' ? (
+                                                <Badge className="border-transparent bg-brand-green/15 text-brand-green">
+                                                    Alarm
                                                 </Badge>
                                             ) : (
-                                                <Badge className="border-transparent bg-brand-green/15 text-brand-green">
-                                                    Open
+                                                <Badge variant="outline">
+                                                    Event
                                                 </Badge>
                                             )}
-                                        </td>
-
-                                        <td className="px-6 py-3 text-right">
-                                            {!alarm.clearedAt ? (
-                                                <AcknowledgeButton alarmId={alarm.id} />
-                                            ) : null}
                                         </td>
                                     </tr>
                                 ))}
 
-                                {vehicle.alarms.length === 0 ? (
+                                {vehicle.events.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={5}
+                                            colSpan={4}
                                             className="px-6 py-10 text-center text-muted-foreground"
                                         >
-                                            No alarms logged yet.
+                                            No events logged yet.
                                         </td>
                                     </tr>
                                 ) : null}

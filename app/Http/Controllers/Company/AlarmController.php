@@ -5,11 +5,12 @@ namespace App\Http\Controllers\Company;
 use App\Http\Controllers\Company\Concerns\ResolvesCompany;
 use App\Http\Controllers\Controller;
 use App\Models\VehicleAlarm;
+use App\Models\VehicleEvent;
+use App\Services\SystemLogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Services\SystemLogService;
 
 class AlarmController extends Controller
 {
@@ -20,34 +21,56 @@ class AlarmController extends Controller
         $company = $this->currentCompany($request);
 
         $vehicles = $company->vehicles()
-                ->select('id', 'license_plate')
-                ->orderBy('license_plate')
-                ->get();
+            ->select('id', 'license_plate')
+            ->orderBy('license_plate')
+            ->get();
 
-        $vehicleIds = $company->vehicles()->pluck('id');
+        $vehicleIds = $vehicles->pluck('id');
 
-        $faults = VehicleAlarm::query()
+        $eventTypes = VehicleEvent::query()
+            ->whereIn('vehicle_id', $vehicleIds)
+            ->whereNotNull('event_type')
+            ->distinct()
+            ->orderBy('event_type')
+            ->pluck('event_type');
+
+        $events = VehicleEvent::query()
             ->whereIn('vehicle_id', $vehicleIds)
             ->with('vehicle:id,license_plate,make,model')
-            ->latest('gps_time')
+            ->when(
+                $request->filled('vehicle_id'),
+                fn ($query) => $query->where(
+                    'vehicle_id',
+                    $request->vehicle_id
+                )
+            )
+            ->when(
+                $request->filled('event_type'),
+                fn ($query) => $query->where(
+                    'event_type',
+                    $request->event_type
+                )
+            )
+            ->latest('event_time')
             ->paginate(20)
             ->withQueryString()
-            ->through(fn (VehicleAlarm $alarm) => [
-                'id' => $alarm->id,
-                'vehicle' => $alarm->vehicle->license_plate ?? '—',
-                'vehicleId' => $alarm->vehicle_id,
-                'code' => $alarm->alarm_type,
-                'meaning' => $alarm->alarm_description ?? $alarm->description,
-                'severity' => $alarm->severity(),
-                'logTime' => $alarm->gps_time?->toIso8601String(),
-                'clearedAt' => $alarm->acknowledged_at?->toIso8601String(),
+            ->through(fn (VehicleEvent $event) => [
+                'id' => $event->id,
+                'vehicle' => $event->vehicle?->license_plate ?? '—',
+                'vehicleId' => $event->vehicle_id,
+                'eventType' => $event->event_type,
+                'alarm' => $event->alarm,
+                'logTime' => $event->event_time?->toIso8601String(),
+                'attributes' => $event->attributes ?? [],
             ]);
 
         return Inertia::render('company/alarms/index', [
-            'faults' => $faults,
+            'events' => $events,
             'vehicles' => $vehicles,
+            'eventTypes' => $eventTypes,
             'filters' => [
                 'vehicle_id' => $request->vehicle_id,
+                'event_type' => $request->event_type,
             ],
         ]);
     }

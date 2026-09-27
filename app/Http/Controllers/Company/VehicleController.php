@@ -308,6 +308,8 @@ class VehicleController extends Controller
                 'trips' => fn ($query) => $query->latest('start_time')->limit(20),
                 'faults' => fn ($query) => $query->latest('log_time')->limit(30),
                 'alarms' => fn ($query) => $query->latest('gps_time')->limit(30),
+                // 'alarmEvents' => fn ($query) => $query->latest('event_time')->limit(30),
+                'events' => fn ($query) => $query->latest('event_time')->limit(30),
                 'documents.document',
                 'serviceEntries' => fn ($query) => $query->latest('starts_at')->limit(10),
                 'issues' => fn ($query) => $query->latest('reported_at')->limit(20),
@@ -414,6 +416,13 @@ class VehicleController extends Controller
                     'severity' => $alarm->severity(),
                     'logTime' => $alarm->gps_time?->toIso8601String(),
                     'clearedAt' => $alarm->acknowledged_at?->toIso8601String(),
+                ]),
+                'events' => $model->events->map(fn ($event) => [
+                    'id' => $event->id,
+                    'eventType' => $event->event_type,
+                    'alarm' => $event->alarm,
+                    'logTime' => $event->event_time?->toIso8601String(),
+                    'attributes' => $event->attributes,
                 ]),
                 'documents' => $model->documents->map(fn ($doc) => [
                     'id' => $doc->id,

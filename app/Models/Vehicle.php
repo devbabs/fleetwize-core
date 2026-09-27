@@ -300,4 +300,15 @@ class Vehicle extends Model
     {
         return $this->hasMany(MaintenanceAlert::class);
     }
+
+    public function events()
+    {
+        return $this->hasMany(VehicleEvent::class);
+    }
+
+    public function alarmEvents()
+    {
+        return $this->hasMany(VehicleEvent::class)
+            ->where('event_type', 'alarm');
+    }
 }
