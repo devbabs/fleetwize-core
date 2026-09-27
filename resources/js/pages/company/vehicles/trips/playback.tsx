@@ -65,6 +65,24 @@ const endIcon = new L.Icon({
     shadowSize: [41, 41],
 });
 
+const vehicleIcon = (heading: number | null) =>
+    L.divIcon({
+        className: 'vehicle-playback-marker',
+        html: `
+            <div
+                style="
+                    transform: rotate(${heading ?? 0}deg);
+                    font-size: 28px;
+                    line-height: 1;
+                "
+            >
+                🚗
+            </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+    });
+
 function FitBounds({
     positions,
 }: {
@@ -366,7 +384,7 @@ export default function Playback({
                                     currentPoint.lat,
                                     currentPoint.lng,
                                 ]}
-                                icon={startIcon}
+                                icon={vehicleIcon(currentPoint.heading)}
                             >
                                 <Popup>
                                     Current Position
