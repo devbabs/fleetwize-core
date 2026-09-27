@@ -328,6 +328,7 @@ class VehicleController extends Controller
             ->findOrFail((string) $request->route('vehicle'));
 
         return Inertia::render('company/vehicles/show', [
+            'companySlug' => $request->route('company_slug'),
             'vehicle' => [
                 'id' => $model->id,
                 'name' => $model->name,

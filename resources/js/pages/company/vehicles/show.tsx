@@ -148,6 +148,11 @@ type MaintenanceAlert = {
     acknowledged: boolean;
 };
 
+interface Props {
+    companySlug: string;
+    vehicle: VehicleDetail;
+}
+
 const tabs = ['Overview', 'Trip History', 'Alarms', 'Maintenance', 'Documents', 'Issues'] as const;
 type Tab = (typeof tabs)[number];
 
@@ -209,10 +214,16 @@ const formatDuration = (seconds: number): string => {
     return `${remainingSeconds}s`;
 };
 
-export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: VehicleDetail }) {
-    const [tab, setTab] = useState<Tab>('Overview');
-    const [vehicle, setVehicle] = useState(initialVehicle);
-    const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+export default function VehicleShow({
+        companySlug,
+        vehicle: initialVehicle,
+    }: {
+        companySlug: string;
+        vehicle: VehicleDetail;
+    }) {
+        const [tab, setTab] = useState<Tab>('Overview');
+        const [vehicle, setVehicle] = useState(initialVehicle);
+        const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
     // The channel carries every vehicle in the company — filter to this one.
     useVehicleLiveUpdates((update) => {
@@ -637,7 +648,7 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                             <Button asChild size="sm">
                                                 <Link
                                                     href={route('company.vehicles.trips.playback', {
-                                                        company_slug: route().params.company_slug,
+                                                        company_slug: companySlug,
                                                         vehicle: vehicle.id,
                                                         trip: trip.id,
                                                     })}
