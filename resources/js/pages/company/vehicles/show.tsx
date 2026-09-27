@@ -223,6 +223,17 @@ const formatDuration = (seconds: number): string => {
     return `${remainingSeconds}s`;
 };
 
+const eventTypeLabels: Record<string, string> = {
+    ignitionOn: 'Ignition On',
+    ignitionOff: 'Ignition Off',
+    deviceMoving: 'Vehicle Moving',
+    deviceStopped: 'Vehicle Stopped',
+    alarm: 'Alarm',
+    geofenceEnter: 'Geofence Enter',
+    geofenceExit: 'Geofence Exit',
+    maintenance: 'Maintenance',
+};
+
 export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: VehicleDetail }) {
     const [tab, setTab] = useState<Tab>('Overview');
     const [vehicle, setVehicle] = useState(initialVehicle);

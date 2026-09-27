@@ -241,10 +241,10 @@ export default function AlarmsIndex({
                 </div>
 
                 <Pagination
-                    links={faults.links}
-                    from={faults.from}
-                    to={faults.to}
-                    total={faults.total}
+                    links={events.links}
+                    from={events.from}
+                    to={events.to}
+                    total={events.total}
                 />
             </Card>
         </CompanyLayout>
