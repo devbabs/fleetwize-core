@@ -135,10 +135,7 @@ export default function Playback({
                     </div>
 
                     <Link
-                        href={route(
-                            'vehicles.show',
-                            vehicle.id
-                        )}
+                        href={`/vehicles/${vehicle.id}`}
                         className="rounded border px-4 py-2"
                     >
                         Back
