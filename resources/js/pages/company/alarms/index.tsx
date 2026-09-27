@@ -51,6 +51,7 @@ const eventTypeLabels: Record<string, string> = {
     geofenceEnter: 'Geofence Enter',
     geofenceExit: 'Geofence Exit',
     maintenance: 'Maintenance',
+    queuedCommandSent: 'Command Queued',
 };
 
 function formatDateTime(value: string | null) {
@@ -126,7 +127,7 @@ export default function AlarmsIndex({
                     value={filters.vehicle_id ?? 'all'}
                     onValueChange={(value) => {
                         router.get(
-                            route('company.alarms.index'),
+                            '/alarms',
                             {
                                 vehicle_id:
                                     value === 'all' ? undefined : value,
@@ -136,7 +137,7 @@ export default function AlarmsIndex({
                             {
                                 preserveState: true,
                                 replace: true,
-                            }
+                            },
                         );
                     }}
                 >
@@ -144,7 +145,7 @@ export default function AlarmsIndex({
                         <SelectValue placeholder="Filter by vehicle" />
                     </SelectTrigger>
 
-                    <SelectContent className="z-[9999] pointer-events-auto">
+                    <SelectContent className="z-[9999]">
                         <SelectItem value="all">
                             All Vehicles
                         </SelectItem>
@@ -164,7 +165,7 @@ export default function AlarmsIndex({
                     value={filters.event_type ?? 'all'}
                     onValueChange={(value) => {
                         router.get(
-                            route('company.alarms.index'),
+                            '/alarms',
                             {
                                 vehicle_id:
                                     filters.vehicle_id || undefined,
@@ -174,7 +175,7 @@ export default function AlarmsIndex({
                             {
                                 preserveState: true,
                                 replace: true,
-                            }
+                            },
                         );
                     }}
                 >
@@ -182,7 +183,7 @@ export default function AlarmsIndex({
                         <SelectValue placeholder="Filter by event type" />
                     </SelectTrigger>
 
-                    <SelectContent className="z-[9999] pointer-events-auto">
+                    <SelectContent className="z-[9999]">
                         <SelectItem value="all">
                             All Event Types
                         </SelectItem>
