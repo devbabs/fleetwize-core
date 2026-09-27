@@ -144,7 +144,7 @@ export default function AlarmsIndex({
                         <SelectValue placeholder="Filter by vehicle" />
                     </SelectTrigger>
 
-                    <SelectContent className="z-[9999]">
+                    <SelectContent className="z-[9999] pointer-events-auto">
                         <SelectItem value="all">
                             All Vehicles
                         </SelectItem>
@@ -182,7 +182,7 @@ export default function AlarmsIndex({
                         <SelectValue placeholder="Filter by event type" />
                     </SelectTrigger>
 
-                    <SelectContent className="z-[9999]">
+                    <SelectContent className="z-[9999] pointer-events-auto">
                         <SelectItem value="all">
                             All Event Types
                         </SelectItem>
