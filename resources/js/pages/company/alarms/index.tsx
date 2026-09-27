@@ -113,6 +113,10 @@ export default function AlarmsIndex({
     eventTypes,
     filters,
 }: Props) {
+    console.log('vehicles:', vehicles);
+    console.log('eventTypes:', eventTypes);
+    console.log('filters:', filters);
+    
     return (
         <CompanyLayout title="Alarms & Alerts">
             <Head title="Alarms & Alerts" />
@@ -124,7 +128,10 @@ export default function AlarmsIndex({
                         router.get(
                             route('company.alarms.index'),
                             {
-                                vehicle_id: value === 'all' ? undefined : value,
+                                vehicle_id:
+                                    value === 'all' ? undefined : value,
+                                event_type:
+                                    filters.event_type || undefined,
                             },
                             {
                                 preserveState: true,
@@ -138,12 +145,14 @@ export default function AlarmsIndex({
                     </SelectTrigger>
 
                     <SelectContent>
-                        <SelectItem value="all">All Vehicles</SelectItem>
+                        <SelectItem value="all">
+                            All Vehicles
+                        </SelectItem>
 
                         {vehicles.map((vehicle) => (
                             <SelectItem
                                 key={vehicle.id}
-                                value={vehicle.id.toString()}
+                                value={String(vehicle.id)}
                             >
                                 {vehicle.license_plate}
                             </SelectItem>
@@ -157,7 +166,8 @@ export default function AlarmsIndex({
                         router.get(
                             route('company.alarms.index'),
                             {
-                                vehicle_id: filters.vehicle_id || undefined,
+                                vehicle_id:
+                                    filters.vehicle_id || undefined,
                                 event_type:
                                     value === 'all' ? undefined : value,
                             },
@@ -173,11 +183,16 @@ export default function AlarmsIndex({
                     </SelectTrigger>
 
                     <SelectContent>
-                        <SelectItem value="all">All Event Types</SelectItem>
+                        <SelectItem value="all">
+                            All Event Types
+                        </SelectItem>
 
                         {eventTypes.map((type) => (
-                            <SelectItem key={type} value={type}>
-                                {type}
+                            <SelectItem
+                                key={type}
+                                value={type}
+                            >
+                                {eventTypeLabels[type] ?? type}
                             </SelectItem>
                         ))}
                     </SelectContent>
