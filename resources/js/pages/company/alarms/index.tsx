@@ -116,7 +116,7 @@ export default function AlarmsIndex({
     console.log('vehicles:', vehicles);
     console.log('eventTypes:', eventTypes);
     console.log('filters:', filters);
-    
+
     return (
         <CompanyLayout title="Alarms & Alerts">
             <Head title="Alarms & Alerts" />
@@ -144,7 +144,7 @@ export default function AlarmsIndex({
                         <SelectValue placeholder="Filter by vehicle" />
                     </SelectTrigger>
 
-                    <SelectContent>
+                    <SelectContent className="z-[9999]">
                         <SelectItem value="all">
                             All Vehicles
                         </SelectItem>
@@ -182,7 +182,7 @@ export default function AlarmsIndex({
                         <SelectValue placeholder="Filter by event type" />
                     </SelectTrigger>
 
-                    <SelectContent>
+                    <SelectContent className="z-[9999]">
                         <SelectItem value="all">
                             All Event Types
                         </SelectItem>
