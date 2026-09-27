@@ -76,6 +76,5 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
 
         Route::get('/vehicles/{vehicle}/trips/{trip}/playback', [PlaybackController::class, 'show'])->name('vehicles.trips.playback');
     });
-
     require __DIR__.'/company-workshop.php';
 });
