@@ -121,7 +121,7 @@ type VehicleDetail = {
     } | null;
     trips: Trip[];
     faults: Fault[];
-    alarms: Fault[];
+    // alarms: Fault[];
     events: VehicleEvent[];
     documents: VehicleDocument[];
     serviceEntries: ServiceEntry[];
@@ -289,8 +289,26 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
     // with its source for a stable key before merging into one list of
     // "something's open for this vehicle".
     const openAlerts = [
-        ...vehicle.faults.map((fault) => ({ ...fault, key: `fault-${fault.id}` })),
-        ...vehicle.alarms.map((alarm) => ({ ...alarm, key: `alarm-${alarm.id}` })),
+        ...(vehicle.faults ?? []).map((fault) => ({
+            key: `fault-${fault.id}`,
+            type: 'fault',
+            title: fault.meaning ?? fault.code ?? 'Fault',
+            logTime: fault.logTime,
+            clearedAt: fault.clearedAt,
+            severity: fault.severity,
+        })),
+
+        ...(vehicle.events ?? []).map((event) => ({
+            key: `event-${event.id}`,
+            type: 'event',
+            title:
+                event.alarm ??
+                eventTypeLabels[event.eventType] ??
+                event.eventType,
+            logTime: event.logTime,
+            clearedAt: null,
+            severity: null,
+        })),
     ]
         .filter((alert) => !alert.clearedAt)
         .sort((a, b) => (b.logTime ?? '').localeCompare(a.logTime ?? ''));
