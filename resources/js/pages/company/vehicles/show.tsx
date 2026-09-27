@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
-import { route } from 'ziggy-js';
+// import { route } from 'ziggy-js';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -214,16 +214,10 @@ const formatDuration = (seconds: number): string => {
     return `${remainingSeconds}s`;
 };
 
-export default function VehicleShow({
-        companySlug,
-        vehicle: initialVehicle,
-    }: {
-        companySlug: string;
-        vehicle: VehicleDetail;
-    }) {
-        const [tab, setTab] = useState<Tab>('Overview');
-        const [vehicle, setVehicle] = useState(initialVehicle);
-        const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: VehicleDetail }) {
+    const [tab, setTab] = useState<Tab>('Overview');
+    const [vehicle, setVehicle] = useState(initialVehicle);
+    const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
     // The channel carries every vehicle in the company — filter to this one.
     useVehicleLiveUpdates((update) => {
@@ -647,11 +641,7 @@ export default function VehicleShow({
                                         <td>
                                             <Button asChild size="sm">
                                                 <Link
-                                                    href={route('company.vehicles.trips.playback', {
-                                                        company_slug: companySlug,
-                                                        vehicle: vehicle.id,
-                                                        trip: trip.id,
-                                                    })}
+                                                    href={`/vehicles/${vehicle.id}/trips/${trip.id}/playback`}
                                                 >
                                                     Playback
                                                 </Link>
