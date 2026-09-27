@@ -22,7 +22,8 @@
         "laravel/wayfinder": "^0.1.14",
         "predis/predis": "^3.6",
         "spatie/laravel-pdf": "^2.12",
-        "spatie/simple-excel": "^3.10"
+        "spatie/simple-excel": "^3.10",
+        "tightenco/ziggy": "^2.6"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.7",
