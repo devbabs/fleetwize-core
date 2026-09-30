@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('vehicle_trips', function (Blueprint $table) {
             //
-            $table->foreignId('company_user_id')->nullable()->after('vehicle_id');
+            // $table->foreignId('company_user_id')->nullable()->after('vehicle_id');
 
             $table->decimal('score', 5, 2);
 
