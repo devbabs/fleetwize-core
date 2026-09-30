@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Carbon\CarbonInterface;
 
 #[Signature('app:aggregate-driver-scores')]
 #[Description('Command description')]
@@ -76,7 +77,7 @@ class AggregateDriverScores extends Command
         );
     }
 
-    protected function aggregatePeriod(string $periodType, Carbon $start, Carbon $end): void 
+    protected function aggregatePeriod(string $periodType, CarbonInterface $start, CarbonInterface $end): void 
     {
 
         VehicleTrip::query()
@@ -104,7 +105,7 @@ class AggregateDriverScores extends Command
             });
     }
 
-    protected function buildScorecard(int $companyUserId, string $periodType, Carbon $start, Carbon $end): void 
+    protected function buildScorecard(int $companyUserId, string $periodType, CarbonInterface $start, CarbonInterface $end): void
     {
 
         $trips = VehicleTrip::query()
