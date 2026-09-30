@@ -9,8 +9,6 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('app:calculate-trip-scores')]
-#[Description('Command description')]
 class CalculateTripScores extends Command
 {
     protected $signature = 'tracker:calculate-trip-scores';

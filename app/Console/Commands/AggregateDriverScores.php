@@ -9,9 +9,6 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Carbon\CarbonInterface;
-
-#[Signature('app:aggregate-driver-scores')]
-#[Description('Command description')]
 class AggregateDriverScores extends Command
 {
     protected $signature = 'tracker:aggregate-driver-scores';
