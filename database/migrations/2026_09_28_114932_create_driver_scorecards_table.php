@@ -13,9 +13,16 @@ return new class extends Migration
     {
         Schema::create('driver_scorecards', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_user_id')->constrained()->cascadeOnDelete();
 
-            $table->enum('period_type', ['daily', 'weekly', 'monthly',]);
+            $table->foreignId('company_user_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->enum('period_type', [
+                'daily',
+                'weekly',
+                'monthly',
+            ]);
 
             $table->date('period_start');
             $table->date('period_end');
@@ -41,7 +48,11 @@ return new class extends Migration
 
             $table->string('grade')->nullable();
 
-            $table->unique(['company_user_id', 'period_type', 'period_start',]);
+            $table->unique(
+                ['company_user_id', 'period_type', 'period_start'],
+                'driver_scorecard_period_unique'
+            );
+
             $table->timestamps();
         });
     }
