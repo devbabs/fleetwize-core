@@ -1,5 +1,7 @@
 <?php
 
+use App\Console\Commands\AggregateDriverScores;
+use App\Console\Commands\CalculateTripScores;
 use App\Console\Commands\CheckMaintenanceSchedules;
 use App\Console\Commands\SyncVehicleEvents;
 use App\Console\Commands\SyncVehicleRoutes;
@@ -66,6 +68,14 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyFiveMinutes()
             ->withoutOverlapping()
             ->runInBackground();
+
+        $schedule->command(
+            CalculateTripScores::class
+        )->everyFifteenMinutes();
+
+        $schedule->command(
+            AggregateDriverScores::class
+        )->hourly();
 
         $schedule->command(CheckMaintenanceSchedules::class)
             ->everyFifteenMinutes();

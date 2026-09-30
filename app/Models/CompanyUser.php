@@ -129,4 +129,19 @@ class CompanyUser extends Model
     {
         return $this->hasOne(DriverCheckIn::class)->latestOfMany();
     }
+
+    public function trips(): HasMany
+    {
+        return $this->hasMany(
+            VehicleTrip::class,
+            'company_user_id'
+        );
+    }
+
+    public function scorecards(): HasMany
+    {
+        return $this->hasMany(
+            DriverScorecard::class
+        );
+    }
 }

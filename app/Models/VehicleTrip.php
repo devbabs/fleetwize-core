@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\VehicleRoutePoint;
+use App\Models\VehicleTripScore;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property int $id
@@ -116,6 +120,24 @@ class VehicleTrip extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    public function score(): HasOne
+    {
+        return $this->hasOne(VehicleTripScore::class);
+    }
+
+    public function routePoints(): HasMany
+    {
+        return $this->hasMany(VehicleRoutePoint::class);
+    }
+
+    public function driver(): BelongsTo
+    {
+        return $this->belongsTo(
+            CompanyUser::class,
+            'company_user_id'
+        );
     }
 
     /**

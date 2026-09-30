@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Company\DriverScorecardController;
 use App\Http\Controllers\Api\Company\PlaybackController;
 use App\Http\Controllers\Company\AlarmController;
 use App\Http\Controllers\Company\DashboardController;
@@ -75,6 +76,10 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
         Route::get('/system-logs', [SystemLogController::class, 'index'])->name('system-logs.index');
 
         Route::get('/vehicles/{vehicle}/trips/{trip}/playback', [PlaybackController::class, 'show'])->name('vehicles.trips.playback');
+
+        Route::get('/drivers-scorecard', [DriverScorecardController::class, 'index'])->name('drivers.scorecards.index');
+
+        Route::get('/drivers/{driver}/scorecards',[DriverScorecardController::class, 'show'])->name('drivers.scorecards.show');
     });
     require __DIR__.'/company-workshop.php';
 });

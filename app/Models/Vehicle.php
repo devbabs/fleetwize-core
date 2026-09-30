@@ -295,7 +295,6 @@ class Vehicle extends Model
         return $this->hasMany(MaintenanceRecord::class);
     }
 
-
     public function maintenanceAlerts(): HasMany
     {
         return $this->hasMany(MaintenanceAlert::class);

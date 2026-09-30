@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
     { title: 'Reports', href: '/reports', icon: FileText },
     { title: 'Settings', href: '/settings', icon: Settings },
     { title: 'System Logs', href: '/system-logs', icon: FileText },
+    { title: 'Driver Scorecard', href: '/drivers-scorecard', icon: FileText },
 ];
 
 export function CompanySidebar() {
