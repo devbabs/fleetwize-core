@@ -550,8 +550,19 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
                                     {openAlerts.map((alert) => (
                                         <div key={alert.key} className="flex items-center justify-between px-6 py-3">
                                             <div>
-                                                <p className="text-sm font-medium text-foreground">{alert.code}</p>
-                                                <p className="text-xs text-muted-foreground">{alert.meaning}</p>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-medium text-foreground">
+                                                            {alert.title}
+                                                        </p>
+
+                                                        {alert.type === 'fault' ? (
+                                                            <Badge variant="destructive">Fault</Badge>
+                                                        ) : (
+                                                            <Badge variant="outline">Event</Badge>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <span className="text-xs text-muted-foreground">{formatDateTime(alert.logTime)}</span>
                                         </div>
