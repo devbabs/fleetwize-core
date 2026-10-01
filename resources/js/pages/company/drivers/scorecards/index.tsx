@@ -1,3 +1,16 @@
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
+// import { route } from 'ziggy-js';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useVehicleLiveUpdates } from '@/hooks/use-vehicle-live-updates';
+import CompanyLayout from '@/layouts/company/company-layout';
+import { cn } from '@/lib/utils';
+
 import { Link } from '@inertiajs/react';
 
 interface Scorecard {
