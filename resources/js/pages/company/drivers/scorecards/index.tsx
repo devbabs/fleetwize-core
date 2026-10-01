@@ -1,4 +1,15 @@
-import { Link } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
+
+import CompanyLayout from '@/layouts/company/company-layout';
+
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+
+import { Badge } from '@/components/ui/badge';
 
 interface Scorecard {
     id: number;
@@ -22,113 +33,128 @@ export default function Index({
     scorecards,
 }: Props) {
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold">
-                Driver Scorecards
-            </h1>
+        <CompanyLayout title="Driver Scorecards">
+            <Head title="Driver Scorecards" />
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold">
+                        Driver Scorecards
+                    </h1>
 
-            <div className="overflow-hidden rounded-lg border bg-white">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b bg-gray-50">
-                            <th className="p-3 text-left">
-                                Driver
-                            </th>
+                    <p className="text-sm text-muted-foreground">
+                        Review driver safety and efficiency performance.
+                    </p>
+                </div>
 
-                            <th className="p-3 text-left">
-                                Period
-                            </th>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Driver Performance</CardTitle>
+                    </CardHeader>
 
-                            <th className="p-3 text-left">
-                                Trips
-                            </th>
+                    <CardContent className="p-0">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b bg-gray-50">
+                                    <th className="p-3 text-left">
+                                        Driver
+                                    </th>
 
-                            <th className="p-3 text-left">
-                                Score
-                            </th>
+                                    <th className="p-3 text-left">
+                                        Period
+                                    </th>
 
-                            <th className="p-3 text-left">
-                                Safety
-                            </th>
+                                    <th className="p-3 text-left">
+                                        Trips
+                                    </th>
 
-                            <th className="p-3 text-left">
-                                Efficiency
-                            </th>
+                                    <th className="p-3 text-left">
+                                        Score
+                                    </th>
 
-                            <th className="p-3 text-left">
-                                Grade
-                            </th>
+                                    <th className="p-3 text-left">
+                                        Safety
+                                    </th>
 
-                            <th className="p-3"></th>
-                        </tr>
-                    </thead>
+                                    <th className="p-3 text-left">
+                                        Efficiency
+                                    </th>
 
-                    <tbody>
-                        {scorecards.data.map(
-                            (scorecard) => (
-                                <tr
-                                    key={scorecard.id}
-                                    className="border-b"
-                                >
-                                    <td className="p-3">
-                                        {
-                                            scorecard.driver_name
-                                        }
-                                    </td>
+                                    <th className="p-3 text-left">
+                                        Grade
+                                    </th>
 
-                                    <td className="p-3 capitalize">
-                                        {
-                                            scorecard.period_type
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.trip_count
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.score
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.safety_score
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.efficiency_score
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.grade
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        <Link
-                                            href={route(
-                                                'company.drivers.scorecards.show',
-                                                scorecard.driver_id
-                                            )}
-                                            className="text-blue-600"
-                                        >
-                                            View
-                                        </Link>
-                                    </td>
+                                    <th className="p-3"></th>
                                 </tr>
-                            )
-                        )}
-                    </tbody>
-                </table>
+                            </thead>
+
+                            <tbody>
+                                {scorecards.data.map(
+                                    (scorecard) => (
+                                        <tr
+                                            key={scorecard.id}
+                                            className="border-b"
+                                        >
+                                            <td className="p-3">
+                                                {
+                                                    scorecard.driver_name
+                                                }
+                                            </td>
+
+                                            <td className="p-3 capitalize">
+                                                {
+                                                    scorecard.period_type
+                                                }
+                                            </td>
+
+                                            <td className="p-3">
+                                                {
+                                                    scorecard.trip_count
+                                                }
+                                            </td>
+
+                                            <td className="p-3">
+                                                {
+                                                    scorecard.score
+                                                }
+                                            </td>
+
+                                            <td className="p-3">
+                                                {
+                                                    scorecard.safety_score
+                                                }
+                                            </td>
+
+                                            <td className="p-3">
+                                                {
+                                                    scorecard.efficiency_score
+                                                }
+                                            </td>
+
+                                            <td className="p-3">
+                                                {
+                                                    scorecard.grade
+                                                }
+                                            </td>
+
+                                            <td className="p-3">
+                                                <Link
+                                                    href={route(
+                                                        'company.drivers.scorecards.show',
+                                                        scorecard.driver_id
+                                                    )}
+                                                    className="text-blue-600"
+                                                >
+                                                    View
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    )
+                                )}
+                            </tbody>
+                        </table>
+                    </CardContent>
+                </Card>
             </div>
-        </div>
+        </CompanyLayout>
     );
 }
