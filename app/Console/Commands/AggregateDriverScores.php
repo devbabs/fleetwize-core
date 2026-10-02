@@ -105,16 +105,21 @@ class AggregateDriverScores extends Command
     protected function buildScorecard(int $companyUserId, string $periodType, CarbonInterface $start, CarbonInterface $end): void
     {
 
+        // $trips = VehicleTrip::query()
+        //     ->where(
+        //         'company_user_id',
+        //         $companyUserId
+        //     )
+        //     ->whereBetween(
+        //         'start_time',
+        //         [$start, $end]
+        //     )
+        //     ->get();
         $trips = VehicleTrip::query()
-            ->where(
-                'company_user_id',
-                $companyUserId
-            )
-            ->whereBetween(
-                'start_time',
-                [$start, $end]
-            )
-            ->get();
+                            ->where('company_user_id', $companyUserId)
+                            ->whereNotNull('score_calculated_at')
+                            ->whereBetween('start_time', [$start, $end])
+                            ->get();
 
         if ($trips->isEmpty()) {
             return;
@@ -197,5 +202,16 @@ class AggregateDriverScores extends Command
                     $this->grade($score),
             ]
         );
+    }
+
+    protected function grade(float $score): string
+    {
+        return match (true) {
+            $score >= 90 => 'A',
+            $score >= 80 => 'B',
+            $score >= 70 => 'C',
+            $score >= 60 => 'D',
+            default => 'F',
+        };
     }
 }
