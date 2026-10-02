@@ -75,14 +75,11 @@ class DriverScorecardController extends Controller
         );
     }
 
-    public function show(Request $request, string $driver): Response
+    public function show(Request $request, string $company_slug, string $driver): Response 
     {
         $company = $request->attributes->get('company');
 
-        dd($driver);
-
         $driver = CompanyUser::findOrFail($driver);
-        dd($driver);
 
         abort_unless(
             $driver->company_id === $company->id,
