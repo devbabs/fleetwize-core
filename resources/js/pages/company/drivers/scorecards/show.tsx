@@ -97,10 +97,10 @@ export default function Show({
                     </div>
                 </div>
 
-                <div className="overflow-hidden rounded-lg border bg-white">
+                <div className="overflow-hidden rounded-lg border">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b bg-gray-50">
+                            <tr className="border-b">
                                 <th className="p-3 text-left">
                                     Period
                                 </th>
