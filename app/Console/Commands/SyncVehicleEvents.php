@@ -31,7 +31,7 @@ class SyncVehicleEvents extends Command
         $syncState = TrackerSyncState::firstOrCreate(
             ['type' => 'events'],
             [
-                'last_synced_at' => now()->startOfPreviousMonth(),
+                'last_synced_at' => now()->setMonth(9)->startOfMonth(),
             ]
         );
 
