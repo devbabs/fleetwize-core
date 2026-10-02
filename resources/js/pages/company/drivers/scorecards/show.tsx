@@ -1,3 +1,7 @@
+import { Head } from '@inertiajs/react';
+
+import CompanyLayout from '@/layouts/company/company-layout';
+
 interface Driver {
     id: number;
     name: string;
@@ -38,157 +42,160 @@ export default function Show({
     scorecards,
 }: Props) {
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold">
-                    {driver.name}
-                </h1>
+        <CompanyLayout title={`${driver.name} - Driver Scorecard`}>
+            <Head title={`${driver.name} - Driver Scorecard`} />
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold">
+                        {driver.name}
+                    </h1>
 
-                <p className="text-gray-500">
-                    Driver Performance
-                </p>
+                    <p className="text-gray-500">
+                        Driver Performance
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-gray-500">
+                            Total Scorecards
+                        </div>
+
+                        <div className="text-2xl font-bold">
+                            {scorecards.length}
+                        </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-gray-500">
+                            Latest Score
+                        </div>
+
+                        <div className="text-2xl font-bold">
+                            {scorecards[0]?.score ?? '-'}
+                        </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-gray-500">
+                            Latest Grade
+                        </div>
+
+                        <div className="text-2xl font-bold">
+                            {scorecards[0]?.grade ?? '-'}
+                        </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-gray-500">
+                            Trips
+                        </div>
+
+                        <div className="text-2xl font-bold">
+                            {scorecards[0]?.trip_count ?? 0}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="overflow-hidden rounded-lg border bg-white">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b bg-gray-50">
+                                <th className="p-3 text-left">
+                                    Period
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Score
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Safety
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Efficiency
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Grade
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Distance
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Overspeed
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Idle
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {scorecards.map(
+                                (scorecard) => (
+                                    <tr
+                                        key={scorecard.id}
+                                        className="border-b"
+                                    >
+                                        <td className="p-3">
+                                            {
+                                                scorecard.period_type
+                                            }
+                                        </td>
+
+                                        <td className="p-3">
+                                            {
+                                                scorecard.score
+                                            }
+                                        </td>
+
+                                        <td className="p-3">
+                                            {
+                                                scorecard.safety_score
+                                            }
+                                        </td>
+
+                                        <td className="p-3">
+                                            {
+                                                scorecard.efficiency_score
+                                            }
+                                        </td>
+
+                                        <td className="p-3">
+                                            {
+                                                scorecard.grade
+                                            }
+                                        </td>
+
+                                        <td className="p-3">
+                                            {
+                                                scorecard.distance_km
+                                            } km
+                                        </td>
+
+                                        <td className="p-3">
+                                            {
+                                                scorecard.overspeed_events
+                                            }
+                                        </td>
+
+                                        <td className="p-3">
+                                            {
+                                                scorecard.idle_minutes
+                                            } min
+                                        </td>
+                                    </tr>
+                                )
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-
-            <div className="grid grid-cols-4 gap-4">
-                <div className="rounded-lg border p-4">
-                    <div className="text-sm text-gray-500">
-                        Total Scorecards
-                    </div>
-
-                    <div className="text-2xl font-bold">
-                        {scorecards.length}
-                    </div>
-                </div>
-
-                <div className="rounded-lg border p-4">
-                    <div className="text-sm text-gray-500">
-                        Latest Score
-                    </div>
-
-                    <div className="text-2xl font-bold">
-                        {scorecards[0]?.score ?? '-'}
-                    </div>
-                </div>
-
-                <div className="rounded-lg border p-4">
-                    <div className="text-sm text-gray-500">
-                        Latest Grade
-                    </div>
-
-                    <div className="text-2xl font-bold">
-                        {scorecards[0]?.grade ?? '-'}
-                    </div>
-                </div>
-
-                <div className="rounded-lg border p-4">
-                    <div className="text-sm text-gray-500">
-                        Trips
-                    </div>
-
-                    <div className="text-2xl font-bold">
-                        {scorecards[0]?.trip_count ?? 0}
-                    </div>
-                </div>
-            </div>
-
-            <div className="overflow-hidden rounded-lg border bg-white">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b bg-gray-50">
-                            <th className="p-3 text-left">
-                                Period
-                            </th>
-
-                            <th className="p-3 text-left">
-                                Score
-                            </th>
-
-                            <th className="p-3 text-left">
-                                Safety
-                            </th>
-
-                            <th className="p-3 text-left">
-                                Efficiency
-                            </th>
-
-                            <th className="p-3 text-left">
-                                Grade
-                            </th>
-
-                            <th className="p-3 text-left">
-                                Distance
-                            </th>
-
-                            <th className="p-3 text-left">
-                                Overspeed
-                            </th>
-
-                            <th className="p-3 text-left">
-                                Idle
-                            </th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {scorecards.map(
-                            (scorecard) => (
-                                <tr
-                                    key={scorecard.id}
-                                    className="border-b"
-                                >
-                                    <td className="p-3">
-                                        {
-                                            scorecard.period_type
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.score
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.safety_score
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.efficiency_score
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.grade
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.distance_km
-                                        } km
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.overspeed_events
-                                        }
-                                    </td>
-
-                                    <td className="p-3">
-                                        {
-                                            scorecard.idle_minutes
-                                        } min
-                                    </td>
-                                </tr>
-                            )
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        </CompanyLayout>
     );
 }
