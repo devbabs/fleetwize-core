@@ -137,24 +137,10 @@ export default function Index({
                                                 }
                                             </td>
 
-                                            {/* <td className="p-3">
-                                                <Button asChild size="sm">
-                                                    <Link
-                                                        href={`/drivers/${scorecard.driver_id}/scorecards`}
-                                                    >
-                                                        View
-                                                    </Link>
-                                                </Button>
-                                            </td> */}
                                             <td className="p-3">
                                                 <Button asChild size="sm">
                                                     <Link
-                                                        href={route(
-                                                            'company.drivers.scorecards.show',
-                                                            {
-                                                                driver: scorecard.driver_id,
-                                                            }
-                                                        )}
+                                                        href={`/drivers/${scorecard.driver_id}/scorecards`}
                                                     >
                                                         View
                                                     </Link>
