@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Vehicle;
+use App\Models\VehicleAssignment;
 use App\Models\VehicleTrip;
 use App\Services\Tracking\TraccarService;
 use Illuminate\Console\Command;
@@ -48,24 +49,9 @@ class SyncVehicleTrips extends Command
         return self::SUCCESS;
     }
 
-    protected function syncVehicle(
-        Vehicle $vehicle,
-        TraccarService $traccar
-    ): void {
-        // $device = $traccar->findDeviceByImei(
-        //     (string) $vehicle->obd_device_imei
-        // );
 
-        // if (! $device) {
-        //     $this->warn(
-        //         "Traccar device not found for Vehicle {$vehicle->id}."
-        //     );
-
-        //     return;
-        // }
-
-        // $deviceId = (int) $device['id'];
-
+    protected function syncVehicle(Vehicle $vehicle, TraccarService $traccar): void 
+    {
         $lastSyncAt = $vehicle->last_trip_sync_at;
 
         $from = $lastSyncAt
@@ -107,6 +93,11 @@ class SyncVehicleTrips extends Command
             $startTime = Carbon::parse($trip['startTime']);
             $endTime = Carbon::parse($trip['endTime']);
 
+            $companyUserId = $this->driverCompanyUserId(
+                $vehicle,
+                $startTime
+            );
+
             $startAddress = $this->resolveTripAddress(
                 $traccar,
                 $trip['startAddress'] ?? null,
@@ -128,6 +119,8 @@ class SyncVehicleTrips extends Command
                         'end_time'   => $endTime,
                     ],
                     [
+                        'company_user_id' => $companyUserId,
+                        
                         'obd_device_id' =>
                             (string) $vehicle->traccar_device_id,
 
@@ -199,10 +192,6 @@ class SyncVehicleTrips extends Command
             $saved++;
         }
 
-        /*
-         * Only move the watermark after the Traccar
-         * request and database processing completed.
-         */
         $vehicle->update([
             'last_trip_sync_at' => $to,
             'route_synced_at' => now(),
@@ -213,12 +202,8 @@ class SyncVehicleTrips extends Command
         );
     }
 
-    protected function resolveTripAddress(
-        TraccarService $traccar,
-        ?string $address,
-        ?float $latitude,
-        ?float $longitude
-    ): ?string {
+    protected function resolveTripAddress(TraccarService $traccar, ?string $address, ?float $latitude, ?float $longitude): ?string 
+    {
         if (!empty($address)) {
             return $address;
         }
@@ -252,5 +237,27 @@ class SyncVehicleTrips extends Command
         return $knots !== null
             ? round($knots * 1.852, 2)
             : null;
+    }
+
+    protected function driverCompanyUserId(Vehicle $vehicle, Carbon $tripStart): ?int 
+    {
+        $assignment = VehicleAssignment::query()
+            ->where('vehicle_id', $vehicle->id)
+            ->where('start_date', '<=', $tripStart->toDateString())
+            ->where(function ($query) use ($tripStart) {
+                $query->whereNull('end_date')
+                    ->orWhere(
+                        'end_date',
+                        '>=',
+                        $tripStart->toDateString()
+                    );
+            })
+            ->whereHas('companyUser', function ($query) {
+                $query->where('role', 'driver');
+            })
+            ->latest('start_date')
+            ->first();
+
+        return $assignment?->company_user_id;
     }
 }

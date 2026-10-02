@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Vehicle;
+use App\Models\VehicleAssignment;
 use App\Models\VehicleTrip;
 use App\Services\Tracking\TraccarService;
 use Carbon\Carbon;
@@ -82,7 +83,8 @@ class BackFillTrips extends Command
                     $totalVehicleTrips += $count;
 
                     if ($count > 0) {
-                        $this->saveTrips($vehicle->id, $vehicle->traccar_device_id, $trips, $traccar);
+                        // $this->saveTrips($vehicle->id, $vehicle->traccar_device_id, $trips, $traccar);
+                        $this->saveTrips($vehicle,$trips,$traccar);
                         $this->line("     Saved {$count} trip(s).");
                     }
 
@@ -111,7 +113,8 @@ class BackFillTrips extends Command
         return self::SUCCESS;
     }
 
-    protected function saveTrips(int $vehicleId, int $deviceId, array $trips, TraccarService $traccar): void
+    // protected function saveTrips(int $vehicleId, int $deviceId, array $trips, TraccarService $traccar): void
+    protected function saveTrips(Vehicle $vehicle, array $trips, TraccarService $traccar): void 
     {
         foreach ($trips as $trip) {
             if (! isset($trip['startTime'], $trip['endTime'])) {
@@ -121,75 +124,87 @@ class BackFillTrips extends Command
             $startTime = Carbon::parse($trip['startTime']);
             $endTime = Carbon::parse($trip['endTime']);
 
+            $companyUserId = $this->driverCompanyUserId(
+                $vehicle,
+                $startTime
+            );
+
             $startAddress = $this->resolveTripAddress(
                 $traccar,
                 $trip['startAddress'] ?? null,
-                isset($trip['startLat']) ? (float) $trip['startLat'] : null,
-                isset($trip['startLon']) ? (float) $trip['startLon'] : null
+                isset($trip['startLat'])
+                    ? (float) $trip['startLat']
+                    : null,
+                isset($trip['startLon'])
+                    ? (float) $trip['startLon']
+                    : null
             );
 
             $endAddress = $this->resolveTripAddress(
                 $traccar,
                 $trip['endAddress'] ?? null,
-                isset($trip['endLat']) ? (float) $trip['endLat'] : null,
-                isset($trip['endLon']) ? (float) $trip['endLon'] : null
+                isset($trip['endLat'])
+                    ? (float) $trip['endLat']
+                    : null,
+                isset($trip['endLon'])
+                    ? (float) $trip['endLon']
+                    : null
             );
 
             VehicleTrip::query()->updateOrCreate(
                 [
-                    'vehicle_id' => $vehicleId,
+                    'vehicle_id' => $vehicle->id,
                     'start_time' => $startTime,
-                    'end_time'   => $endTime,
+                    'end_time' => $endTime,
                 ],
                 [
-                    'obd_device_id'           => (string) $deviceId,
+                    'company_user_id' => $companyUserId,
 
-                    // Traccar distance is meters
-                    'distance_km'              => $this->metersToKilometers(
+                    'obd_device_id' => (string) $vehicle->traccar_device_id,
+
+                    'distance_km' => $this->metersToKilometers(
                         $trip['distance'] ?? null
                     ),
 
-                    // Traccar speeds are knots
-                    'average_speed_km_per_hr'  => $this->knotsToKmPerHour(
+                    'average_speed_km_per_hr' => $this->knotsToKmPerHour(
                         $trip['averageSpeed'] ?? null
                     ),
 
-                    'max_speed_km_per_hr'      => $this->knotsToKmPerHour(
+                    'max_speed_km_per_hr' => $this->knotsToKmPerHour(
                         $trip['maxSpeed'] ?? null
                     ),
 
-                    'fuel_consumed'            => $trip['spentFuel'] ?? null,
+                    'fuel_consumed' => $trip['spentFuel'] ?? null,
 
-                    'trip_date'                => $startTime->toDateString(),
+                    'trip_date' => $startTime->toDateString(),
 
-                    // Traccar odometer is meters
-                    'start_odometer'           => $this->metersToKilometers(
+                    'start_odometer' => $this->metersToKilometers(
                         $trip['startOdometer'] ?? null
                     ),
 
-                    'end_odometer'             => $this->metersToKilometers(
+                    'end_odometer' => $this->metersToKilometers(
                         $trip['endOdometer'] ?? null
                     ),
 
-                    'start_position_id'        => $trip['startPositionId'] ?? null,
+                    'start_position_id' => $trip['startPositionId'] ?? null,
+                    'end_position_id' => $trip['endPositionId'] ?? null,
 
-                    'end_position_id'          => $trip['endPositionId'] ?? null,
-
-                    'duration_seconds'         => isset($trip['duration'])
+                    'duration_seconds' => isset($trip['duration'])
                         ? (int) ($trip['duration'] / 1000)
                         : null,
 
-                    'start_latitude'           => $trip['startLat'] ?? null,
-                    'start_longitude'          => $trip['startLon'] ?? null,
-                    'end_latitude'             => $trip['endLat'] ?? null,
-                    'end_longitude'            => $trip['endLon'] ?? null,
-                    'start_address'            => $startAddress,
-                    'end_address'              => $endAddress,
-                    'driver_unique_id'         => $trip['driverUniqueId'] ?? null,
-                    'driver_name'              => $trip['driverName'] ?? null,
+                    'start_latitude' => $trip['startLat'] ?? null,
+                    'start_longitude' => $trip['startLon'] ?? null,
+                    'end_latitude' => $trip['endLat'] ?? null,
+                    'end_longitude' => $trip['endLon'] ?? null,
+
+                    'start_address' => $startAddress,
+                    'end_address' => $endAddress,
+
+                    'driver_unique_id' => $trip['driverUniqueId'] ?? null,
+                    'driver_name' => $trip['driverName'] ?? null,
                 ]
             );
-
         }
     }
 
@@ -235,5 +250,27 @@ class BackFillTrips extends Command
     protected function knotsToKmPerHour(?float $knots): ?float
     {
         return $knots !== null ? round($knots * 1.852, 2) : null;
+    }
+
+    protected function driverCompanyUserId(Vehicle $vehicle, Carbon $tripStart): ?int 
+    {
+        $assignment = VehicleAssignment::query()
+            ->where('vehicle_id', $vehicle->id)
+            ->where('start_date', '<=', $tripStart->toDateString())
+            ->where(function ($query) use ($tripStart) {
+                $query->whereNull('end_date')
+                    ->orWhere(
+                        'end_date',
+                        '>=',
+                        $tripStart->toDateString()
+                    );
+            })
+            ->whereHas('companyUser', function ($query) {
+                $query->where('role', 'driver');
+            })
+            ->latest('start_date')
+            ->first();
+
+        return $assignment?->company_user_id;
     }
 }
