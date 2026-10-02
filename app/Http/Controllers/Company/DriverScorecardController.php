@@ -75,31 +75,41 @@ class DriverScorecardController extends Controller
         );
     }
 
+    // public function show(Request $request, string $driver): Response
+    // {
+    //     $company = $request->attributes->get('company');
+
+    //     $driver = CompanyUser::findOrFail($driver);
+    //     dd($driver);
+
+    //     abort_unless(
+    //         $driver->company_id === $company->id,
+    //         404
+    //     );
+
+    //     $scorecards = DriverScorecard::query()
+    //         ->where('company_user_id', $driver->id)
+    //         ->latest('period_start')
+    //         ->get();
+
+    //     return Inertia::render(
+    //         'company/drivers/scorecards/show',
+    //         [
+    //             'driver' => [
+    //                 'id' => $driver->id,
+    //                 'name' => $driver->user->first_name . ' ' . $driver->user->last_name,
+    //             ],
+    //             'scorecards' => $scorecards,
+    //         ]
+    //     );
+    // }
+
     public function show(Request $request, string $driver): Response
     {
-        $company = $request->attributes->get('company');
-
-        $driver = CompanyUser::findOrFail($driver);
-
-        abort_unless(
-            $driver->company_id === $company->id,
-            404
-        );
-
-        $scorecards = DriverScorecard::query()
-            ->where('company_user_id', $driver->id)
-            ->latest('period_start')
-            ->get();
-
-        return Inertia::render(
-            'company/drivers/scorecards/show',
-            [
-                'driver' => [
-                    'id' => $driver->id,
-                    'name' => $driver->user->first_name . ' ' . $driver->user->last_name,
-                ],
-                'scorecards' => $scorecards,
-            ]
-        );
+        dd([
+            'driver_parameter' => $driver,
+            'url' => $request->fullUrl(),
+            'company' => $request->attributes->get('company'),
+        ]);
     }
 }
