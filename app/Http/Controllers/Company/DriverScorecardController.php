@@ -75,9 +75,11 @@ class DriverScorecardController extends Controller
         );
     }
 
-    public function show(Request $request, CompanyUser $driver): Response 
+    public function show(Request $request, string $driver): Response
     {
         $company = $request->attributes->get('company');
+
+        $driver = CompanyUser::findOrFail($driver);
 
         abort_unless(
             $driver->company_id === $company->id,
@@ -85,10 +87,7 @@ class DriverScorecardController extends Controller
         );
 
         $scorecards = DriverScorecard::query()
-            ->where(
-                'company_user_id',
-                $driver->id
-            )
+            ->where('company_user_id', $driver->id)
             ->latest('period_start')
             ->get();
 
@@ -97,13 +96,8 @@ class DriverScorecardController extends Controller
             [
                 'driver' => [
                     'id' => $driver->id,
-
-                    'name' =>
-                        $driver->user->first_name
-                        .' '.
-                        $driver->user->last_name,
+                    'name' => $driver->user->first_name . ' ' . $driver->user->last_name,
                 ],
-
                 'scorecards' => $scorecards,
             ]
         );
