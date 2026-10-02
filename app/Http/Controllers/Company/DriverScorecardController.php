@@ -77,8 +77,9 @@ class DriverScorecardController extends Controller
 
     public function show(Request $request, string $driver): Response
     {
-        dd('fish');
         $company = $request->attributes->get('company');
+
+        dd($driver);
 
         $driver = CompanyUser::findOrFail($driver);
         dd($driver);
