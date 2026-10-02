@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface Scorecard {
     id: number;
@@ -137,15 +138,13 @@ export default function Index({
                                             </td>
 
                                             <td className="p-3">
-                                                <Link
-                                                    href={route(
-                                                        'company.drivers.scorecards.show',
-                                                        scorecard.driver_id
-                                                    )}
-                                                    className="text-blue-600"
-                                                >
-                                                    View
-                                                </Link>
+                                                <Button asChild size="sm">
+                                                    <Link
+                                                        href={`/drivers/${scorecard.driver_id}/scorecards`}
+                                                    >
+                                                        View
+                                                    </Link>
+                                                </Button>
                                             </td>
                                         </tr>
                                     )
