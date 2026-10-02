@@ -213,7 +213,10 @@ class SyncVehicleTrips extends Command
         }
 
         try {
-            return $traccar->geocode($latitude, $longitude);
+            return $traccar->reverseGeocode(
+                $latitude,
+                $longitude
+            );
         } catch (Throwable $e) {
             Log::warning('Failed to geocode trip address.', [
                 'latitude' => $latitude,

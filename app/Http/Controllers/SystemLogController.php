@@ -19,7 +19,7 @@ class SystemLogController extends Controller
 
         $logs = SystemLog::query()
             ->where('company_id', $company->id)
-            ->with('user:id,name,email')
+            ->with('user', 'subject')
             ->latest()
             ->paginate(20)
             ->through(fn ($log) => [

@@ -113,9 +113,24 @@ class TraccarService
      * Resolve coordinates to a human-readable address using Traccar's
      * geocoding endpoint.
      */
-    public function geocode(float $latitude,float $longitude): ?string 
-    {
+    public function geocode(
+        float $latitude,
+        float $longitude
+    ): ?string {
+
+        static $lastRequestAt = 0;
+
         for ($attempt = 1; $attempt <= 3; $attempt++) {
+
+            $elapsed = microtime(true) - $lastRequestAt;
+
+            if ($elapsed < 1) {
+                usleep(
+                    (int) ((1 - $elapsed) * 1000000)
+                );
+            }
+
+            $lastRequestAt = microtime(true);
 
             $response = $this->client()->get(
                 '/api/server/geocode',
