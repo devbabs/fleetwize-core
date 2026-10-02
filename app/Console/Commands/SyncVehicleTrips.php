@@ -239,19 +239,20 @@ class SyncVehicleTrips extends Command
             : null;
     }
 
+
     protected function driverCompanyUserId(Vehicle $vehicle, Carbon $tripStart): ?int 
     {
         $assignment = VehicleAssignment::query()
             ->where('vehicle_id', $vehicle->id)
-            ->where('start_date', '<=', $tripStart->toDateString())
-            ->where(function ($query) use ($tripStart) {
-                $query->whereNull('end_date')
-                    ->orWhere(
-                        'end_date',
-                        '>=',
-                        $tripStart->toDateString()
-                    );
-            })
+            // ->where('start_date', '<=', $tripStart->toDateString())
+            // ->where(function ($query) use ($tripStart) {
+            //     $query->whereNull('end_date')
+            //         ->orWhere(
+            //             'end_date',
+            //             '>=',
+            //             $tripStart->toDateString()
+            //         );
+            // })
             ->whereHas('companyUser', function ($query) {
                 $query->where('role', 'driver');
             })
