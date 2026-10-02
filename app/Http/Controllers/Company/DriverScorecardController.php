@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Company;
+namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
@@ -75,7 +75,7 @@ class DriverScorecardController extends Controller
         );
     }
 
-    public function show(Request $request,CompanyUser $driver): Response 
+    public function show(Request $request, CompanyUser $driver): Response 
     {
         $company = $request->attributes->get('company');
 
@@ -93,7 +93,7 @@ class DriverScorecardController extends Controller
             ->get();
 
         return Inertia::render(
-            'comapny/drivers/scorecards/show',
+            'company/drivers/scorecards/show',
             [
                 'driver' => [
                     'id' => $driver->id,

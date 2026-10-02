@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\Company\DriverScorecardController;
-use App\Http\Controllers\Api\Company\PlaybackController;
+use App\Http\Controllers\Company\DriverScorecardController;
+use App\Http\Controllers\Company\PlaybackController;
 use App\Http\Controllers\Company\AlarmController;
 use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\DriverController;
