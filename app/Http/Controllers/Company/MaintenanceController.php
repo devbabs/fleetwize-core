@@ -41,8 +41,18 @@ class MaintenanceController extends Controller
 
                 $currentOdometer = $vehicle->trackerState?->odometer;
 
-                $lastMaintainedAt = $latestRecord?->maintained_at;
-                $lastOdometer = $latestRecord?->odometer_km;
+                /*
+                * Use most recent maintenance record as the baseline.
+                * If this schedule has never been serviced, use the
+                * schedule's original baseline instead.
+                */
+                $lastMaintainedAt =
+                    $latestRecord?->maintained_at
+                    ?? $schedule->baseline_started_at;
+
+                $lastOdometer =
+                    $latestRecord?->odometer_km
+                    ?? $schedule->baseline_odometer_km;
 
                 $distanceDue = false;
                 $timeDue = false;
@@ -50,51 +60,55 @@ class MaintenanceController extends Controller
                 $distanceRemaining = null;
                 $daysRemaining = null;
 
+                $nextServiceOdometer = null;
+                $nextServiceDate = null;
+
                 /*
-                 * Distance-based maintenance
-                 */
+                * Odometer-based maintenance
+                */
                 if (
                     $schedule->distance_interval_km !== null &&
                     $currentOdometer !== null &&
                     $lastOdometer !== null
                 ) {
-                    $distanceTravelled = $currentOdometer - $lastOdometer;
+                    $nextServiceOdometer =
+                        $lastOdometer + $schedule->distance_interval_km;
 
                     $distanceRemaining =
-                        $schedule->distance_interval_km - $distanceTravelled;
+                        $nextServiceOdometer - $currentOdometer;
 
-                    $distanceDue = $distanceTravelled >=
-                        $schedule->distance_interval_km;
+                    $distanceDue =
+                        $currentOdometer >= $nextServiceOdometer;
                 }
 
                 /*
-                 * Time-based maintenance
-                 */
+                * Time-based maintenance
+                */
                 if (
                     $schedule->time_interval_days !== null &&
                     $lastMaintainedAt !== null
                 ) {
-                    $daysElapsed = $lastMaintainedAt->diffInDays(now());
+                    $nextServiceDate = $lastMaintainedAt
+                        ->copy()
+                        ->addDays($schedule->time_interval_days);
 
-                    $daysRemaining =
-                        $schedule->time_interval_days - $daysElapsed;
+                    $daysRemaining = now()->diffInDays(
+                        $nextServiceDate,
+                        false
+                    );
 
-                    $timeDue = $daysElapsed >=
-                        $schedule->time_interval_days;
-                }
-
-                /*
-                 * If there has never been a maintenance record,
-                 * we don't have a baseline for calculating an interval.
-                 */
-                if (! $latestRecord) {
-                    continue;
+                    $timeDue = now()->greaterThanOrEqualTo(
+                        $nextServiceDate
+                    );
                 }
 
                 $entry = [
                     'id' => $schedule->id,
-                    'vehicle' => $vehicle->license_plate
+
+                    'vehicle' =>
+                        $vehicle->license_plate
                         ?? trim("{$vehicle->make} {$vehicle->model}"),
+
                     'vehicleId' => $vehicle->id,
                     'scheduleId' => $schedule->id,
                     'name' => $schedule->name,
@@ -106,35 +120,60 @@ class MaintenanceController extends Controller
                         $schedule->time_interval_days,
 
                     'lastMaintainedAt' =>
-                        $lastMaintainedAt?->toDateString(),
+                        $latestRecord?->maintained_at?->toDateString(),
 
                     'lastOdometer' => $lastOdometer,
 
                     'currentOdometer' => $currentOdometer,
 
-                    'distanceRemainingKm' => $distanceRemaining,
+                    'nextServiceOdometer' =>
+                        $nextServiceOdometer,
 
-                    'daysRemaining' => $daysRemaining,
+                    'nextServiceDate' =>
+                        $nextServiceDate?->toDateString(),
+
+                    'distanceRemainingKm' =>
+                        $distanceRemaining,
+
+                    'daysRemaining' =>
+                        $daysRemaining,
 
                     'status' => ($distanceDue || $timeDue)
                         ? 'overdue'
                         : 'upcoming',
+
+                    'distanceDue' => $distanceDue,
+                     'timeDue' => $timeDue,
+
+                     'dueReason' => match (true) {
+                        $distanceDue && $timeDue => 'distance_and_time',
+                        $distanceDue => 'distance',
+                        $timeDue => 'time',
+                        default => null,
+                    },
                 ];
 
                 if ($distanceDue || $timeDue) {
                     $overdue->push($entry);
-                } else {
-                    /*
-                     * Only show maintenance that is within
-                     * the next 30 days / reasonable distance window.
-                     */
-                    $isUpcoming =
-                        ($daysRemaining !== null && $daysRemaining <= 30)
-                        || ($distanceRemaining !== null && $distanceRemaining <= 1000);
 
-                    if ($isUpcoming) {
-                        $upcoming->push($entry);
-                    }
+                    continue;
+                }
+
+                $isUpcoming =
+                    (
+                        $daysRemaining !== null &&
+                        $daysRemaining >= 0 &&
+                        $daysRemaining <= 30
+                    )
+                    ||
+                    (
+                        $distanceRemaining !== null &&
+                        $distanceRemaining >= 0 &&
+                        $distanceRemaining <= 1000
+                    );
+
+                if ($isUpcoming) {
+                    $upcoming->push($entry);
                 }
             }
         }

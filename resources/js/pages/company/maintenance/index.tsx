@@ -12,13 +12,29 @@ type MaintenanceEntry = {
     vehicleId: number;
     scheduleId: number;
     name: string;
+
     distanceIntervalKm: number | null;
     timeIntervalDays: number | null;
+
     lastMaintainedAt: string | null;
     lastOdometer: number | null;
     currentOdometer: number | null;
+
+    nextServiceOdometer: number | null;
+    nextServiceDate: string | null;
+
     distanceRemainingKm: number | null;
     daysRemaining: number | null;
+
+    distanceDue: boolean;
+    timeDue: boolean;
+
+    dueReason:
+        | 'distance'
+        | 'time'
+        | 'distance_and_time'
+        | null;
+
     status: 'overdue' | 'upcoming';
 };
 
@@ -40,43 +56,6 @@ function formatDateTime(value: string | null) {
 
     return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
-
-// function EntryTable({ entries, emptyLabel }: { entries: MaintenanceEntry[]; emptyLabel: string }) {
-//     return (
-//         <div className="overflow-x-auto">
-//             <table className="w-full text-sm">
-//                 <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-//                     <tr>
-//                         <th className="px-6 py-3 font-medium">Vehicle</th>
-//                         <th className="px-6 py-3 font-medium">Scheduled</th>
-//                         <th className="px-6 py-3 font-medium">Completed</th>
-//                         <th className="px-6 py-3 font-medium">Tasks</th>
-//                         <th className="px-6 py-3 font-medium">Notes</th>
-//                     </tr>
-//                 </thead>
-//                 <tbody className="divide-y divide-border">
-//                     {entries.map((entry) => (
-//                         <tr key={entry.id}>
-//                             <td className="px-6 py-3 font-medium text-foreground">{entry.vehicle}</td>
-//                             <td className="px-6 py-3 text-muted-foreground">{formatDateTime(entry.startsAt)}</td>
-//                             <td className="px-6 py-3 text-muted-foreground">{formatDateTime(entry.endsAt)}</td>
-//                             <td className="px-6 py-3 text-muted-foreground">{entry.tasks.length ? entry.tasks.join(', ') : '—'}</td>
-//                             <td className="px-6 py-3 text-muted-foreground">{entry.comments ?? '—'}</td>
-//                         </tr>
-//                     ))}
-
-//                     {entries.length === 0 ? (
-//                         <tr>
-//                             <td colSpan={5} className="px-6 py-10 text-center text-muted-foreground">
-//                                 {emptyLabel}
-//                             </td>
-//                         </tr>
-//                     ) : null}
-//                 </tbody>
-//             </table>
-//         </div>
-//     );
-// }
 
 function OverdueTable({ entries }: { entries: MaintenanceEntry[] }) {
     return (
