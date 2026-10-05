@@ -34,13 +34,19 @@ class DriverScorecard extends Model
         'grade',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'period_start' => 'date',
-            'period_end' => 'date',
-        ];
-    }
+    protected $casts = [
+        'score_breakdown' => 'array',
+
+        'period_start' => 'date',
+        'period_end' => 'date',
+
+        'score' => 'float',
+        'risk_score' => 'float',
+        'speeding_score' => 'float',
+        'eco_score' => 'float',
+        'fatigue_score' => 'float',
+        'distraction_score' => 'float',
+    ];
 
     public function companyUser()
     {

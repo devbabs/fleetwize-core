@@ -14,14 +14,32 @@ import { Button } from '@/components/ui/button';
 
 interface Scorecard {
     id: number;
+
     driver_id: number;
+
     driver_name: string;
+
     period_type: string;
-    score: number;
-    safety_score: number;
-    efficiency_score: number;
-    grade: string;
+
+    period_start: string | null;
+
+    period_end: string | null;
+
     trip_count: number;
+
+    score: number;
+
+    grade: string;
+
+    risk_score: number;
+
+    speeding_score: number;
+
+    eco_score: number;
+
+    fatigue_score: number;
+
+    distraction_score: number;
 }
 
 interface Props {
@@ -43,7 +61,8 @@ export default function Index({
                     </h1>
 
                     <p className="text-sm text-muted-foreground">
-                        Review driver safety and efficiency performance.
+                        Review driver performance across the five pillars:
+                        Risk, Speeding, Eco, Fatigue and Distraction.
                     </p>
                 </div>
 
@@ -73,11 +92,7 @@ export default function Index({
                                     </th>
 
                                     <th className="p-3 text-left">
-                                        Safety
-                                    </th>
-
-                                    <th className="p-3 text-left">
-                                        Efficiency
+                                        Pillars
                                     </th>
 
                                     <th className="p-3 text-left">
@@ -114,27 +129,35 @@ export default function Index({
                                             </td>
 
                                             <td className="p-3">
-                                                {
-                                                    scorecard.score
-                                                }
+                                                {scorecard.score}
                                             </td>
 
                                             <td className="p-3">
-                                                {
-                                                    scorecard.safety_score
-                                                }
+                                                <div className="grid grid-cols-2 gap-1 text-xs">
+                                                    <div>
+                                                        Risk: {scorecard.risk_score}
+                                                    </div>
+
+                                                    <div>
+                                                        Speed: {scorecard.speeding_score}
+                                                    </div>
+
+                                                    <div>
+                                                        Eco: {scorecard.eco_score}
+                                                    </div>
+
+                                                    <div>
+                                                        Fatigue: {scorecard.fatigue_score}
+                                                    </div>
+
+                                                    <div>
+                                                        Distract: {scorecard.distraction_score}
+                                                    </div>
+                                                </div>
                                             </td>
 
                                             <td className="p-3">
-                                                {
-                                                    scorecard.efficiency_score
-                                                }
-                                            </td>
-
-                                            <td className="p-3">
-                                                {
-                                                    scorecard.grade
-                                                }
+                                                {scorecard.grade}
                                             </td>
 
                                             <td className="p-3">

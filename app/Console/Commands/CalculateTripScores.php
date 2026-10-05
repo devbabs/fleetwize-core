@@ -58,23 +58,94 @@ class CalculateTripScores extends Command
 
     protected function calculateTripScore(VehicleTrip $trip): void
     {
-        $points = $trip->routePoints;
+        $points = $trip->routePoints
+            ->sortBy('fix_time')
+            ->values();
 
-        $first = $points->first();
-        $last = $points->last();
+        if ($points->count() < 2) {
+            return;
+        }
 
-        $speedLimit = 120;
-        $severeSpeedLimit = 140;
+        $speedLimit = 120; // km/h
+        $severeSpeedLimit = 140; // km/h
 
         $overspeedEvents = 0;
         $severeOverspeedEvents = 0;
+        $overspeedDurationSeconds = 0;
+
+        $harshAcceleration = 0;
+        $harshBraking = 0;
+        $harshCornering = 0;
+
+        $highEngineLoadEvents = 0;
+
+        $idleSeconds = 0;
+
+        $continuousDrivingSeconds = 0;
+        $fatigueEvents = 0;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Event counters
+        |--------------------------------------------------------------------------
+        */
+
+        $previousPoint = null;
 
         $isOverspeeding = false;
+        $overspeedStartTime = null;
+
         $isSevereOverspeeding = false;
+
+        $isHighEngineLoad = false;
 
         foreach ($points as $point) {
 
-            $speed = $point->speed_kmh ?? 0;
+            /*
+            |--------------------------------------------------------------------------
+            | 1. Cumulative harsh-driving counters
+            |--------------------------------------------------------------------------
+            |
+            | Traccar counters are cumulative, so calculate the delta between
+            | consecutive route points rather than simply first -> last.
+            |
+            */
+
+            if ($previousPoint) {
+
+                $harshAcceleration += $this->counterDelta(
+                    $previousPoint->hard_acceleration_count,
+                    $point->hard_acceleration_count
+                );
+
+                $harshBraking += $this->counterDelta(
+                    $previousPoint->hard_deceleration_count,
+                    $point->hard_deceleration_count
+                );
+
+                $harshCornering += $this->counterDelta(
+                    $previousPoint->hard_cornering_count,
+                    $point->hard_cornering_count
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Speed
+            |--------------------------------------------------------------------------
+            */
+
+            $speed = (float) ($point->speed_kmh ?? 0);
+
+            /*
+            |--------------------------------------------------------------------------
+            | 2. SPEEDING
+            |--------------------------------------------------------------------------
+            |
+            | We only count an overspeed incident when it lasts more than
+            | 15 seconds.
+            |
+            */
 
             $currentlyOverspeeding =
                 $speed > $speedLimit;
@@ -82,181 +153,439 @@ class CalculateTripScores extends Command
             $currentlySevereOverspeeding =
                 $speed > $severeSpeedLimit;
 
-            if (
-                $currentlyOverspeeding
-                &&
-                ! $isOverspeeding
-            ) {
-                $overspeedEvents++;
+            if ($currentlyOverspeeding && ! $isOverspeeding) {
+
+                $overspeedStartTime = $this->pointTime($point);
             }
+
+            if (! $currentlyOverspeeding && $isOverspeeding) {
+
+                if ($overspeedStartTime) {
+
+                    $endTime = $this->pointTime($point);
+
+                    $duration = max(
+                        0,
+                        $endTime->diffInSeconds($overspeedStartTime)
+                    );
+
+                    if ($duration > 15) {
+                        $overspeedEvents++;
+                        $overspeedDurationSeconds += $duration;
+                    }
+                }
+
+                $overspeedStartTime = null;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Severe overspeed events
+            |--------------------------------------------------------------------------
+            */
 
             if (
                 $currentlySevereOverspeeding
-                &&
-                ! $isSevereOverspeeding
+                && ! $isSevereOverspeeding
             ) {
                 $severeOverspeedEvents++;
             }
 
             $isOverspeeding = $currentlyOverspeeding;
+            $isSevereOverspeeding = $currentlySevereOverspeeding;
 
-            $isSevereOverspeeding =
-                $currentlySevereOverspeeding;
-        }
+            /*
+            |--------------------------------------------------------------------------
+            | 3. ECO — HIGH ENGINE LOAD
+            |--------------------------------------------------------------------------
+            */
 
-        $harshAcceleration = max(
-            0,
-            ($last->hard_acceleration_count ?? 0)
-            -
-            ($first->hard_acceleration_count ?? 0)
-        );
+            $engineLoad = (float) (
+                $point->engine_load ?? 0
+            );
 
-        $harshBraking = max(
-            0,
-            ($last->hard_deceleration_count ?? 0)
-            -
-            ($first->hard_deceleration_count ?? 0)
-        );
-
-        $harshCornering = max(
-            0,
-            ($last->hard_cornering_count ?? 0)
-            -
-            ($first->hard_cornering_count ?? 0)
-        );
-
-        $idleSeconds = 0;
-
-        for ($i = 1; $i < $points->count(); $i++) {
-
-            $previous = $points[$i - 1];
-            $current = $points[$i];
+            $currentlyHighLoad =
+                $engineLoad > 85;
 
             if (
-                $previous->ignition === true
-                &&
-                $previous->motion === false
+                $currentlyHighLoad
+                && ! $isHighEngineLoad
             ) {
+                $highEngineLoadEvents++;
+            }
+
+            $isHighEngineLoad = $currentlyHighLoad;
+
+            /*
+            |--------------------------------------------------------------------------
+            | 4. IDLE / DISTRACTION
+            |--------------------------------------------------------------------------
+            |
+            | Ignition ON + vehicle speed 0.
+            |
+            */
+
+            if ($previousPoint) {
+
+                $previousSpeed =
+                    (float) ($previousPoint->speed_kmh ?? 0);
 
                 if (
-                    ! $previous->fix_time
-                    ||
-                    ! $current->fix_time
+                    $previousPoint->ignition === true
+                    &&
+                    $previousSpeed <= 0
                 ) {
-                    continue;
+
+                    $seconds = $this->intervalSeconds(
+                        $previousPoint,
+                        $point
+                    );
+
+                    $idleSeconds += $seconds;
                 }
+            }
 
-                $previousTime = Carbon::parse(
-                    $previous->fix_time
+            /*
+            |--------------------------------------------------------------------------
+            | 5. FATIGUE
+            |--------------------------------------------------------------------------
+            |
+            | Continuous driving is reset when ignition goes OFF.
+            |
+            */
+
+            if ($previousPoint) {
+
+                $seconds = $this->intervalSeconds(
+                    $previousPoint,
+                    $point
                 );
 
-                $currentTime = Carbon::parse(
-                    $current->fix_time
-                );
+                if (
+                    $previousPoint->ignition === true
+                    &&
+                    (float) ($previousPoint->speed_kmh ?? 0) > 0
+                ) {
 
-                $seconds = min(
-                    120,
-                    max(
-                        0,
-                        $currentTime->diffInSeconds(
-                            $previousTime
-                        )
-                    )
-                );
+                    $continuousDrivingSeconds += $seconds;
 
-                $idleSeconds += $seconds;
+                    /*
+                    | Count a fatigue event every time the continuous driving
+                    | period crosses 4.5 hours.
+                    */
+                    if (
+                        $continuousDrivingSeconds >=
+                        (4.5 * 3600)
+                        &&
+                        $continuousDrivingSeconds - $seconds <
+                        (4.5 * 3600)
+                    ) {
+                        $fatigueEvents++;
+                    }
+
+                } elseif (
+                    $previousPoint->ignition === false
+                ) {
+
+                    $continuousDrivingSeconds = 0;
+                }
+            }
+
+            $previousPoint = $point;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Close an overspeed event that continues until the final point
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $isOverspeeding
+            && $overspeedStartTime
+        ) {
+
+            $endTime = $this->pointTime(
+                $points->last()
+            );
+
+            $duration = max(
+                0,
+                $endTime->diffInSeconds(
+                    $overspeedStartTime
+                )
+            );
+
+            if ($duration > 15) {
+                $overspeedEvents++;
+                $overspeedDurationSeconds += $duration;
             }
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Convert idle seconds to minutes
+        |--------------------------------------------------------------------------
+        */
 
         $idleMinutes = (int) round(
             $idleSeconds / 60
         );
 
-        $safetyScore = 100;
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate the five pillar scores
+        |--------------------------------------------------------------------------
+        */
 
-        $safetyScore -= ($overspeedEvents * 2);
+        /*
+        |--------------------------------------------------------------------------
+        | 1. RISK
+        |--------------------------------------------------------------------------
+        |
+        | Harsh braking:     -5
+        | Harsh cornering:  -3
+        |
+        */
 
-        $safetyScore -= ($severeOverspeedEvents * 5);
+        $riskScore = 100;
 
-        $safetyScore -= ($harshAcceleration * 3);
+        $riskScore -= $harshBraking * 5;
+        $riskScore -= $harshCornering * 3;
 
-        $safetyScore -= ($harshBraking * 3);
-
-        $safetyScore -= ($harshCornering * 2);
-
-        $safetyScore = max(
+        $riskScore = max(
             0,
-            min(100, $safetyScore)
+            min(100, $riskScore)
         );
 
-        $efficiencyScore = 100;
+        /*
+        |--------------------------------------------------------------------------
+        | 2. SPEEDING
+        |--------------------------------------------------------------------------
+        |
+        | Each sustained overspeed incident (>15 sec): -10
+        |
+        */
 
-        $efficiencyScore -= floor(
-            $idleMinutes / 10
-        );
+        $speedingScore = 100;
 
-        $efficiencyScore = max(
+        $speedingScore -= $overspeedEvents * 10;
+
+        $speedingScore = max(
             0,
-            min(100, $efficiencyScore)
+            min(100, $speedingScore)
         );
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. ECO
+        |--------------------------------------------------------------------------
+        |
+        | Harsh acceleration: -4
+        | High engine load event: -2
+        |
+        */
+
+        $ecoScore = 100;
+
+        $ecoScore -= $harshAcceleration * 4;
+        $ecoScore -= $highEngineLoadEvents * 2;
+
+        $ecoScore = max(
+            0,
+            min(100, $ecoScore)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4. FATIGUE
+        |--------------------------------------------------------------------------
+        |
+        | Continuous driving >4.5 hours: -15
+        |
+        */
+
+        $fatigueScore = 100;
+
+        $fatigueScore -= $fatigueEvents * 15;
+
+        $fatigueScore = max(
+            0,
+            min(100, $fatigueScore)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5. DISTRACTION
+        |--------------------------------------------------------------------------
+        |
+        | First 10 minutes of idle = grace period.
+        |
+        | Every additional 5 minutes = -1.
+        |
+        */
+
+        $excessIdleMinutes = max(
+            0,
+            $idleMinutes - 10
+        );
+
+        $distractionScore = 100;
+
+        $distractionScore -= floor(
+            $excessIdleMinutes / 5
+        );
+
+        $distractionScore = max(
+            0,
+            min(100, $distractionScore)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Overall score
+        |--------------------------------------------------------------------------
+        */
 
         $score = round(
             (
-                ($safetyScore * 0.7)
-                +
-                ($efficiencyScore * 0.3)
-            ),
+                $riskScore
+                + $speedingScore
+                + $ecoScore
+                + $fatigueScore
+                + $distractionScore
+            ) / 5,
             2
         );
 
         $grade = $this->grade($score);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Persist
+        |--------------------------------------------------------------------------
+        */
+
         $trip->update([
-
+            /*
+            | Overall
+            */
             'score' => $score,
-
-            'safety_score' => $safetyScore,
-
-            'efficiency_score' => $efficiencyScore,
-
             'grade' => $grade,
 
-            'overspeed_events' =>
-                $overspeedEvents,
+            /*
+            | Five pillars
+            */
+            'risk_score' => $riskScore,
+            'speeding_score' => $speedingScore,
+            'eco_score' => $ecoScore,
+            'fatigue_score' => $fatigueScore,
+            'distraction_score' => $distractionScore,
 
-            'severe_overspeed_events' =>
-                $severeOverspeedEvents,
+            /*
+            | Existing safety/efficiency fields
+            |
+            | Keep these temporarily for backward compatibility.
+            */
+            'safety_score' => round(
+                ($riskScore + $speedingScore) / 2,
+                2
+            ),
 
-            'harsh_acceleration_events' =>
-                $harshAcceleration,
+            'efficiency_score' => round(
+                ($ecoScore + $distractionScore) / 2,
+                2
+            ),
 
-            'harsh_braking_events' =>
-                $harshBraking,
+            /*
+            | Event metrics
+            */
+            'overspeed_events' => $overspeedEvents,
+            'severe_overspeed_events' => $severeOverspeedEvents,
+            'overspeed_duration_seconds' => $overspeedDurationSeconds,
 
-            'harsh_cornering_events' =>
-                $harshCornering,
+            'harsh_acceleration_events' => $harshAcceleration,
+            'harsh_braking_events' => $harshBraking,
+            'harsh_cornering_events' => $harshCornering,
 
-            'idle_minutes' =>
-                $idleMinutes,
+            'high_engine_load_events' => $highEngineLoadEvents,
 
-            'trip_distance_km' =>
-                $trip->distance_km,
+            'fatigue_events' => $fatigueEvents,
+            'continuous_driving_seconds' =>
+                $continuousDrivingSeconds,
 
-            'trip_duration_seconds' =>
-                $trip->duration_seconds,
+            'idle_minutes' => $idleMinutes,
 
-            'average_speed' =>
-                $trip->average_speed_km_per_hr,
+            /*
+            | Existing trip metrics
+            */
+            'trip_distance_km' => $trip->distance_km,
+            'trip_duration_seconds' => $trip->duration_seconds,
+            'average_speed' => $trip->average_speed_km_per_hr,
+            'max_speed' => $trip->max_speed_km_per_hr,
 
-            'max_speed' =>
-                $trip->max_speed_km_per_hr,
-
-            'score_calculated_at' =>
-                now(),
+            'score_calculated_at' => now(),
         ]);
 
         $this->line(
-            "Trip {$trip->id}: Score {$score} Grade {$grade}"
+            "Trip {$trip->id}: "
+            ."Score {$score} "
+            ."Risk {$riskScore} "
+            ."Speed {$speedingScore} "
+            ."Eco {$ecoScore} "
+            ."Fatigue {$fatigueScore} "
+            ."Distraction {$distractionScore} "
+            ."Grade {$grade}"
+        );
+    }
+
+    protected function counterDelta(
+        ?int $previous,
+        ?int $current
+    ): int {
+        $previous ??= 0;
+        $current ??= 0;
+
+        /*
+        * If the tracker counter reset, don't treat the reset
+        * as a huge number of events.
+        */
+        if ($current < $previous) {
+            return $current;
+        }
+
+        return $current - $previous;
+    }
+
+    protected function pointTime($point): Carbon
+    {
+        return Carbon::parse($point->fix_time);
+    }
+
+    protected function intervalSeconds(
+        $previous,
+        $current
+    ): int {
+        if (
+            ! $previous->fix_time ||
+            ! $current->fix_time
+        ) {
+            return 0;
+        }
+
+        $seconds = Carbon::parse(
+            $previous->fix_time
+        )->diffInSeconds(
+            Carbon::parse($current->fix_time)
+        );
+
+        /*
+        * Don't let a telemetry gap of several hours turn
+        * into several hours of idle/driving time.
+        */
+        return min(
+            120,
+            max(0, $seconds)
         );
     }
 
