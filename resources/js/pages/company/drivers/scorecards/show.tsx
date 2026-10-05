@@ -9,36 +9,58 @@ interface Driver {
 
 interface Scorecard {
     id: number;
+
     period_type: string;
     period_start: string;
     period_end: string;
 
     score: number;
-    safety_score: number;
-    efficiency_score: number;
-
     grade: string;
 
     trip_count: number;
 
+    risk_score: number;
+    speeding_score: number;
+    eco_score: number;
+    fatigue_score: number;
+    distraction_score: number;
+
     distance_km: number;
-    idle_minutes: number;
+    duration_seconds: number;
 
     overspeed_events: number;
     severe_overspeed_events: number;
+    overspeed_duration_seconds: number;
 
     harsh_acceleration_events: number;
     harsh_braking_events: number;
     harsh_cornering_events: number;
+
+    high_engine_load_events: number;
+
+    fatigue_events: number;
+    continuous_driving_seconds: number;
+
+    idle_minutes: number;
+
+    score_breakdown?: {
+        risk?: number;
+        speeding?: number;
+        eco?: number;
+        fatigue?: number;
+        distraction?: number;
+    };
 }
 
 interface Props {
     driver: Driver;
+    latest_scorecard: Scorecard | null;
     scorecards: Scorecard[];
 }
 
 export default function Show({
     driver,
+    latest_scorecard,
     scorecards,
 }: Props) {
     return (
@@ -55,44 +77,104 @@ export default function Show({
                     </p>
                 </div>
 
+                <div className="grid grid-cols-5 gap-4">
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">
+                            Overall Score
+                        </div>
+
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.score ?? '-'}
+                        </div>
+
+                        <div className="text-sm">
+                            Grade {latest_scorecard?.grade ?? '-'}
+                        </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">
+                            Risk
+                        </div>
+
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.risk_score ?? '-'}
+                        </div>
+
+                        <div className="text-xs text-muted-foreground">
+                            Braking & Cornering
+                        </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">
+                            Speeding
+                        </div>
+
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.speeding_score ?? '-'}
+                        </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">
+                            Eco
+                        </div>
+
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.eco_score ?? '-'}
+                        </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">
+                            Fatigue
+                        </div>
+
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.fatigue_score ?? '-'}
+                        </div>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-4 gap-4">
                     <div className="rounded-lg border p-4">
-                        <div className="text-sm text-gray-500">
-                            Total Scorecards
+                        <div className="text-sm text-muted-foreground">
+                            Distraction
                         </div>
 
-                        <div className="text-2xl font-bold">
-                            {scorecards.length}
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-gray-500">
-                            Latest Score
-                        </div>
-
-                        <div className="text-2xl font-bold">
-                            {scorecards[0]?.score ?? '-'}
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.distraction_score ?? '-'}
                         </div>
                     </div>
 
                     <div className="rounded-lg border p-4">
-                        <div className="text-sm text-gray-500">
-                            Latest Grade
+                        <div className="text-sm text-muted-foreground">
+                            Overspeed Events
                         </div>
 
-                        <div className="text-2xl font-bold">
-                            {scorecards[0]?.grade ?? '-'}
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.overspeed_events ?? 0}
                         </div>
                     </div>
 
                     <div className="rounded-lg border p-4">
-                        <div className="text-sm text-gray-500">
-                            Trips
+                        <div className="text-sm text-muted-foreground">
+                            Fatigue Events
                         </div>
 
-                        <div className="text-2xl font-bold">
-                            {scorecards[0]?.trip_count ?? 0}
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.fatigue_events ?? 0}
+                        </div>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">
+                            Idle Minutes
+                        </div>
+
+                        <div className="text-3xl font-bold">
+                            {latest_scorecard?.idle_minutes ?? 0}
                         </div>
                     </div>
                 </div>
@@ -106,15 +188,27 @@ export default function Show({
                                 </th>
 
                                 <th className="p-3 text-left">
-                                    Score
+                                    Overall
                                 </th>
 
                                 <th className="p-3 text-left">
-                                    Safety
+                                    Risk
                                 </th>
 
                                 <th className="p-3 text-left">
-                                    Efficiency
+                                    Speeding
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Eco
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Fatigue
+                                </th>
+
+                                <th className="p-3 text-left">
+                                    Distraction
                                 </th>
 
                                 <th className="p-3 text-left">
@@ -122,76 +216,54 @@ export default function Show({
                                 </th>
 
                                 <th className="p-3 text-left">
-                                    Distance
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Overspeed
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Idle
+                                    Trips
                                 </th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            {scorecards.map(
-                                (scorecard) => (
-                                    <tr
-                                        key={scorecard.id}
-                                        className="border-b"
-                                    >
-                                        <td className="p-3">
-                                            {
-                                                scorecard.period_type
-                                            }
-                                        </td>
+                            {scorecards.map((scorecard) => (
+                                <tr
+                                    key={scorecard.id}
+                                    className="border-b"
+                                >
+                                    <td className="p-3 capitalize">
+                                        {scorecard.period_type}
+                                    </td>
 
-                                        <td className="p-3">
-                                            {
-                                                scorecard.score
-                                            }
-                                        </td>
+                                    <td className="p-3 font-medium">
+                                        {scorecard.score}
+                                    </td>
 
-                                        <td className="p-3">
-                                            {
-                                                scorecard.safety_score
-                                            }
-                                        </td>
+                                    <td className="p-3">
+                                        {scorecard.risk_score}
+                                    </td>
 
-                                        <td className="p-3">
-                                            {
-                                                scorecard.efficiency_score
-                                            }
-                                        </td>
+                                    <td className="p-3">
+                                        {scorecard.speeding_score}
+                                    </td>
 
-                                        <td className="p-3">
-                                            {
-                                                scorecard.grade
-                                            }
-                                        </td>
+                                    <td className="p-3">
+                                        {scorecard.eco_score}
+                                    </td>
 
-                                        <td className="p-3">
-                                            {
-                                                scorecard.distance_km
-                                            } km
-                                        </td>
+                                    <td className="p-3">
+                                        {scorecard.fatigue_score}
+                                    </td>
 
-                                        <td className="p-3">
-                                            {
-                                                scorecard.overspeed_events
-                                            }
-                                        </td>
+                                    <td className="p-3">
+                                        {scorecard.distraction_score}
+                                    </td>
 
-                                        <td className="p-3">
-                                            {
-                                                scorecard.idle_minutes
-                                            } min
-                                        </td>
-                                    </tr>
-                                )
-                            )}
+                                    <td className="p-3">
+                                        {scorecard.grade}
+                                    </td>
+
+                                    <td className="p-3">
+                                        {scorecard.trip_count}
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
