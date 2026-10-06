@@ -72,22 +72,28 @@ export default function Show({
                         {driver.name}
                     </h1>
 
-                    <p className="text-gray-500">
-                        Driver Performance
+                    <p className="text-sm text-muted-foreground">
+                        Driver performance across Risk, Speeding, Eco,
+                        Fatigue and Distraction.
                     </p>
                 </div>
 
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                     <div className="rounded-lg border p-4">
                         <div className="text-sm text-muted-foreground">
                             Overall Score
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-3xl font-bold">
                             {latest_scorecard?.score ?? '-'}
+                            {latest_scorecard && (
+                                <span className="text-sm font-normal text-muted-foreground">
+                                    /100
+                                </span>
+                            )}
                         </div>
 
-                        <div className="text-sm">
+                        <div className="mt-1 text-sm">
                             Grade {latest_scorecard?.grade ?? '-'}
                         </div>
                     </div>
@@ -97,11 +103,11 @@ export default function Show({
                             Risk
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-3xl font-bold">
                             {latest_scorecard?.risk_score ?? '-'}
                         </div>
 
-                        <div className="text-xs text-muted-foreground">
+                        <div className="mt-1 text-xs text-muted-foreground">
                             Braking & Cornering
                         </div>
                     </div>
@@ -111,8 +117,12 @@ export default function Show({
                             Speeding
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-3xl font-bold">
                             {latest_scorecard?.speeding_score ?? '-'}
+                        </div>
+
+                        <div className="mt-1 text-xs text-muted-foreground">
+                            Speed Compliance
                         </div>
                     </div>
 
@@ -121,8 +131,12 @@ export default function Show({
                             Eco
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-3xl font-bold">
                             {latest_scorecard?.eco_score ?? '-'}
+                        </div>
+
+                        <div className="mt-1 text-xs text-muted-foreground">
+                            Acceleration & Engine Load
                         </div>
                     </div>
 
@@ -131,29 +145,37 @@ export default function Show({
                             Fatigue
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-3xl font-bold">
                             {latest_scorecard?.fatigue_score ?? '-'}
                         </div>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                        <div className="mt-1 text-xs text-muted-foreground">
+                            Driving & Rest
+                        </div>
+                    </div>
+
                     <div className="rounded-lg border p-4">
                         <div className="text-sm text-muted-foreground">
                             Distraction
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-3xl font-bold">
                             {latest_scorecard?.distraction_score ?? '-'}
                         </div>
-                    </div>
 
+                        <div className="mt-1 text-xs text-muted-foreground">
+                            Idle Behaviour
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="rounded-lg border p-4">
                         <div className="text-sm text-muted-foreground">
                             Overspeed Events
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-2xl font-semibold">
                             {latest_scorecard?.overspeed_events ?? 0}
                         </div>
                     </div>
@@ -163,7 +185,7 @@ export default function Show({
                             Fatigue Events
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-2xl font-semibold">
                             {latest_scorecard?.fatigue_events ?? 0}
                         </div>
                     </div>
@@ -173,10 +195,30 @@ export default function Show({
                             Idle Minutes
                         </div>
 
-                        <div className="text-3xl font-bold">
+                        <div className="mt-1 text-2xl font-semibold">
                             {latest_scorecard?.idle_minutes ?? 0}
                         </div>
                     </div>
+
+                    <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">
+                            Trips
+                        </div>
+
+                        <div className="mt-1 text-2xl font-semibold">
+                            {latest_scorecard?.trip_count ?? 0}
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 className="text-lg font-semibold">
+                        Scorecard History
+                    </h2>
+
+                    <p className="text-sm text-muted-foreground">
+                        Historical daily, weekly and monthly driver performance.
+                    </p>
                 </div>
 
                 <div className="overflow-hidden rounded-lg border">
@@ -227,12 +269,26 @@ export default function Show({
                                     key={scorecard.id}
                                     className="border-b"
                                 >
-                                    <td className="p-3 capitalize">
-                                        {scorecard.period_type}
+                                    <td className="p-3">
+                                        <div className="font-medium capitalize">
+                                            {scorecard.period_type}
+                                        </div>
+
+                                        <div className="text-xs text-muted-foreground">
+                                            {scorecard.period_start ?? '-'}
+                                            {' – '}
+                                            {scorecard.period_end ?? '-'}
+                                        </div>
                                     </td>
 
-                                    <td className="p-3 font-medium">
-                                        {scorecard.score}
+                                    <td className="p-3">
+                                        <span className="font-semibold">
+                                            {scorecard.score}
+                                        </span>
+
+                                        <span className="text-xs text-muted-foreground">
+                                            /100
+                                        </span>
                                     </td>
 
                                     <td className="p-3">
@@ -256,7 +312,19 @@ export default function Show({
                                     </td>
 
                                     <td className="p-3">
-                                        {scorecard.grade}
+                                        <Badge
+                                            variant={
+                                                scorecard.grade === 'A'
+                                                    ? 'default'
+                                                    : scorecard.grade === 'B'
+                                                        ? 'secondary'
+                                                        : scorecard.grade === 'C'
+                                                            ? 'outline'
+                                                            : 'destructive'
+                                            }
+                                        >
+                                            {scorecard.grade}
+                                        </Badge>
                                     </td>
 
                                     <td className="p-3">

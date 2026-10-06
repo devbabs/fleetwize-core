@@ -88,7 +88,7 @@ export default function Index({
                                     </th>
 
                                     <th className="p-3 text-left">
-                                        Score
+                                        Overall
                                     </th>
 
                                     <th className="p-3 text-left">
@@ -110,54 +110,103 @@ export default function Index({
                                             key={scorecard.id}
                                             className="border-b"
                                         >
-                                            <td className="p-3">
-                                                {
-                                                    scorecard.driver_name
-                                                }
-                                            </td>
-
-                                            <td className="p-3 capitalize">
-                                                {
-                                                    scorecard.period_type
-                                                }
+                                            <td className="p-3 font-medium">
+                                                {scorecard.driver_name}
                                             </td>
 
                                             <td className="p-3">
-                                                {
-                                                    scorecard.trip_count
-                                                }
+                                                <div className="capitalize">
+                                                    {scorecard.period_type}
+                                                </div>
+
+                                                <div className="text-xs text-muted-foreground">
+                                                    {scorecard.period_start ?? '-'}
+                                                    {' – '}
+                                                    {scorecard.period_end ?? '-'}
+                                                </div>
                                             </td>
 
                                             <td className="p-3">
-                                                {scorecard.score}
+                                                {scorecard.trip_count}
                                             </td>
 
                                             <td className="p-3">
-                                                <div className="grid grid-cols-2 gap-1 text-xs">
+                                                <span className="font-semibold">
+                                                    {scorecard.score}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    /100
+                                                </span>
+                                            </td>
+
+                                            <td className="p-3">
+                                                <div className="grid grid-cols-5 gap-3 text-xs">
                                                     <div>
-                                                        Risk: {scorecard.risk_score}
+                                                        <div className="text-muted-foreground">
+                                                            Risk
+                                                        </div>
+
+                                                        <div className="font-medium">
+                                                            {scorecard.risk_score}
+                                                        </div>
                                                     </div>
 
                                                     <div>
-                                                        Speed: {scorecard.speeding_score}
+                                                        <div className="text-muted-foreground">
+                                                            Speed
+                                                        </div>
+
+                                                        <div className="font-medium">
+                                                            {scorecard.speeding_score}
+                                                        </div>
                                                     </div>
 
                                                     <div>
-                                                        Eco: {scorecard.eco_score}
+                                                        <div className="text-muted-foreground">
+                                                            Eco
+                                                        </div>
+
+                                                        <div className="font-medium">
+                                                            {scorecard.eco_score}
+                                                        </div>
                                                     </div>
 
                                                     <div>
-                                                        Fatigue: {scorecard.fatigue_score}
+                                                        <div className="text-muted-foreground">
+                                                            Fatigue
+                                                        </div>
+
+                                                        <div className="font-medium">
+                                                            {scorecard.fatigue_score}
+                                                        </div>
                                                     </div>
 
                                                     <div>
-                                                        Distract: {scorecard.distraction_score}
+                                                        <div className="text-muted-foreground">
+                                                            Distraction
+                                                        </div>
+
+                                                        <div className="font-medium">
+                                                            {scorecard.distraction_score}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
 
                                             <td className="p-3">
-                                                {scorecard.grade}
+                                                <Badge
+                                                    variant={
+                                                        scorecard.grade === 'A'
+                                                            ? 'default'
+                                                            : scorecard.grade === 'B'
+                                                                ? 'secondary'
+                                                                : scorecard.grade === 'C'
+                                                                    ? 'outline'
+                                                                    : 'destructive'
+                                                    }
+                                                >
+                                                    {scorecard.grade}
+                                                </Badge>
                                             </td>
 
                                             <td className="p-3">
