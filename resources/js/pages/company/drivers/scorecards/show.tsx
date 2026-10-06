@@ -2,6 +2,8 @@ import { Head } from '@inertiajs/react';
 
 import CompanyLayout from '@/layouts/company/company-layout';
 
+import { Badge } from '@/components/ui/badge';
+
 interface Driver {
     id: number;
     name: string;
