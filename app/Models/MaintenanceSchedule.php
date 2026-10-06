@@ -16,6 +16,7 @@ class MaintenanceSchedule extends Model
 
     protected $casts = [
         'active' => 'boolean',
+        'baseline_started_at' => 'datetime',
     ];
 
     public function vehicle(): BelongsTo
