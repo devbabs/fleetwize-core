@@ -156,15 +156,19 @@ function CreateDriverDialog({ open, onOpenChange, vehicleOptions }: { open: bool
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className={`grid ${data.role === 'driver' ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
                         <div className="grid gap-2">
                             <Label htmlFor="role">Role</Label>
 
                             <Select
                                 value={data.role}
                                 onValueChange={(value) => {
-                                    console.log('ROLE SELECTED:', value);
                                     setData('role', value);
+
+                                    // Only drivers can have an assigned vehicle
+                                    if (value !== 'driver') {
+                                        setData('vehicle_id', null);
+                                    }
                                 }}
                             >
                                 <SelectTrigger id="role" className="w-full">
@@ -180,18 +184,20 @@ function CreateDriverDialog({ open, onOpenChange, vehicleOptions }: { open: bool
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Assigned Vehicle</Label>
-                            <VehicleSelect
-                                value={data.vehicle_id}
-                                onChange={(v) => {
-                                    console.log('VEHICLE SELECTED:', v);
-                                    setData('vehicle_id', v);
-                                }}
-                                vehicleOptions={vehicleOptions}
-                            />
-                            {/* <VehicleSelect value={data.vehicle_id} onChange={(v) => setData('vehicle_id', v)} vehicleOptions={vehicleOptions} /> */}
-                        </div>
+
+                        {data.role === 'driver' && (
+                            <div className="grid gap-2">
+                                <Label>Assigned Vehicle</Label>
+
+                                <VehicleSelect
+                                    value={data.vehicle_id}
+                                    onChange={(v) => {
+                                        setData('vehicle_id', v);
+                                    }}
+                                    vehicleOptions={vehicleOptions}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <DialogFooter>
@@ -287,7 +293,7 @@ return;
                         <Input id="edit_phone" value={data.phone} onChange={(e) => setData('phone', e.target.value)} />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="edit_role">Role</Label>
 
@@ -318,6 +324,54 @@ return;
                             <Label>Assigned vehicle</Label>
                             <VehicleSelect value={data.vehicle_id} onChange={(v) => setData('vehicle_id', v)} vehicleOptions={vehicleOptions} />
                         </div>
+                    </div> */}
+
+                    <div className={`grid ${data.role === 'driver' ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                        <div className="grid gap-2">
+                            <Label htmlFor="edit_role">Role</Label>
+
+                            <Select
+                                value={data.role}
+                                onValueChange={(value) => {
+                                    setData('role', value);
+
+                                    // Non-drivers cannot have an assigned vehicle
+                                    if (value !== 'driver') {
+                                        setData('vehicle_id', null);
+                                    }
+                                }}
+                            >
+                                <SelectTrigger
+                                    id="edit_role"
+                                    className="w-full"
+                                >
+                                    <SelectValue placeholder="Select role" />
+                                </SelectTrigger>
+
+                                <SelectContent
+                                    position="popper"
+                                    className="z-[9999]"
+                                >
+                                    {ROLES.map((role) => (
+                                        <SelectItem key={role.value} value={role.value}>
+                                            {role.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {data.role === 'driver' && (
+                            <div className="grid gap-2">
+                                <Label>Assigned vehicle</Label>
+
+                                <VehicleSelect
+                                    value={data.vehicle_id}
+                                    onChange={(v) => setData('vehicle_id', v)}
+                                    vehicleOptions={vehicleOptions}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <DialogFooter>

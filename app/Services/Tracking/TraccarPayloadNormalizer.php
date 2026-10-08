@@ -34,7 +34,10 @@ class TraccarPayloadNormalizer
             'battery_level' => $attributes['batteryLevel'] ?? null,
             'satellite_count' => $attributes['sat'] ?? null,
             'signal_strength' => $attributes['rssi'] ?? null,
-            'engine_hours' => $attributes['hours'] ?? null,
+            
+            // Normalized engine runtime (milliseconds/seconds -> decimal hours)
+            'engine_hours' => self::normalizeEngineHours($attributes['hours'] ?? null),
+            
             'is_blocked' => $attributes['blocked'] ?? null,
             'is_charging' => $attributes['charge'] ?? null,
 
@@ -45,13 +48,74 @@ class TraccarPayloadNormalizer
             'gps_valid' => $position['valid'] ?? null,
             'device_time' => $position['deviceTime'] ?? null,
             'server_time' => $position['serverTime'] ?? null,
-            'odometer' => $attributes['odometer'] ?? null,
-            'obd_odometer' => $attributes['obdOdometer'] ?? null,
-            'total_distance' => $attributes['totalDistance'] ?? null,
+
+            // Normalized distance metrics (meters -> km + 32-bit sentinel guard)
+            'odometer' => self::normalizeOdometer(
+                isset($attributes['odometer']) ? (float) $attributes['odometer'] : null
+            ),
+            'obd_odometer' => self::normalizeOdometer(
+                isset($attributes['obdOdometer']) ? (float) $attributes['obdOdometer'] : null
+            ),
+            'total_distance' => self::normalizeOdometer(
+                isset($attributes['totalDistance']) ? (float) $attributes['totalDistance'] : null
+            ),
+
             'hard_cornering_count' => $attributes['hardCorneringCount'] ?? null,
             'hard_acceleration_count' => $attributes['hardAccelerationCount'] ?? null,
             'hard_deceleration_count' => $attributes['hardDecelerationCount'] ?? null,
         ];
+    }
+
+    /**
+     * Normalize and sanitize incoming odometer data from Traccar.
+     *
+     * @param float|null $rawMeters Value from attributes.odometer or obdOdometer (meters)
+     * @param float|null $lastKnownKm Fallback to previous valid reading
+     * @return float|null Sanitized value in Kilometers
+     */
+    public static function normalizeOdometer(?float $rawMeters, ?float $lastKnownKm = null): ?float
+    {
+        if ($rawMeters === null) {
+            return $lastKnownKm;
+        }
+
+        // 1. Guard against 32-bit unsigned integer sentinel errors (>= 1,000,000,000)
+        // 0xFFFFFFFF = 4,294,967,295 (sentinel emitted when CAN bus / ECU register is offline)
+        if ($rawMeters >= 1_000_000_000) {
+            return $lastKnownKm;
+        }
+
+        // 2. Convert meters to kilometers
+        $odometerKm = round($rawMeters / 1000.0, 1);
+
+        // 3. Guard against impossible vehicle mileage (> 1,500,000 km)
+        if ($odometerKm > 1_500_000) {
+            return $lastKnownKm;
+        }
+
+        return $odometerKm;
+    }
+
+    /**
+     * Normalize Traccar engine runtime into hours.
+     * Traccar typically sends milliseconds (e.g. 1393029000 ms) or seconds.
+     *
+     * @param float|int|null $rawTime
+     * @return float|null Engine hours rounded to 1 decimal place
+     */
+    public static function normalizeEngineHours(float|int|null $rawTime): ?float
+    {
+        if ($rawTime === null || $rawTime <= 0) {
+            return null;
+        }
+
+        // If >= 100,000,000, it is guaranteed to be in milliseconds
+        if ($rawTime >= 100_000_000) {
+            return round($rawTime / 3_600_000.0, 1);
+        }
+
+        // Otherwise treated as seconds
+        return round($rawTime / 3600.0, 1);
     }
 
     /**
@@ -65,15 +129,7 @@ class TraccarPayloadNormalizer
     }
 
     /**
-     * Map a Traccar "event" + "device" payload (from event.forward, a
-     * separate mechanism from position forward) to the columns on
-     * VehicleAlarm. Field names follow Traccar's documented Event model
-     * (id, type, eventTime, attributes) — unlike normalize() above, this
-     * hasn't yet been checked against a real captured payload; verify
-     * during rollout (temporary logging in the webhook controller) and
-     * correct here if any field turns out to be named/nested differently.
-     * Traccar events reference a positionId rather than carrying lat/lng
-     * inline, so those are left null unless a real payload shows otherwise.
+     * Map a Traccar "event" + "device" payload to the columns on VehicleAlarm.
      *
      * @param  array<string, mixed>  $event
      * @param  array<string, mixed>  $device

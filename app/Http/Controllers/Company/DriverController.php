@@ -87,6 +87,16 @@ class DriverController extends Controller
     {
         $company = $this->currentCompany($request);
 
+        // $validated = $request->validate([
+        //     'first_name' => ['required', 'string', 'max:100'],
+        //     'last_name' => ['required', 'string', 'max:100'],
+        //     'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        //     'phone' => ['nullable', 'string', 'max:50', 'unique:users,phone'],
+        //     'password' => ['required', 'string', 'min:8'],
+        //     'role' => ['required', Rule::in(self::ROLES)],
+        //     'vehicle_id' => ['nullable', 'integer', Rule::exists('vehicles', 'id')->where('company_id', $company->id)],
+        // ]);
+
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
@@ -94,8 +104,21 @@ class DriverController extends Controller
             'phone' => ['nullable', 'string', 'max:50', 'unique:users,phone'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::in(self::ROLES)],
-            'vehicle_id' => ['nullable', 'integer', Rule::exists('vehicles', 'id')->where('company_id', $company->id)],
+            'vehicle_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vehicles', 'id')->where('company_id', $company->id),
+                Rule::prohibitedIf(fn () => $request->input('role') !== 'driver'),
+            ],
         ]);
+
+        if (! empty($validated['vehicle_id'])) {
+            $this->assignVehicle(
+                $company->id,
+                $companyUser->id,
+                (int) $validated['vehicle_id']
+            );
+        }
 
         $user = new User;
         $user->first_name = $validated['first_name'];
@@ -144,26 +167,68 @@ class DriverController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($companyUser->user_id)],
             'phone' => ['nullable', 'string', 'max:50'],
             'role' => ['required', Rule::in(self::ROLES)],
-            'vehicle_id' => ['nullable', 'integer', Rule::exists('vehicles', 'id')->where('company_id', $company->id)],
+            // 'vehicle_id' => ['nullable', 'integer', Rule::exists('vehicles', 'id')->where('company_id', $company->id)],
+            'vehicle_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('vehicles', 'id')->where('company_id', $company->id),
+                Rule::prohibitedIf(fn () => $request->input('role') !== 'driver'),
+            ],
         ]);
 
+        // $companyUser->user->first_name = $validated['first_name'];
+        // $companyUser->user->last_name = $validated['last_name'];
+        // $companyUser->user->email = $validated['email'];
+        // $companyUser->user->phone = $validated['phone'] ?? null;
+        // $companyUser->user->save();
+
+        // $companyUser->role = $validated['role'];
+        // $companyUser->save();
+
+        // $currentVehicleId = $companyUser->currentAssignment?->vehicle_id;
+        // $nextVehicleId = $validated['vehicle_id'] ?? null;
+
+        // if ($currentVehicleId !== $nextVehicleId) {
+        //     $companyUser->currentAssignment?->update(['end_date' => now()]);
+
+        //     if ($nextVehicleId) {
+        //         $this->assignVehicle($company->id, $companyUser->id, (int) $nextVehicleId);
+        //     }
+        // }
+
+        // Capture original values BEFORE making changes
+        $originalUser = $companyUser->user->toArray();
+        $originalRole = $companyUser->role;
+        $originalVehicleId = $companyUser->currentAssignment?->vehicle_id;
+
+        // Update user
         $companyUser->user->first_name = $validated['first_name'];
         $companyUser->user->last_name = $validated['last_name'];
         $companyUser->user->email = $validated['email'];
         $companyUser->user->phone = $validated['phone'] ?? null;
         $companyUser->user->save();
 
+        // Update role
         $companyUser->role = $validated['role'];
         $companyUser->save();
 
-        $currentVehicleId = $companyUser->currentAssignment?->vehicle_id;
-        $nextVehicleId = $validated['vehicle_id'] ?? null;
+        // Only drivers can have a vehicle
+        $nextVehicleId = $companyUser->role === 'driver'
+            ? ($validated['vehicle_id'] ?? null)
+            : null;
 
-        if ($currentVehicleId !== $nextVehicleId) {
-            $companyUser->currentAssignment?->update(['end_date' => now()]);
+        // Handle vehicle assignment
+        if ($originalVehicleId !== $nextVehicleId) {
+            $companyUser->currentAssignment?->update([
+                'end_date' => now(),
+            ]);
 
             if ($nextVehicleId) {
-                $this->assignVehicle($company->id, $companyUser->id, (int) $nextVehicleId);
+                $this->assignVehicle(
+                    $company->id,
+                    $companyUser->id,
+                    (int) $nextVehicleId
+                );
             }
         }
 

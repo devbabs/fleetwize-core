@@ -1,15 +1,20 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { useState } from 'react';
 // import { route } from 'ziggy-js';
+
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useVehicleLiveUpdates } from '@/hooks/use-vehicle-live-updates';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { cn } from '@/lib/utils';
+
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
 
 type Trip = {
     id: number;
@@ -51,9 +56,12 @@ type VehicleEvent = {
 
 type VehicleDocument = {
     id: number;
-    title: string | null;
+    documentId: number;
+    name: string | null;
+    documentNumber: string | null;
+    lastRenewedAt: string | null;
     expiresAt: string | null;
-    expiryStatus: string | null;
+    status: string | null;
 };
 
 type ServiceEntry = {
@@ -148,6 +156,11 @@ type MaintenanceRecord = {
     maintenanceScheduleId: number | null;
 };
 
+type DocumentOption = {
+    id: number;
+    title: string;
+};
+
 type MaintenanceAlert = {
     id: number;
     maintenanceScheduleId: number;
@@ -160,6 +173,7 @@ type MaintenanceAlert = {
 interface Props {
     companySlug: string;
     vehicle: VehicleDetail;
+    documentOptions: DocumentOption[];
 }
 
 const tabs = ['Overview', 'Trip History', 'Alarms/Alerts', 'Maintenance', 'Documents', 'Issues'] as const;
@@ -234,10 +248,37 @@ const eventTypeLabels: Record<string, string> = {
     maintenance: 'Maintenance',
 };
 
-export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: VehicleDetail }) {
+export default function VehicleShow({ vehicle: initialVehicle, documentOptions = [], }: { vehicle: VehicleDetail; documentOptions?: DocumentOption[];}) {
     const [tab, setTab] = useState<Tab>('Overview');
     const [vehicle, setVehicle] = useState(initialVehicle);
     const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+    const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+
+    const {
+        data: documentData,
+        setData: setDocumentData,
+        post: postDocument,
+        processing: documentProcessing,
+        errors: documentErrors,
+        reset: resetDocument,
+    } = useForm({
+        document_id: '',
+        document_number: '',
+        last_renewed_at: '',
+        expires_at: '',
+    });
+
+    const submitDocument = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        postDocument(`/vehicles/${vehicle.id}/documents`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setDocumentDialogOpen(false);
+                resetDocument();
+            },
+        });
+    };
 
     // The channel carries every vehicle in the company — filter to this one.
     useVehicleLiveUpdates((update) => {
@@ -1189,35 +1230,211 @@ export default function VehicleShow({ vehicle: initialVehicle }: { vehicle: Vehi
             ) : null}
 
             {tab === 'Documents' ? (
-                <Card className="overflow-hidden py-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                                <tr>
-                                    <th className="px-6 py-3 font-medium">Document</th>
-                                    <th className="px-6 py-3 font-medium">Expires</th>
-                                    <th className="px-6 py-3 font-medium">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {vehicle.documents.map((doc) => (
-                                    <tr key={doc.id}>
-                                        <td className="px-6 py-3 text-foreground">{doc.title ?? '—'}</td>
-                                        <td className="px-6 py-3 text-muted-foreground">{formatDateTime(doc.expiresAt)}</td>
-                                        <td className="px-6 py-3 text-muted-foreground capitalize">{doc.expiryStatus ?? '—'}</td>
-                                    </tr>
-                                ))}
-                                {vehicle.documents.length === 0 ? (
+                <>
+                    <Card className="overflow-hidden py-0">
+                        <div className="flex items-center justify-between border-b px-6 py-4">
+                            <div>
+                                <h3 className="font-medium">Vehicle documents</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Documents and compliance records for this vehicle.
+                                </p>
+                            </div>
+
+                            <Button
+                                onClick={() => {
+                                    resetDocument();
+                                    setDocumentDialogOpen(true);
+                                }}
+                                className="bg-brand-navy text-white hover:bg-brand-navy/90 dark:bg-brand-green dark:text-brand-navy"
+                            >
+                                <Plus className="size-4" />
+                                Add document
+                            </Button>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
                                     <tr>
-                                        <td colSpan={3} className="px-6 py-10 text-center text-muted-foreground">
-                                            No documents uploaded yet.
-                                        </td>
+                                        <th className="px-6 py-3 font-medium">Document</th>
+                                        <th className="px-6 py-3 font-medium">Document ID</th>
+                                        <th className="px-6 py-3 font-medium">Expires</th>
+                                        <th className="px-6 py-3 font-medium">Status</th>
                                     </tr>
-                                ) : null}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
+                                </thead>
+
+                                <tbody className="divide-y divide-border">
+                                    {vehicle.documents.map((doc) => (
+                                        <tr key={doc.id}>
+                                            <td className="px-6 py-3 font-medium text-foreground">
+                                                {doc.name ?? '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {doc.documentNumber ?? '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {doc.expiresAt
+                                                    ? formatDateTime(doc.expiresAt)
+                                                    : '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3 capitalize">
+                                                {doc.status ?? '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {vehicle.documents.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={4}
+                                                className="px-6 py-10 text-center text-muted-foreground"
+                                            >
+                                                No documents added yet.
+                                            </td>
+                                        </tr>
+                                    ) : null}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+
+                    <Dialog open={documentDialogOpen} onOpenChange={setDocumentDialogOpen}>
+                        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>Add vehicle document</DialogTitle>
+                            </DialogHeader>
+
+                            <form onSubmit={submitDocument} className="space-y-4">
+                                {/* Document Type */}
+                                <div className="grid gap-2">
+                                    <Label htmlFor="document_id">Document type</Label>
+
+                                    <Select
+                                        value={documentData.document_id ? String(documentData.document_id) : ''}
+                                        onValueChange={(value) =>
+                                            setDocumentData('document_id', Number(value))
+                                        }
+                                    >
+                                        <SelectTrigger id="document_id" className="w-full">
+                                            <SelectValue placeholder="Select document type" />
+                                        </SelectTrigger>
+
+                                        <SelectContent className="z-[9999]">
+                                            {(documentOptions ?? [])
+                                                .filter((document) => document.title !== 'Driver License')
+                                                .map((document) => (
+                                                    <SelectItem
+                                                        key={document.id}
+                                                        value={String(document.id)}
+                                                    >
+                                                        {document.title}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {documentErrors.document_id ? (
+                                        <p className="text-xs text-destructive">
+                                            {documentErrors.document_id}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                {/* Document Number / ID */}
+                                <div className="grid gap-2">
+                                    <Label htmlFor="document_number">
+                                        Document ID / Number
+                                    </Label>
+
+                                    <Input
+                                        id="document_number"
+                                        placeholder="e.g. INS-2026-001234"
+                                        value={documentData.document_number}
+                                        onChange={(e) =>
+                                            setDocumentData('document_number', e.target.value)
+                                        }
+                                    />
+
+                                    {documentErrors.document_number ? (
+                                        <p className="text-xs text-destructive">
+                                            {documentErrors.document_number}
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                {/* Dates */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="last_renewed_at">
+                                            Last renewed
+                                        </Label>
+
+                                        <Input
+                                            id="last_renewed_at"
+                                            type="date"
+                                            value={documentData.last_renewed_at}
+                                            onChange={(e) =>
+                                                setDocumentData(
+                                                    'last_renewed_at',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+
+                                        {documentErrors.last_renewed_at ? (
+                                            <p className="text-xs text-destructive">
+                                                {documentErrors.last_renewed_at}
+                                            </p>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="expires_at">
+                                            Expiry date
+                                        </Label>
+
+                                        <Input
+                                            id="expires_at"
+                                            type="date"
+                                            value={documentData.expires_at}
+                                            onChange={(e) =>
+                                                setDocumentData('expires_at', e.target.value)
+                                            }
+                                        />
+
+                                        {documentErrors.expires_at ? (
+                                            <p className="text-xs text-destructive">
+                                                {documentErrors.expires_at}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                </div>
+
+                                <DialogFooter>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setDocumentDialogOpen(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+
+                                    <Button
+                                        type="submit"
+                                        loading={documentProcessing}
+                                        className="bg-brand-navy text-white hover:bg-brand-navy/90 dark:bg-brand-green dark:text-brand-navy"
+                                    >
+                                        Save document
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </>
+
             ) : null}
 
             {tab === 'Issues' ? (

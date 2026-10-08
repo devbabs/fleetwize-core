@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Company;
 use App\Http\Controllers\Company\Concerns\ResolvesCompany;
 use App\Http\Controllers\Company\Concerns\ValidatesTrackerImei;
 use App\Http\Controllers\Controller;
+use App\Models\Document;
 use App\Models\Vehicle;
 use App\Services\SystemLogService;
 use App\Services\Tracking\TraccarService;
@@ -314,24 +315,13 @@ class VehicleController extends Controller
                 'trips' => fn ($query) => $query->latest('start_time')->limit(20),
                 'faults' => fn ($query) => $query->latest('log_time')->limit(30),
                 'alarms' => fn ($query) => $query->latest('gps_time')->limit(30),
-                // 'alarmEvents' => fn ($query) => $query->latest('event_time')->limit(30),
                 'events' => fn ($query) => $query->latest('event_time')->limit(30),
                 'documents.document',
                 'serviceEntries' => fn ($query) => $query->latest('starts_at')->limit(10),
                 'issues' => fn ($query) => $query->latest('reported_at')->limit(20),
-
-                // Maintenance
-                'maintenanceSchedules' => fn ($query) => $query
-                    ->where('active', true)
-                    ->latest(),
-
-                'maintenanceRecords' => fn ($query) => $query
-                    ->latest('maintained_at')
-                    ->limit(20),
-
-                'maintenanceAlerts' => fn ($query) => $query
-                    ->where('acknowledged', false)
-                    ->latest('alerted_at'),
+                'maintenanceSchedules' => fn ($query) => $query->where('active', true)->latest(),
+                'maintenanceRecords' => fn ($query) => $query->latest('maintained_at')->limit(20),
+                'maintenanceAlerts' => fn ($query) => $query->where('acknowledged', false)->latest('alerted_at'),
             ])
             ->findOrFail((string) $request->route('vehicle'));
 
@@ -370,7 +360,6 @@ class VehicleController extends Controller
                     'engineHours' => $model->trackerState->engine_hours,
                     'isBlocked' => $model->trackerState->is_blocked,
                     'isCharging' => $model->trackerState->is_charging,
-
                     'unique_id' => $model->trackerState->unique_id,
                     'device_status' => $model->trackerState->device_status,
                     'protocol' => $model->trackerState->protocol,
@@ -381,9 +370,9 @@ class VehicleController extends Controller
                     'odometer' => $model->trackerState->odometer,
                     'obd_odometer' => $model->trackerState->obd_odometer,
                     'total_distance' => $model->trackerState->total_distance,
-                    'hard_cornering_count' => $model->trackerState->hard_cornering_count,
-                    'hard_acceleration_count' => $model->trackerState->hard_acceleration_count,
-                    'hard_deceleration_count' => $model->trackerState->hard_deceleration_count
+                    'hardCorneringCount' => $model->trackerState->hard_cornering_count,
+                    'hardAccelerationCount' => $model->trackerState->hard_acceleration_count,
+                    'hardDecelerationCount' => $model->trackerState->hard_deceleration_count,
                 ] : null,
                 'trips' => $model->trips->map(fn ($trip) => [
                     'id' => $trip->id,
@@ -432,9 +421,12 @@ class VehicleController extends Controller
                 ]),
                 'documents' => $model->documents->map(fn ($doc) => [
                     'id' => $doc->id,
-                    'title' => $doc->document_title ?? $doc->document->title,
-                    'expiresAt' => $doc->expires_at?->toIso8601String(),
-                    'expiryStatus' => $doc->expiry_status,
+                    'documentId' => $doc->document_id,
+                    'name' => $doc->document?->title,
+                    'documentNumber' => $doc->document_number,
+                    'lastRenewedAt' => $doc->last_renewed_at?->toDateString(),
+                    'expiresAt' => $doc->expires_at?->toDateString(),
+                    'status' => $doc->expiry_status,
                 ]),
                 'serviceEntries' => $model->serviceEntries->map(fn ($entry) => [
                     'id' => $entry->id,
@@ -442,7 +434,6 @@ class VehicleController extends Controller
                     'endsAt' => $entry->ends_at?->toIso8601String(),
                     'comments' => $entry->comments,
                 ]),
-
                 'maintenanceSchedules' => $model->maintenanceSchedules->map(fn ($schedule) => [
                     'id' => $schedule->id,
                     'name' => $schedule->name,
@@ -450,7 +441,6 @@ class VehicleController extends Controller
                     'timeIntervalDays' => $schedule->time_interval_days,
                     'active' => $schedule->active,
                 ]),
-
                 'maintenanceRecords' => $model->maintenanceRecords->map(fn ($record) => [
                     'id' => $record->id,
                     'maintainedAt' => $record->maintained_at?->toDateString(),
@@ -458,7 +448,6 @@ class VehicleController extends Controller
                     'notes' => $record->notes,
                     'maintenanceScheduleId' => $record->maintenance_schedule_id ?? null,
                 ]),
-
                 'maintenanceAlerts' => $model->maintenanceAlerts->map(fn ($alert) => [
                     'id' => $alert->id,
                     'maintenanceScheduleId' => $alert->maintenance_schedule_id,
@@ -467,7 +456,6 @@ class VehicleController extends Controller
                     'alertedAt' => $alert->alerted_at?->toDateString(),
                     'acknowledged' => $alert->acknowledged,
                 ]),
-
                 'issues' => $model->issues->map(fn ($issue) => [
                     'id' => $issue->id,
                     'summary' => $issue->summary,
@@ -476,6 +464,10 @@ class VehicleController extends Controller
                     'reportedAt' => $issue->reported_at?->toIso8601String(),
                 ]),
             ],
+            // Pass document options at root level with defensive fallback
+            'documentOptions' => \App\Models\Document::query()
+                ->orderBy('title')
+                ->get(['id', 'title']),
         ]);
     }
 

@@ -37,7 +37,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @mixin \Eloquent
  */
-#[Fillable(['document_title', 'last_renewed_at', 'expires_at'])]
+#[Fillable([
+    'vehicle_id',
+    'document_id',
+    'document_number',
+    'last_renewed_at',
+    'expires_at',
+])]
 class VehicleDocument extends Model
 {
     protected function casts(): array
@@ -48,23 +54,16 @@ class VehicleDocument extends Model
         ];
     }
 
-    /**
-     * @return BelongsTo<Vehicle, $this>
-     */
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
     }
 
-    /**
-     * @return BelongsTo<Document, $this>
-     */
     public function document(): BelongsTo
     {
         return $this->belongsTo(Document::class);
     }
 
-    /** @return Attribute<string|null, never> */
     protected function expiryStatus(): Attribute
     {
         return Attribute::make(
@@ -77,17 +76,18 @@ class VehicleDocument extends Model
                     return 'expired';
                 }
 
-                return $this->expires_at->lte(now()->addDays(30)) ? 'soon' : 'valid';
+                return $this->expires_at->lte(now()->addDays(30))
+                    ? 'soon'
+                    : 'valid';
             },
         );
     }
 
-    /**
-     * @param  Builder<VehicleDocument>  $query
-     * @return Builder<VehicleDocument>
-     */
     public function scopeExpiresSoon(Builder $query): Builder
     {
-        return $query->whereBetween('expires_at', [now(), now()->addDays(30)]);
+        return $query->whereBetween(
+            'expires_at',
+            [now(), now()->addDays(30)]
+        );
     }
 }

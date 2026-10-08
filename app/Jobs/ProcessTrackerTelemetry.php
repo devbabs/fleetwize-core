@@ -46,10 +46,24 @@
                 return;
             }
 
+            // --- REPLACE STARTS HERE ---
+            // 1. Fetch current stored odometer to protect against sentinels / drops
+            $lastKnownKm = $vehicle->trackerState?->odometer;
+
+            // 2. Normalize incoming telemetry (converts meters -> km, knots -> km/h, etc.)
+            $normalized = TraccarPayloadNormalizer::normalize($this->position, $this->device);
+
+            // 3. Fall back to last known reading if raw odometer was invalid, sentinel, or absent
+            if ($normalized['odometer'] === null && $lastKnownKm !== null) {
+                $normalized['odometer'] = $lastKnownKm;
+            }
+
+            // 4. Upsert the state record
             $trackerState = VehicleTrackerState::query()->updateOrCreate(
                 ['vehicle_id' => $vehicle->id],
-                TraccarPayloadNormalizer::normalize($this->position, $this->device),
+                $normalized,
             );
+            // --- REPLACE ENDS HERE ---
 
             try {
                 broadcast(new VehicleTrackerStateUpdated($vehicle, $trackerState));
