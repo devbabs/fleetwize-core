@@ -18,22 +18,30 @@ return new class extends Migration
         //     // Add the 2-column index
         //     $table->unique(['vehicle_id', 'start_time'], 'unique_vehicle_trip_start');
         // });
+        // Schema::table('vehicle_trips', function (Blueprint $table) {
+        //     $indexes = collect(DB::select('SHOW INDEX FROM vehicle_trips'))
+        //         ->pluck('Key_name')
+        //         ->unique()
+        //         ->toArray();
+
+        //     if (in_array('unique_vehicle_trip_window', $indexes)) {
+        //         $table->dropUnique('unique_vehicle_trip_window');
+        //     }
+
+        //     if (!in_array('unique_vehicle_trip_start', $indexes)) {
+        //         $table->unique(
+        //             ['vehicle_id', 'start_time'],
+        //             'unique_vehicle_trip_start'
+        //         );
+        //     }
+        // });
         Schema::table('vehicle_trips', function (Blueprint $table) {
-            $indexes = collect(DB::select('SHOW INDEX FROM vehicle_trips'))
-                ->pluck('Key_name')
-                ->unique()
-                ->toArray();
+            $table->dropUnique('vehicle_trip_unique');
 
-            if (in_array('unique_vehicle_trip_window', $indexes)) {
-                $table->dropUnique('unique_vehicle_trip_window');
-            }
-
-            if (!in_array('unique_vehicle_trip_start', $indexes)) {
-                $table->unique(
-                    ['vehicle_id', 'start_time'],
-                    'unique_vehicle_trip_start'
-                );
-            }
+            $table->unique(
+                ['vehicle_id', 'start_time'],
+                'unique_vehicle_trip_start'
+            );
         });
     }
 
