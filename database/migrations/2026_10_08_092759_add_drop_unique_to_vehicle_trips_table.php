@@ -36,12 +36,14 @@ return new class extends Migration
         //     }
         // });
         Schema::table('vehicle_trips', function (Blueprint $table) {
-            $table->dropUnique('vehicle_trip_unique');
-
             $table->unique(
                 ['vehicle_id', 'start_time'],
                 'unique_vehicle_trip_start'
             );
+        });
+
+        Schema::table('vehicle_trips', function (Blueprint $table) {
+            $table->dropUnique('vehicle_trip_unique');
         });
     }
 
