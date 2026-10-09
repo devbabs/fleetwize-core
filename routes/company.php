@@ -1,19 +1,20 @@
 <?php
 
-use App\Http\Controllers\Company\DriverScorecardController;
-use App\Http\Controllers\Company\PlaybackController;
 use App\Http\Controllers\Company\AlarmController;
 use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\DriverController;
+use App\Http\Controllers\Company\DriverScorecardController;
 use App\Http\Controllers\Company\ExpenseController;
 use App\Http\Controllers\Company\FuelController;
 use App\Http\Controllers\Company\GeofenceController;
 use App\Http\Controllers\Company\IssueController;
 use App\Http\Controllers\Company\LiveTrackingController;
 use App\Http\Controllers\Company\MaintenanceController;
+use App\Http\Controllers\Company\PlaybackController;
 use App\Http\Controllers\Company\ReportController;
 use App\Http\Controllers\Company\SettingsController;
 use App\Http\Controllers\Company\VehicleController;
+use App\Http\Controllers\Company\VehicleDocumentController;
 use App\Http\Controllers\SystemLogController;
 use Illuminate\Support\Facades\Route;
 
@@ -80,6 +81,8 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
         Route::get('/drivers-scorecard', [DriverScorecardController::class, 'index'])->name('drivers.scorecards.index');
 
         Route::get('/drivers/{driver}/scorecards',[DriverScorecardController::class, 'show'])->name('drivers.scorecards.show');
+
+        Route::post('/vehicles/{vehicle}/documents',[VehicleDocumentController::class, 'store'])->name('vehicles.documents.store');
     });
     require __DIR__.'/company-workshop.php';
 });
