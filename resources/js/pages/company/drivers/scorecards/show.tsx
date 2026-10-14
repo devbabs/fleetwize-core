@@ -60,6 +60,132 @@ interface Props {
     scorecards: Scorecard[];
 }
 
+
+
+function DriverBehaviourFramework() {
+    const pillars = [
+        {
+            name: 'Risk',
+            icon: '⚠️',
+            description:
+                'Assesses driving manoeuvres associated with increased driving risk.',
+            metrics: [
+                'Harsh braking events',
+                'Harsh cornering events',
+            ],
+        },
+        {
+            name: 'Speeding',
+            icon: '🏎️',
+            description:
+                'Assesses the frequency, severity and duration of speeding.',
+            metrics: [
+                'Overspeed events',
+                'Severe overspeed events',
+                'Overspeed duration',
+            ],
+        },
+        {
+            name: 'Distraction',
+            icon: '👁️',
+            description:
+                'Assesses the indicators assigned to the distraction component of the current scoring model.',
+            metrics: [
+                'Confirm the underlying metrics from the scoring logic',
+            ],
+        },
+        {
+            name: 'Fatigue',
+            icon: '🕒',
+            description:
+                'Assesses fatigue indicators and prolonged continuous driving.',
+            metrics: [
+                'Fatigue events',
+                'Continuous driving duration',
+            ],
+        },
+        {
+            name: 'Eco',
+            icon: '🌱',
+            description:
+                'Assesses driving smoothness and engine-load behaviour.',
+            metrics: [
+                'Harsh acceleration events',
+                'High engine load events',
+            ],
+        },
+    ];
+
+    return (
+        <div className="space-y-4 rounded-xl border p-5">
+            <div>
+                <h2 className="text-lg font-semibold">
+                    Driver Behaviour Scoring Framework
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Fleetwize assesses driver performance across
+                    five pillars using the metrics defined by
+                    its scoring model. These pillars provide
+                    separate views of driver behaviour and
+                    contribute to the overall performance profile.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {pillars.map((pillar) => (
+                    <div
+                        key={pillar.name}
+                        className="rounded-lg border p-4"
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl">
+                                {pillar.icon}
+                            </span>
+
+                            <h3 className="font-semibold">
+                                {pillar.name}
+                            </h3>
+                        </div>
+
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            {pillar.description}
+                        </p>
+
+                        <div className="mt-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Metrics
+                            </p>
+
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                                {pillar.metrics.map((metric) => (
+                                    <li key={metric}>
+                                        {metric}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="rounded-lg bg-muted/50 p-4">
+                <h3 className="text-sm font-semibold">
+                    Understanding the scores
+                </h3>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Pillar scores and the overall score are
+                    displayed on a scale of 0–100. Refer to the
+                    scoring rules to interpret individual values
+                    and understand how the overall score and
+                    grade are calculated.
+                </p>
+            </div>
+        </div>
+    );
+}
+
 export default function Show({
     driver,
     latest_scorecard,
@@ -79,6 +205,8 @@ export default function Show({
                         Fatigue and Distraction.
                     </p>
                 </div>
+
+                <DriverBehaviourFramework />
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                     <div className="rounded-lg border p-4">
