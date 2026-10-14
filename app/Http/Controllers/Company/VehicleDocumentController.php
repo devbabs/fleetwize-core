@@ -18,12 +18,13 @@ class VehicleDocumentController extends Controller
 
     use ResolvesCompany;
     //
-    public function store(Request $request, string $vehicle): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
         $company = $this->currentCompany($request);
 
-        // Find the vehicle belonging strictly to this company
-        $vehicle = $company->vehicles()->findOrFail($vehicle);
+        // Fetch vehicle ID explicitly from the route parameter
+        $vehicleId = (string) $request->route('vehicle');
+        $vehicle = $company->vehicles()->findOrFail($vehicleId);
 
         $this->authorize('update', $vehicle);
 
