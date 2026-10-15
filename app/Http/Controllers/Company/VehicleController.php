@@ -448,28 +448,6 @@ class VehicleController extends Controller
                     'endsAt' => $entry->ends_at?->toIso8601String(),
                     'comments' => $entry->comments,
                 ]),
-                // 'maintenanceSchedules' => $model->maintenanceSchedules->map(fn ($schedule) => [
-                //     'id' => $schedule->id,
-                //     'name' => $schedule->name,
-                //     'distanceIntervalKm' => $schedule->distance_interval_km,
-                //     'timeIntervalDays' => $schedule->time_interval_days,
-                //     'active' => $schedule->active,
-                // ]),
-                // 'maintenanceRecords' => $model->maintenanceRecords->map(fn ($record) => [
-                //     'id' => $record->id,
-                //     'maintainedAt' => $record->maintained_at?->toDateString(),
-                //     'odometerKm' => $record->odometer_km,
-                //     'notes' => $record->notes,
-                //     'maintenanceScheduleId' => $record->maintenance_schedule_id ?? null,
-                // ]),
-                // 'maintenanceAlerts' => $model->maintenanceAlerts->map(fn ($alert) => [
-                //     'id' => $alert->id,
-                //     'maintenanceScheduleId' => $alert->maintenance_schedule_id,
-                //     'title' => $alert->title,
-                //     'description' => $alert->description,
-                //     'alertedAt' => $alert->alerted_at?->toDateString(),
-                //     'acknowledged' => $alert->acknowledged,
-                // ]),
 
                 'maintenanceSchedules' => $model->maintenanceSchedules->map(function ($schedule) use ($model) {
                     // Find the most recent service record for this specific schedule

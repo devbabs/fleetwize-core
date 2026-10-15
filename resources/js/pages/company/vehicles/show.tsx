@@ -212,6 +212,33 @@ return '—';
     return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function resolveTrackerStatus(
+    liveState: VehicleDetail['liveState'],
+    fallbackStatus?: string
+): 'moving' | 'online_idle' | 'idle' | 'offline' {
+    const reportedAt = liveState?.reportedAt;
+
+    if (!reportedAt) {
+        return (fallbackStatus as any) ?? 'offline';
+    }
+
+    const diffMs = Date.now() - new Date(reportedAt).getTime();
+
+    if (diffMs > 3600_000) {
+        return 'offline';
+    }
+
+    if (diffMs > 300_000) {
+        return 'idle';
+    }
+
+    if ((liveState?.speed ?? 0) > 5) {
+        return 'moving';
+    }
+
+    return 'online_idle';
+}
+
 function severityBadge(severity: number | null) {
     if (severity !== null && severity >= 4) {
 return <Badge variant="destructive">High</Badge>;
@@ -278,7 +305,7 @@ function renderVehicleStatusBadge(status: string | undefined, isOnline: boolean)
         case 'online_idle':
             return <Badge variant="secondary">Online - Idle</Badge>;
         case 'idle':
-            return <Badge variant="secondary" className="bg-amber-500/15 text-amber-600">Idle (Stale)</Badge>;
+            return <Badge variant="secondary" className="bg-amber-500/15 text-amber-600">Idle</Badge>;
         case 'offline':
         default:
             return <Badge variant="outline">Offline</Badge>;
@@ -483,7 +510,10 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         {vehicle.color ? ` · ${vehicle.color}` : ''}
                     </p>
                 </div>
-                {renderVehicleStatusBadge(vehicle.liveState?.status, vehicle.isOnline)}
+                {renderVehicleStatusBadge(
+                    resolveTrackerStatus(vehicle.liveState, vehicle.liveState?.status),
+                    vehicle.isOnline
+                )}
             </div>
 
             <div className="flex gap-1 border-b border-border">
@@ -721,60 +751,6 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                     </Card>
                 </div>
             ) : null}
-
-            {/* {tab === 'Trip History' ? (
-                <Card className="overflow-hidden py-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                                <tr>
-                                    <th className="px-6 py-3 font-medium">Start</th>
-                                    <th className="px-6 py-3 font-medium">Route</th>
-                                    <th className="px-6 py-3 font-medium">Distance</th>
-                                    <th className="px-6 py-3 font-medium">Avg Speed</th>
-                                    <th className="px-6 py-3 font-medium">Max Speed</th>
-                                    <th className="px-6 py-3 font-medium">Fuel Used</th>
-                                    <th className="px-6 py-3 font-medium"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {vehicle.trips.map((trip) => (
-                                    <tr key={trip.id}>
-                                        <td className="px-6 py-3 text-foreground">{formatDateTime(trip.startTime)}</td>
-                                        <td className="max-w-xs truncate px-6 py-3 text-muted-foreground">
-                                            {trip.startAddress || trip.endAddress ? `${trip.startAddress ?? '—'} → ${trip.endAddress ?? '—'}` : '—'}
-                                        </td>
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {trip.distanceKm !== null ? `${trip.distanceKm.toFixed(1)} km` : '—'}
-                                        </td>
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {trip.averageSpeed !== null ? `${Math.round(trip.averageSpeed)} km/h` : '—'}
-                                        </td>
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {trip.maxSpeed !== null ? `${Math.round(trip.maxSpeed)} km/h` : '—'}
-                                        </td>
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {trip.fuelConsumed !== null ? `${trip.fuelConsumed.toFixed(1)} L` : '—'}
-                                        </td>
-                                        <td className="px-6 py-3 text-right">
-                                            <Button size="sm" variant="outline" onClick={() => setSelectedTrip(trip)}>
-                                                Details
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {vehicle.trips.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-6 py-10 text-center text-muted-foreground">
-                                            No trips recorded yet.
-                                        </td>
-                                    </tr>
-                                ) : null}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            ) : null} */}
 
             {tab === 'Trip History' ? (
                 <Card className="overflow-hidden py-0">

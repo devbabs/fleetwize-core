@@ -84,13 +84,44 @@ function mergeLiveUpdate(vehicle: VehicleRow, update?: VehicleLiveUpdate): Vehic
     };
 }
 
+function getComputedStatus(vehicle: VehicleRow): 'moving' | 'online_idle' | 'idle' | 'offline' {
+    if (!vehicle.lastSeenAt) {
+        return 'offline';
+    }
+
+    const diffMs = Date.now() - new Date(vehicle.lastSeenAt).getTime();
+
+    // Over 1 hour ago
+    if (diffMs > 3600_000) {
+        return 'offline';
+    }
+
+    // Between 5 mins and 60 mins ago
+    if (diffMs > 300_000) {
+        return 'idle';
+    }
+
+    // Within last 5 mins
+    if ((vehicle.speed ?? 0) > 5) {
+        return 'moving';
+    }
+
+    return 'online_idle';
+}
+
 function statusBadge(vehicle: VehicleRow) {
-    if (vehicle.isOnline && (vehicle.speed ?? 0) > 5) {
+    const status = getComputedStatus(vehicle);
+
+    if (status === 'moving') {
         return <Badge className="border-transparent bg-brand-green/15 text-brand-green">Moving</Badge>;
     }
 
-    if (vehicle.isOnline) {
+    if (status === 'online_idle') {
         return <Badge variant="secondary">Online - Idle</Badge>;
+    }
+
+    if (status === 'idle') {
+        return <Badge variant="secondary" className="bg-amber-500/15 text-amber-600">Idle</Badge>;
     }
 
     return <Badge variant="outline">Offline</Badge>;

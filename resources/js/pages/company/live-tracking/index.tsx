@@ -19,55 +19,6 @@ import { useVehicleLiveUpdates } from '@/hooks/use-vehicle-live-updates';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { cn } from '@/lib/utils';
 
-// type TrackedVehicle = {
-//     id: number;
-//     name: string | null;
-//     licensePlate: string | null;
-//     category: string;
-//     isOnline: boolean;
-//     latitude: number | null;
-//     longitude: number | null;
-//     speed: number | null;
-//     heading: number | null;
-//     ignitionOn: boolean | null;
-//     fuelLevel: number | null;
-//     batteryVoltage?: number | null;
-//     reportedAt: string | null;
-//     status: VehicleStatus;
-// };
-
-// type StatusFilter = 'all' | 'moving' | 'idle' | 'offline';
-
-// function vehicleStatus(vehicle: TrackedVehicle): Exclude<StatusFilter, 'all'> {
-//     if (!vehicle.isOnline) {
-//         return 'offline';
-//     }
-
-//     if ((vehicle.speed ?? 0) > 5) {
-//         return 'moving';
-//     }
-
-//     return 'idle';
-// }
-
-// const statusColor: Record<Exclude<StatusFilter, 'all'>, string> = {
-//     moving: '#89c44b',
-//     idle: '#f59e0b',
-//     offline: '#9ca3af',
-// };
-
-// function statusBadge(status: Exclude<StatusFilter, 'all'>) {
-//     if (status === 'moving') {
-//         return <Badge className="border-transparent bg-brand-green/15 text-brand-green">Moving</Badge>;
-//     }
-
-//     if (status === 'idle') {
-//         return <Badge variant="secondary">Online - Idle</Badge>;
-//     }
-
-//     return <Badge variant="outline">Offline</Badge>;
-// }
-
 type TrackedVehicle = {
     id: number;
     name: string | null;
