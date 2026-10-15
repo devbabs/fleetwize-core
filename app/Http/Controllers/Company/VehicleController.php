@@ -386,6 +386,7 @@ class VehicleController extends Controller
                     'hardCorneringCount' => $model->trackerState->hard_cornering_count,
                     'hardAccelerationCount' => $model->trackerState->hard_acceleration_count,
                     'hardDecelerationCount' => $model->trackerState->hard_deceleration_count,
+                    'status' => $model->trackerState->status(),
                 ] : null,
                 'trips' => $model->trips->map(fn ($trip) => [
                     'id' => $trip->id,

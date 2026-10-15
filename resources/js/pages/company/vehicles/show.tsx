@@ -126,6 +126,7 @@ type VehicleDetail = {
         hardCorneringCount: number | null;
         hardAccelerationCount: number | null;
         hardDecelerationCount: number | null;
+        status: string;
     } | null;
     trips: Trip[];
     faults: Fault[];
@@ -245,6 +246,45 @@ function AcknowledgeButton({ faultId }: { faultId: number }) {
     );
 }
 
+function getVehicleStatus(liveState: VehicleDetail['liveState'], isOnline: boolean): 'offline' | 'idle' | 'online_idle' | 'moving' {
+    if (!liveState?.reportedAt) {
+        return 'offline';
+    }
+
+    const reportedTime = new Date(liveState.reportedAt).getTime();
+    const now = Date.now();
+    const diffMinutes = (now - reportedTime) / 60_000;
+
+    if (diffMinutes > 60) {
+        return 'offline';
+    }
+
+    if (diffMinutes > 5) {
+        return 'idle';
+    }
+
+    const speed = liveState.speed ?? 0;
+    if (speed > 5) {
+        return 'moving';
+    }
+
+    return 'online_idle';
+}
+
+function renderVehicleStatusBadge(status: string | undefined, isOnline: boolean) {
+    switch (status) {
+        case 'moving':
+            return <Badge className="border-transparent bg-brand-green/15 text-brand-green">Moving</Badge>;
+        case 'online_idle':
+            return <Badge variant="secondary">Online - Idle</Badge>;
+        case 'idle':
+            return <Badge variant="secondary" className="bg-amber-500/15 text-amber-600">Idle (Stale)</Badge>;
+        case 'offline':
+        default:
+            return <Badge variant="outline">Offline</Badge>;
+    }
+}
+
 const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -345,6 +385,7 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                 hardCorneringCount: update.hardCorneringCount,
                 hardAccelerationCount: update.hardAccelerationCount,
                 hardDecelerationCount: update.hardDecelerationCount,
+                status: update.status,
             },
         }));
     });
@@ -442,13 +483,7 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         {vehicle.color ? ` · ${vehicle.color}` : ''}
                     </p>
                 </div>
-                {vehicle.isOnline ? (
-                    <Badge className="border-transparent bg-brand-green/15 text-brand-green">
-                        {(vehicle.liveState?.speed ?? 0) > 5 ? 'Moving' : 'Online'}
-                    </Badge>
-                ) : (
-                    <Badge variant="outline">Offline</Badge>
-                )}
+                {renderVehicleStatusBadge(vehicle.liveState?.status, vehicle.isOnline)}
             </div>
 
             <div className="flex gap-1 border-b border-border">
