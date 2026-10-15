@@ -60,6 +60,15 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
 
         Route::get('/maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
 
+        Route::post('/vehicles/{vehicle}/maintenance-schedules', [MaintenanceController::class, 'storeSchedule'])
+            ->name('company.vehicles.maintenance-schedules.store');
+
+        Route::patch('/vehicles/{vehicle}/maintenance-schedules/{schedule}', [MaintenanceController::class, 'updateSchedule'])
+            ->name('company.vehicles.maintenance-schedules.update');
+
+        Route::post('/vehicles/{vehicle}/maintenance-records', [MaintenanceController::class, 'storeRecord'])
+            ->name('company.vehicles.maintenance-records.store');
+
         Route::get('/fuel', [FuelController::class, 'index'])->name('fuel.index');
         Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
 

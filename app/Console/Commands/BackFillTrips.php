@@ -206,36 +206,6 @@ class BackFillTrips extends Command
                     'driver_name' => $trip['driverName'] ?? null,
                 ]
             );
-
-            // VehicleTrip::query()->updateOrCreate(
-            //     [
-            //         'vehicle_id' => $vehicle->id,
-            //         'start_time' => $startTime,
-            //     ],
-            //     [
-            //         'end_time'                => $endTime,
-            //         'company_user_id'         => $companyUserId,
-            //         'obd_device_id'           => (string) $vehicle->traccar_device_id,
-            //         'distance_km'             => $this->metersToKilometers($distanceMeters),
-            //         'average_speed_km_per_hr' => $avgSpeed,
-            //         'max_speed_km_per_hr'     => $maxSpeed,
-            //         'fuel_consumed'           => $trip['spentFuel'] ?? null,
-            //         'trip_date'               => $tripDate,
-            //         'start_odometer'          => $this->metersToKilometers($trip['startOdometer'] ?? null),
-            //         'end_odometer'            => $this->metersToKilometers($trip['endOdometer'] ?? null),
-            //         'start_position_id'       => $trip['startPositionId'] ?? null,
-            //         'end_position_id'         => $trip['endPositionId'] ?? null,
-            //         'duration_seconds'        => (int) ($durationMs / 1000),
-            //         'start_latitude'          => $trip['startLat'] ?? null,
-            //         'start_longitude'         => $trip['startLon'] ?? null,
-            //         'end_latitude'            => $trip['endLat'] ?? null,
-            //         'end_longitude'           => $trip['endLon'] ?? null,
-            //         'start_address'           => $startAddress,
-            //         'end_address'             => $endAddress,
-            //         'driver_unique_id'        => $trip['driverUniqueId'] ?? null,
-            //         'driver_name'             => $trip['driverName'] ?? null,
-            //     ]
-            // );
         }
     }
 

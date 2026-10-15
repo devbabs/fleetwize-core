@@ -19,6 +19,55 @@ import { useVehicleLiveUpdates } from '@/hooks/use-vehicle-live-updates';
 import CompanyLayout from '@/layouts/company/company-layout';
 import { cn } from '@/lib/utils';
 
+// type TrackedVehicle = {
+//     id: number;
+//     name: string | null;
+//     licensePlate: string | null;
+//     category: string;
+//     isOnline: boolean;
+//     latitude: number | null;
+//     longitude: number | null;
+//     speed: number | null;
+//     heading: number | null;
+//     ignitionOn: boolean | null;
+//     fuelLevel: number | null;
+//     batteryVoltage?: number | null;
+//     reportedAt: string | null;
+//     status: VehicleStatus;
+// };
+
+// type StatusFilter = 'all' | 'moving' | 'idle' | 'offline';
+
+// function vehicleStatus(vehicle: TrackedVehicle): Exclude<StatusFilter, 'all'> {
+//     if (!vehicle.isOnline) {
+//         return 'offline';
+//     }
+
+//     if ((vehicle.speed ?? 0) > 5) {
+//         return 'moving';
+//     }
+
+//     return 'idle';
+// }
+
+// const statusColor: Record<Exclude<StatusFilter, 'all'>, string> = {
+//     moving: '#89c44b',
+//     idle: '#f59e0b',
+//     offline: '#9ca3af',
+// };
+
+// function statusBadge(status: Exclude<StatusFilter, 'all'>) {
+//     if (status === 'moving') {
+//         return <Badge className="border-transparent bg-brand-green/15 text-brand-green">Moving</Badge>;
+//     }
+
+//     if (status === 'idle') {
+//         return <Badge variant="secondary">Online - Idle</Badge>;
+//     }
+
+//     return <Badge variant="outline">Offline</Badge>;
+// }
+
 type TrackedVehicle = {
     id: number;
     name: string | null;
@@ -33,26 +82,34 @@ type TrackedVehicle = {
     fuelLevel: number | null;
     batteryVoltage?: number | null;
     reportedAt: string | null;
+    status: VehicleStatus; // Now provided directly by backend or computed
 };
 
-type StatusFilter = 'all' | 'moving' | 'idle' | 'offline';
+// Updated to include all 4 statuses
+type StatusFilter = 'all' | 'offline' | 'idle' | 'online_idle' | 'moving';
 
+// Mirrors your backend VehicleTrackerState status() method logic
 function vehicleStatus(vehicle: TrackedVehicle): Exclude<StatusFilter, 'all'> {
-    if (!vehicle.isOnline) {
+    if (!vehicle.reportedAt || new Date(vehicle.reportedAt).getTime() < Date.now() - 3600_000) {
         return 'offline';
+    }
+
+    if (new Date(vehicle.reportedAt).getTime() < Date.now() - 300_000) {
+        return 'idle';
     }
 
     if ((vehicle.speed ?? 0) > 5) {
         return 'moving';
     }
 
-    return 'idle';
+    return 'online_idle';
 }
 
 const statusColor: Record<Exclude<StatusFilter, 'all'>, string> = {
-    moving: '#89c44b',
-    idle: '#f59e0b',
-    offline: '#9ca3af',
+    offline: '#9ca3af',     // Gray
+    idle: '#f59e0b',        // Amber
+    online_idle: '#3b82f6', // Blue
+    moving: '#89c44b',      // Green
 };
 
 function statusBadge(status: Exclude<StatusFilter, 'all'>) {
@@ -60,8 +117,12 @@ function statusBadge(status: Exclude<StatusFilter, 'all'>) {
         return <Badge className="border-transparent bg-brand-green/15 text-brand-green">Moving</Badge>;
     }
 
-    if (status === 'idle') {
+    if (status === 'online_idle') {
         return <Badge variant="secondary">Online - Idle</Badge>;
+    }
+
+    if (status === 'idle') {
+        return <Badge variant="secondary" className="bg-amber-500/15 text-amber-600">Idle</Badge>;
     }
 
     return <Badge variant="outline">Offline</Badge>;
@@ -232,7 +293,7 @@ export default function LiveTrackingIndex({ vehicles: initialVehicles }: { vehic
                         />
                     </div>
 
-                    {(['all', 'moving', 'idle', 'offline'] as StatusFilter[]).map((option) => (
+                    {/* {(['all', 'moving', 'idle', 'offline'] as StatusFilter[]).map((option) => (
                         <Button
                             key={option}
                             size="sm"
@@ -244,7 +305,32 @@ export default function LiveTrackingIndex({ vehicles: initialVehicles }: { vehic
                         >
                             {option === 'all' ? 'All' : option.charAt(0).toUpperCase() + option.slice(1)}
                         </Button>
-                    ))}
+                    ))} */}
+
+                    {(['all', 'moving', 'online_idle', 'idle', 'offline'] as StatusFilter[]).map((option) => {
+                        const labelMap: Record<StatusFilter, string> = {
+                            all: 'All',
+                            moving: 'Moving',
+                            online_idle: 'Online - Idle',
+                            idle: 'Idle',
+                            offline: 'Offline',
+                        };
+
+                        return (
+                            <Button
+                                key={option}
+                                size="sm"
+                                variant={filter === option ? 'default' : 'outline'}
+                                className={cn(
+                                    filter === option && 'bg-brand-navy text-white hover:bg-brand-navy/90 dark:bg-brand-green dark:text-brand-navy',
+                                )}
+                                onClick={() => setFilter(option)}
+                            >
+                                {labelMap[option]}
+                            </Button>
+                        );
+                    })}
+
                     <span className="ml-auto text-xs text-muted-foreground">{filtered.length} vehicle(s)</span>
                 </div>
 

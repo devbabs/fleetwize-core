@@ -82,7 +82,8 @@ class VehicleTrackerStateUpdated implements ShouldBroadcastNow
             'totalDistance' => $this->trackerState->total_distance,
             'hardCorneringCount' => $this->trackerState->hard_cornering_count,
             'hardAccelerationCount' => $this->trackerState->hard_acceleration_count,
-            'hardDecelerationCount' => $this->trackerState->hard_deceleration_count
+            'hardDecelerationCount' => $this->trackerState->hard_deceleration_count,
+            'status' => $this->trackerState->status(),
         ];
     }
 }

@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 
 import { Pagination } from '@/components/company/pagination';
 import { Badge } from '@/components/ui/badge';
@@ -65,50 +65,65 @@ function OverdueTable({ entries }: { entries: MaintenanceEntry[] }) {
                     <tr>
                         <th className="px-6 py-3 font-medium">Vehicle</th>
                         <th className="px-6 py-3 font-medium">Maintenance</th>
-                        <th className="px-6 py-3 font-medium">Last Maintained</th>
-                        <th className="px-6 py-3 font-medium">Current Odometer</th>
-                        <th className="px-6 py-3 font-medium">Due By</th>
+                        <th className="px-6 py-3 font-medium">Current Odo</th>
+                        <th className="px-6 py-3 font-medium">Due At Odo</th>
+                        <th className="px-6 py-3 font-medium">Status</th>
+                        {/* 1. Add this header */}
+                        <th className="px-6 py-3 text-right font-medium">Actions</th>
                     </tr>
                 </thead>
-
                 <tbody className="divide-y divide-border">
                     {entries.map((entry) => (
                         <tr key={`${entry.vehicleId}-${entry.scheduleId}`}>
                             <td className="px-6 py-3 font-medium text-foreground">
                                 {entry.vehicle}
                             </td>
-
-                            <td className="px-6 py-3 text-foreground">
+                            <td className="px-6 py-3 text-muted-foreground">
                                 {entry.name}
                             </td>
-
-                            <td className="px-6 py-3 text-muted-foreground">
-                                {entry.lastMaintainedAt
-                                    ? formatDateTime(entry.lastMaintainedAt)
-                                    : '—'}
-                            </td>
-
                             <td className="px-6 py-3 text-muted-foreground">
                                 {entry.currentOdometer !== null
                                     ? `${entry.currentOdometer.toLocaleString()} km`
                                     : '—'}
                             </td>
-
+                            <td className="px-6 py-3 text-muted-foreground">
+                                {entry.nextServiceOdometer !== null
+                                    ? `${entry.nextServiceOdometer.toLocaleString()} km`
+                                    : '—'}
+                            </td>
                             <td className="px-6 py-3">
-                                <Badge variant="destructive">
-                                    Due
-                                </Badge>
+                                <Badge variant="destructive">Overdue</Badge>
+                            </td>
+
+                            {/* 2. Your <td> goes right here as the last column of the row */}
+                            <td className="px-6 py-3 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleLogService(entry)}
+                                    >
+                                        Log Service
+                                    </Button>
+                                    <Button asChild size="sm" variant="ghost">
+                                        <Link href={`/vehicles/${entry.vehicleId}`}>
+                                            View Vehicle
+                                        </Link>
+                                    </Button>
+                                </div>
                             </td>
                         </tr>
                     ))}
 
                     {entries.length === 0 ? (
                         <tr>
+                            {/* Make sure colSpan matches total columns (e.g. 6) */}
                             <td
-                                colSpan={5}
+                                colSpan={6}
                                 className="px-6 py-10 text-center text-muted-foreground"
                             >
-                                Nothing overdue.
+                                No overdue maintenance.
                             </td>
                         </tr>
                     ) : null}
@@ -239,6 +254,27 @@ function HistoryTable({
                 </tbody>
             </table>
         </div>
+    );
+}
+
+function handleLogService(entry: MaintenanceEntry) {
+    const defaultOdo = entry.currentOdometer ?? entry.nextServiceOdometer ?? 0;
+    const confirmedOdo = window.prompt(
+        `Confirm odometer reading (km) for ${entry.vehicle} — ${entry.name}:`,
+        String(defaultOdo)
+    );
+
+    if (confirmedOdo === null) return;
+
+    router.post(
+        `/vehicles/${entry.vehicleId}/maintenance-records`,
+        {
+            maintenance_schedule_id: entry.scheduleId,
+            maintained_at: new Date().toISOString().split('T')[0],
+            odometer_km: Number(confirmedOdo) || defaultOdo,
+            notes: `Completed ${entry.name}`,
+        },
+        { preserveScroll: true }
     );
 }
 

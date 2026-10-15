@@ -170,6 +170,30 @@ type MaintenanceAlert = {
     acknowledged: boolean;
 };
 
+type MaintenanceScheduleItem = {
+    id: number;
+    name: string;
+    distanceIntervalKm: number | null;
+    timeIntervalDays: number | null;
+    baselineOdometerKm: number | null;
+    lastServiceOdometerKm: number | null;
+    lastMaintainedAt: string | null;
+    distanceSinceServiceKm: number | null;
+    remainingKm: number | null;
+    daysRemaining: number | null;
+    status: 'healthy' | 'due_soon' | 'overdue';
+    active: boolean;
+};
+
+type MaintenanceRecordItem = {
+    id: number;
+    scheduleName: string | null;
+    maintainedAt: string | null;
+    odometerKm: number;
+    notes: string | null;
+    maintenanceScheduleId: number | null;
+};
+
 interface Props {
     companySlug: string;
     vehicle: VehicleDetail;
@@ -353,6 +377,54 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
     ]
         .filter((alert) => !alert.clearedAt)
         .sort((a, b) => (b.logTime ?? '').localeCompare(a.logTime ?? ''));
+
+    // Live odometer fallback: liveState.odometer -> vehicle.mileage -> 0
+    const currentLiveOdometer = Math.round(
+        Number(vehicle.liveState?.odometer ?? vehicle.mileage ?? 0)
+    );
+
+    const scheduleForm = useForm({
+        name: 'Oil Change',
+        distance_interval_km: '5000',
+        time_interval_days: '180',
+        baseline_odometer_km: String(currentLiveOdometer),
+    });
+
+    const applySchedulePreset = (name: string, distanceKm: number, days: number) => {
+        scheduleForm.setData({
+            name,
+            distance_interval_km: String(distanceKm),
+            time_interval_days: String(days),
+            baseline_odometer_km: String(currentLiveOdometer),
+        });
+    };
+
+    const handleCreateSchedule = (e: React.FormEvent) => {
+        e.preventDefault();
+        scheduleForm.post(`/vehicles/${vehicle.id}/maintenance-schedules`, {
+            preserveScroll: true,
+        });
+    };
+
+    const handleCompleteService = (schedule: MaintenanceScheduleItem) => {
+        const confirmedOdo = window.prompt(
+            `Confirm odometer reading (km) for completed ${schedule.name}:`,
+            String(currentLiveOdometer)
+        );
+
+        if (confirmedOdo === null) return;
+
+        router.post(
+            `/vehicles/${vehicle.id}/maintenance-records`,
+            {
+                maintenance_schedule_id: schedule.id,
+                maintained_at: new Date().toISOString().split('T')[0],
+                odometer_km: Number(confirmedOdo) || currentLiveOdometer,
+                notes: `Completed scheduled ${schedule.name}`,
+            },
+            { preserveScroll: true }
+        );
+    };
 
     return (
         <CompanyLayout title={vehicle.licensePlate ?? 'Vehicle'}>
@@ -1076,10 +1148,9 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                 </Card>
             ) : null} */}
 
-            {tab === 'Maintenance' ? (
+            {/* {tab === 'Maintenance' ? (
                 <div className="space-y-6">
 
-                    {/* Active Maintenance Alerts */}
                     {vehicle.maintenanceAlerts.length > 0 ? (
                         <Card className="border-destructive/30">
                             <CardHeader>
@@ -1113,7 +1184,6 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         </Card>
                     ) : null}
 
-                    {/* Maintenance Schedules */}
                     <Card className="overflow-hidden py-0">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
@@ -1176,7 +1246,6 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         </div>
                     </Card>
 
-                    {/* Existing Service History */}
                     <Card className="overflow-hidden py-0">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
@@ -1226,6 +1295,322 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         </div>
                     </Card>
 
+                </div>
+            ) : null} */}
+
+            {tab === 'Maintenance' ? (
+                <div className="space-y-6">
+                    {/* 1. Active Maintenance Alerts */}
+                    {vehicle.maintenanceAlerts.length > 0 ? (
+                        <Card className="border-destructive/30">
+                            <CardHeader>
+                                <CardTitle>Maintenance Alerts</CardTitle>
+                            </CardHeader>
+
+                            <CardContent className="space-y-3">
+                                {vehicle.maintenanceAlerts.map((alert) => (
+                                    <div
+                                        key={alert.id}
+                                        className="rounded-lg border border-destructive/30 bg-destructive/5 p-4"
+                                    >
+                                        <p className="font-medium text-foreground">
+                                            {alert.title}
+                                        </p>
+
+                                        {alert.description ? (
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {alert.description}
+                                            </p>
+                                        ) : null}
+
+                                        {alert.alertedAt ? (
+                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                Alerted {formatDateTime(alert.alertedAt)}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    ) : null}
+
+                    {/* 2. Configure Per-Vehicle Maintenance Schedule & Baseline Odometer */}
+                    <Card>
+                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle className="text-base">
+                                    Add Maintenance Schedule
+                                </CardTitle>
+                                <p className="text-sm text-muted-foreground">
+                                    Current Vehicle Odometer:{' '}
+                                    <span className="font-semibold text-foreground">
+                                        {currentLiveOdometer.toLocaleString()} km
+                                    </span>
+                                    . Set the baseline odometer from when this service was last done.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => applySchedulePreset('Oil Change', 5000, 180)}
+                                >
+                                    Preset: Oil Change (5,000 km)
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => applySchedulePreset('Tire Rotation', 10000, 365)}
+                                >
+                                    Preset: Tire Rotation (10,000 km)
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => applySchedulePreset('General Service', 20000, 365)}
+                                >
+                                    Preset: General Service (20,000 km)
+                                </Button>
+                            </div>
+                        </CardHeader>
+
+                        <CardContent>
+                            <form
+                                onSubmit={handleCreateSchedule}
+                                className="grid grid-cols-1 gap-4 sm:grid-cols-5"
+                            >
+                                <div>
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Maintenance Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                        value={scheduleForm.data.name}
+                                        onChange={(e) => scheduleForm.setData('name', e.target.value)}
+                                        placeholder="e.g. Oil Change"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Distance Interval (km)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                        value={scheduleForm.data.distance_interval_km}
+                                        onChange={(e) =>
+                                            scheduleForm.setData('distance_interval_km', e.target.value)
+                                        }
+                                        min={100}
+                                        placeholder="5000"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Time Interval (Days)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                        value={scheduleForm.data.time_interval_days}
+                                        onChange={(e) =>
+                                            scheduleForm.setData('time_interval_days', e.target.value)
+                                        }
+                                        min={1}
+                                        placeholder="180"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-xs font-medium text-muted-foreground">
+                                        Baseline Odometer (km)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                                        value={scheduleForm.data.baseline_odometer_km}
+                                        onChange={(e) =>
+                                            scheduleForm.setData('baseline_odometer_km', e.target.value)
+                                        }
+                                        min={0}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="flex items-end">
+                                    <Button
+                                        type="submit"
+                                        disabled={scheduleForm.processing}
+                                        className="w-full"
+                                    >
+                                        Save Schedule
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+
+                    {/* 3. Maintenance Schedules Table */}
+                    <Card className="overflow-hidden py-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
+                                    <tr>
+                                        <th className="px-6 py-3 font-medium">Maintenance</th>
+                                        <th className="px-6 py-3 font-medium">Interval</th>
+                                        <th className="px-6 py-3 font-medium">Last Service Odo</th>
+                                        <th className="px-6 py-3 font-medium">Distance Since Service</th>
+                                        <th className="px-6 py-3 font-medium">Remaining Distance</th>
+                                        <th className="px-6 py-3 font-medium">Status</th>
+                                        <th className="px-6 py-3 font-medium text-right">Action</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody className="divide-y divide-border">
+                                    {vehicle.maintenanceSchedules.map((schedule) => (
+                                        <tr key={schedule.id}>
+                                            <td className="px-6 py-3 font-medium text-foreground">
+                                                {schedule.name}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {schedule.distanceIntervalKm !== null
+                                                    ? `${schedule.distanceIntervalKm.toLocaleString()} km`
+                                                    : '—'}
+                                                {schedule.timeIntervalDays !== null
+                                                    ? ` / ${schedule.timeIntervalDays} days`
+                                                    : ''}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {schedule.lastServiceOdometerKm !== null
+                                                    ? `${schedule.lastServiceOdometerKm.toLocaleString()} km`
+                                                    : '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {schedule.distanceSinceServiceKm !== null
+                                                    ? `${schedule.distanceSinceServiceKm.toLocaleString()} km`
+                                                    : '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3 font-medium text-foreground">
+                                                {schedule.remainingKm !== null
+                                                    ? `${schedule.remainingKm.toLocaleString()} km`
+                                                    : '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3">
+                                                <Badge
+                                                    variant={
+                                                        schedule.status === 'overdue'
+                                                            ? 'destructive'
+                                                            : schedule.status === 'due_soon'
+                                                            ? 'secondary'
+                                                            : 'outline'
+                                                    }
+                                                >
+                                                    {schedule.status === 'overdue'
+                                                        ? 'Overdue'
+                                                        : schedule.status === 'due_soon'
+                                                        ? 'Due Soon (≤ 500 km)'
+                                                        : 'Healthy'}
+                                                </Badge>
+                                            </td>
+
+                                            <td className="px-6 py-3 text-right">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleCompleteService(schedule)}
+                                                >
+                                                    Log Service
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {vehicle.maintenanceSchedules.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={7}
+                                                className="px-6 py-10 text-center text-muted-foreground"
+                                            >
+                                                No maintenance schedules configured for this vehicle yet. Use the form above to add one.
+                                            </td>
+                                        </tr>
+                                    ) : null}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+
+                    {/* 4. Completed Maintenance History (Using maintenanceRecords) */}
+                    <Card className="overflow-hidden py-0">
+                        <div className="border-b px-6 py-4">
+                            <h3 className="font-medium">Service History</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Completed maintenance logs and odometer baselines.
+                            </p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
+                                    <tr>
+                                        <th className="px-6 py-3 font-medium">Service</th>
+                                        <th className="px-6 py-3 font-medium">Completed Date</th>
+                                        <th className="px-6 py-3 font-medium">Odometer at Service</th>
+                                        <th className="px-6 py-3 font-medium">Notes</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody className="divide-y divide-border">
+                                    {(vehicle.maintenanceRecords ?? []).map((record) => (
+                                        <tr key={record.id}>
+                                            <td className="px-6 py-3 font-medium text-foreground">
+                                                {record.scheduleName ?? 'General Service'}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {record.maintainedAt ?? '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {record.odometerKm !== null
+                                                    ? `${Number(record.odometerKm).toLocaleString()} km`
+                                                    : '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {record.notes ?? '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {(!vehicle.maintenanceRecords ||
+                                        vehicle.maintenanceRecords.length === 0) ? (
+                                        <tr>
+                                            <td
+                                                colSpan={4}
+                                                className="px-6 py-10 text-center text-muted-foreground"
+                                            >
+                                                No service history logged yet.
+                                            </td>
+                                        </tr>
+                                    ) : null}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
                 </div>
             ) : null}
 

@@ -115,4 +115,24 @@ class VehicleTrackerState extends Model
     {
         return $this->reported_at?->gt(now()->subMinutes(5)) ?? false;
     }
+
+    public function status(): string
+    {
+        if (
+            !$this->reported_at ||
+            $this->reported_at->lt(now()->subHour())
+        ) {
+            return 'offline';
+        }
+
+        if ($this->reported_at->lt(now()->subMinutes(5))) {
+            return 'idle';
+        }
+
+        if ($this->speed !== null && $this->speed > 5) {
+            return 'moving';
+        }
+
+        return 'online_idle';
+    }
 }

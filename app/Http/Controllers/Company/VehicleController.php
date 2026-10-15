@@ -53,32 +53,32 @@ class VehicleController extends Controller
             $traccar
         );
 
-        $vehicle->maintenanceSchedules()->createMany([
-            [
-                'name' => 'Oil Change',
-                'distance_interval_km' => 5000,
-                'time_interval_days' => 180,
-                'baseline_odometer_km' => $vehicle->trackerState?->odometer,
-                'starts_at' => now(),
-                'active' => true,
-            ],
-            [
-                'name' => 'Tire Rotation',
-                'distance_interval_km' => 10000,
-                'time_interval_days' => 365,
-                'baseline_odometer_km' => $vehicle->trackerState?->odometer,
-                'starts_at' => now(),
-                'active' => true,
-            ],
-            [
-                'name' => 'General Service',
-                'distance_interval_km' => 20000,
-                'time_interval_days' => 365,
-                'baseline_odometer_km' => $vehicle->trackerState?->odometer,
-                'starts_at' => now(),
-                'active' => true,
-            ],
-        ]);
+        // $vehicle->maintenanceSchedules()->createMany([
+        //     [
+        //         'name' => 'Oil Change',
+        //         'distance_interval_km' => 5000,
+        //         'time_interval_days' => 180,
+        //         'baseline_odometer_km' => $vehicle->trackerState?->odometer,
+        //         'starts_at' => now(),
+        //         'active' => true,
+        //     ],
+        //     [
+        //         'name' => 'Tire Rotation',
+        //         'distance_interval_km' => 10000,
+        //         'time_interval_days' => 365,
+        //         'baseline_odometer_km' => $vehicle->trackerState?->odometer,
+        //         'starts_at' => now(),
+        //         'active' => true,
+        //     ],
+        //     [
+        //         'name' => 'General Service',
+        //         'distance_interval_km' => 20000,
+        //         'time_interval_days' => 365,
+        //         'baseline_odometer_km' => $vehicle->trackerState?->odometer,
+        //         'starts_at' => now(),
+        //         'active' => true,
+        //     ],
+        // ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehicle added.']);
 
@@ -319,9 +319,22 @@ class VehicleController extends Controller
                 'documents.document',
                 'serviceEntries' => fn ($query) => $query->latest('starts_at')->limit(10),
                 'issues' => fn ($query) => $query->latest('reported_at')->limit(20),
-                'maintenanceSchedules' => fn ($query) => $query->where('active', true)->latest(),
-                'maintenanceRecords' => fn ($query) => $query->latest('maintained_at')->limit(20),
-                'maintenanceAlerts' => fn ($query) => $query->where('acknowledged', false)->latest('alerted_at'),
+                // 'maintenanceSchedules' => fn ($query) => $query->where('active', true)->latest(),
+                // 'maintenanceRecords' => fn ($query) => $query->latest('maintained_at')->limit(20),
+                // 'maintenanceAlerts' => fn ($query) => $query->where('acknowledged', false)->latest('alerted_at'),
+                // 1. In your ->with([...]) query inside VehicleController@show:
+                'maintenanceSchedules' => fn ($query) => $query
+                    ->where('active', true)
+                    ->latest(),
+
+                'maintenanceRecords' => fn ($query) => $query
+                    ->with('maintenanceSchedule:id,name') // <-- Add this so history shows the schedule name
+                    ->latest('maintained_at')
+                    ->limit(20),
+
+                'maintenanceAlerts' => fn ($query) => $query
+                    ->where('acknowledged', false)
+                    ->latest('alerted_at'),
             ])
             ->findOrFail((string) $request->route('vehicle'));
 
@@ -434,20 +447,85 @@ class VehicleController extends Controller
                     'endsAt' => $entry->ends_at?->toIso8601String(),
                     'comments' => $entry->comments,
                 ]),
-                'maintenanceSchedules' => $model->maintenanceSchedules->map(fn ($schedule) => [
-                    'id' => $schedule->id,
-                    'name' => $schedule->name,
-                    'distanceIntervalKm' => $schedule->distance_interval_km,
-                    'timeIntervalDays' => $schedule->time_interval_days,
-                    'active' => $schedule->active,
-                ]),
+                // 'maintenanceSchedules' => $model->maintenanceSchedules->map(fn ($schedule) => [
+                //     'id' => $schedule->id,
+                //     'name' => $schedule->name,
+                //     'distanceIntervalKm' => $schedule->distance_interval_km,
+                //     'timeIntervalDays' => $schedule->time_interval_days,
+                //     'active' => $schedule->active,
+                // ]),
+                // 'maintenanceRecords' => $model->maintenanceRecords->map(fn ($record) => [
+                //     'id' => $record->id,
+                //     'maintainedAt' => $record->maintained_at?->toDateString(),
+                //     'odometerKm' => $record->odometer_km,
+                //     'notes' => $record->notes,
+                //     'maintenanceScheduleId' => $record->maintenance_schedule_id ?? null,
+                // ]),
+                // 'maintenanceAlerts' => $model->maintenanceAlerts->map(fn ($alert) => [
+                //     'id' => $alert->id,
+                //     'maintenanceScheduleId' => $alert->maintenance_schedule_id,
+                //     'title' => $alert->title,
+                //     'description' => $alert->description,
+                //     'alertedAt' => $alert->alerted_at?->toDateString(),
+                //     'acknowledged' => $alert->acknowledged,
+                // ]),
+
+                'maintenanceSchedules' => $model->maintenanceSchedules->map(function ($schedule) use ($model) {
+                    // Find the most recent service record for this specific schedule
+                    $latestRecord = $model->maintenanceRecords
+                        ->where('maintenance_schedule_id', $schedule->id)
+                        ->sortByDesc('maintained_at')
+                        ->first();
+
+                    $currentOdometer = $model->trackerState?->odometer ?? $model->mileage;
+                    $lastServiceOdometer = $latestRecord?->odometer_km ?? $schedule->baseline_odometer_km;
+                    $lastServiceDate = $latestRecord?->maintained_at ?? $schedule->baseline_started_at;
+
+                    $distanceSinceServiceKm = ($currentOdometer !== null && $lastServiceOdometer !== null)
+                        ? max(0, (int) round($currentOdometer - $lastServiceOdometer))
+                        : null;
+
+                    $remainingKm = ($schedule->distance_interval_km !== null && $distanceSinceServiceKm !== null)
+                        ? (int) ($schedule->distance_interval_km - $distanceSinceServiceKm)
+                        : null;
+
+                    $daysRemaining = ($schedule->time_interval_days !== null && $lastServiceDate !== null)
+                        ? (int) now()->diffInDays($lastServiceDate->copy()->addDays($schedule->time_interval_days), false)
+                        : null;
+
+                    // Status logic matching the meeting specification (Alert when <= 500 km)
+                    $status = 'healthy';
+                    if (($remainingKm !== null && $remainingKm <= 0) || ($daysRemaining !== null && $daysRemaining <= 0)) {
+                        $status = 'overdue';
+                    } elseif (($remainingKm !== null && $remainingKm <= 500) || ($daysRemaining !== null && $daysRemaining <= 14)) {
+                        $status = 'due_soon';
+                    }
+
+                    return [
+                        'id' => $schedule->id,
+                        'name' => $schedule->name,
+                        'distanceIntervalKm' => $schedule->distance_interval_km,
+                        'timeIntervalDays' => $schedule->time_interval_days,
+                        'baselineOdometerKm' => $schedule->baseline_odometer_km,
+                        'lastServiceOdometerKm' => $lastServiceOdometer,
+                        'lastMaintainedAt' => $lastServiceDate?->toDateString(),
+                        'distanceSinceServiceKm' => $distanceSinceServiceKm,
+                        'remainingKm' => $remainingKm,
+                        'daysRemaining' => $daysRemaining,
+                        'status' => $status,
+                        'active' => $schedule->active,
+                    ];
+                }),
+
                 'maintenanceRecords' => $model->maintenanceRecords->map(fn ($record) => [
                     'id' => $record->id,
+                    'scheduleName' => $record->maintenanceSchedule?->name ?? 'General Service',
                     'maintainedAt' => $record->maintained_at?->toDateString(),
                     'odometerKm' => $record->odometer_km,
                     'notes' => $record->notes,
                     'maintenanceScheduleId' => $record->maintenance_schedule_id ?? null,
                 ]),
+
                 'maintenanceAlerts' => $model->maintenanceAlerts->map(fn ($alert) => [
                     'id' => $alert->id,
                     'maintenanceScheduleId' => $alert->maintenance_schedule_id,
@@ -456,6 +534,7 @@ class VehicleController extends Controller
                     'alertedAt' => $alert->alerted_at?->toDateString(),
                     'acknowledged' => $alert->acknowledged,
                 ]),
+
                 'issues' => $model->issues->map(fn ($issue) => [
                     'id' => $issue->id,
                     'summary' => $issue->summary,
