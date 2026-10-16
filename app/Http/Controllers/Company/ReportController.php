@@ -77,10 +77,9 @@ class ReportController extends Controller
             'vehicles' => $vehicles,
             'generatedAt' => now(),
         ])
-            ->format('a4')
+            ->setPaper('a4', 'portrait')
             ->download("{$company->slug}-fleet-summary.pdf");
-            // ->toResponse($request);
-    }
+            }
 
     protected function exportTrips(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {
@@ -123,14 +122,9 @@ class ReportController extends Controller
             'end' => $end,
             'generatedAt' => now(),
         ])
-            ->withBrowsershot(function ($browsershot) {
-                $browsershot->noSandbox()
-                            ->setOption('args', ['--disable-web-security', '--disable-setuid-sandbox']);
-            })
-            ->format('a4')
+            ->setPaper('a4', 'portrait')
             ->download("{$company->slug}-trips.pdf");
-            // ->toResponse($request);
-    }
+            }
 
     protected function exportAlarms(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {
@@ -168,10 +162,9 @@ class ReportController extends Controller
             'end' => $end,
             'generatedAt' => now(),
         ])
-            ->format('a4')
+            ->setPaper('a4', 'portrait')
             ->download("{$company->slug}-alarms.pdf");
-            // ->toResponse($request);
-    }
+            }
 
     protected function exportDriverScorecard(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {
@@ -204,10 +197,9 @@ class ReportController extends Controller
             'end' => $end,
             'generatedAt' => now(),
         ])
-            ->format('a4')
+            ->setPaper('a4', 'portrait')
             ->download("{$company->slug}-driver-scorecard.pdf");
-            // ->toResponse($request);
-    }
+            }
 
     protected function exportIdleUtilization(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {
@@ -239,10 +231,9 @@ class ReportController extends Controller
             'end' => $end,
             'generatedAt' => now(),
         ])
-            ->format('a4')
+            ->setPaper('a4', 'portrait')
             ->download("{$company->slug}-idle-utilization.pdf");
-            // ->toResponse($request);
-    }
+            }
 
     protected function filteredVehiclesQuery(Request $request, Company $company): Builder|Relation
     {
