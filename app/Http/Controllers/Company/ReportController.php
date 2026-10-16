@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers\Company;
 
+use App\Http\Controllers\Company\Concerns\ResolvesCompany;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Vehicle;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Spatie\LaravelPdf\Facades\Pdf;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
