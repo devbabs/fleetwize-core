@@ -217,6 +217,16 @@ class Vehicle extends Model
         return $this->hasMany(VehicleStaffAssignment::class);
     }
 
+    public function currentAssignment(): HasOne
+    {
+        return $this->hasOne(VehicleAssignment::class)
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                      ->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->latestOfMany('start_date');
+    }
+
     /**
      * @return HasMany<VehicleExpense, $this>
      */

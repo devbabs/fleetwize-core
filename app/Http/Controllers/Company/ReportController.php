@@ -84,32 +84,34 @@ class ReportController extends Controller
     protected function exportTrips(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {
         $vehicles = $company->vehicles()->with([
-            // Eager load trips with the driver's company user and user profile
             'trips' => function ($q) use ($start, $end) {
                 $q->whereBetween('start_time', [$start, $end])
                 ->with('companyUser.user')
                 ->orderBy('start_time', 'desc');
             },
-            // Also load current active assignment as fallback
-            'currentAssignment.companyUser.user',
         ])
         ->when($request->filled('vehicle_id') && $request->input('vehicle_id') !== 'all', function ($q) use ($request) {
             $q->where('id', $request->input('vehicle_id'));
         })
         ->get();
 
+        // Pre-load current active assignments for all retrieved vehicles in a single query
+        $activeAssignments = \App\Models\VehicleAssignment::query()
+            ->whereIn('vehicle_id', $vehicles->pluck('id'))
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->with('companyUser.user')
+            ->latest('start_date')
+            ->get()
+            ->keyBy('vehicle_id');
+
         if ($format === 'csv') {
             $writer = SimpleExcelWriter::streamDownload("{$company->slug}-trips.csv");
             foreach ($vehicles as $vehicle) {
-                // Vehicle current driver fallback
-                $fallbackDriver = $vehicle->currentAssignment?->companyUser?->user?->full_name;
+                $fallbackDriver = $activeAssignments->get($vehicle->id)?->companyUser?->user?->full_name;
 
                 foreach ($vehicle->trips as $trip) {
-                    // Priority order:
-                    // 1. Linked CompanyUser driver name at the time of trip
-                    // 2. Hardware driver_name (from Traccar if present)
-                    // 3. Current vehicle driver assignment
-                    // 4. 'Unassigned'
                     $driverName = $trip->companyUser?->user?->full_name
                         ?? $trip->driver_name
                         ?? $fallbackDriver
@@ -131,6 +133,11 @@ class ReportController extends Controller
             }
             return response()->stream(fn () => $writer->toBrowser(), 200);
         }
+
+        // Attach fallback driver name to each vehicle for the Blade PDF view
+        $vehicles->each(function ($vehicle) use ($activeAssignments) {
+            $vehicle->current_driver_name = $activeAssignments->get($vehicle->id)?->companyUser?->user?->full_name;
+        });
 
         return DomPdf::loadView('reports.trips-summary', [
             'company' => $company,
