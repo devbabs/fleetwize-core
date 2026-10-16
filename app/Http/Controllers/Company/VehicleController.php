@@ -53,33 +53,6 @@ class VehicleController extends Controller
             $traccar
         );
 
-        // $vehicle->maintenanceSchedules()->createMany([
-        //     [
-        //         'name' => 'Oil Change',
-        //         'distance_interval_km' => 5000,
-        //         'time_interval_days' => 180,
-        //         'baseline_odometer_km' => $vehicle->trackerState?->odometer,
-        //         'starts_at' => now(),
-        //         'active' => true,
-        //     ],
-        //     [
-        //         'name' => 'Tire Rotation',
-        //         'distance_interval_km' => 10000,
-        //         'time_interval_days' => 365,
-        //         'baseline_odometer_km' => $vehicle->trackerState?->odometer,
-        //         'starts_at' => now(),
-        //         'active' => true,
-        //     ],
-        //     [
-        //         'name' => 'General Service',
-        //         'distance_interval_km' => 20000,
-        //         'time_interval_days' => 365,
-        //         'baseline_odometer_km' => $vehicle->trackerState?->odometer,
-        //         'starts_at' => now(),
-        //         'active' => true,
-        //     ],
-        // ]);
-
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehicle added.']);
 
         $systemLog->log(

@@ -84,10 +84,14 @@ class ReportController extends Controller
     protected function exportTrips(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {
         $vehicles = $company->vehicles()->with([
+            // Eager load trips with the driver's company user and user profile
             'trips' => function ($q) use ($start, $end) {
                 $q->whereBetween('start_time', [$start, $end])
-                  ->orderBy('start_time', 'desc');
-            }
+                ->with('companyUser.user')
+                ->orderBy('start_time', 'desc');
+            },
+            // Also load current active assignment as fallback
+            'currentAssignment.companyUser.user',
         ])
         ->when($request->filled('vehicle_id') && $request->input('vehicle_id') !== 'all', function ($q) use ($request) {
             $q->where('id', $request->input('vehicle_id'));
@@ -97,10 +101,23 @@ class ReportController extends Controller
         if ($format === 'csv') {
             $writer = SimpleExcelWriter::streamDownload("{$company->slug}-trips.csv");
             foreach ($vehicles as $vehicle) {
+                // Vehicle current driver fallback
+                $fallbackDriver = $vehicle->currentAssignment?->companyUser?->user?->full_name;
+
                 foreach ($vehicle->trips as $trip) {
+                    // Priority order:
+                    // 1. Linked CompanyUser driver name at the time of trip
+                    // 2. Hardware driver_name (from Traccar if present)
+                    // 3. Current vehicle driver assignment
+                    // 4. 'Unassigned'
+                    $driverName = $trip->companyUser?->user?->full_name
+                        ?? $trip->driver_name
+                        ?? $fallbackDriver
+                        ?? 'Unassigned';
+
                     $writer->addRow([
                         'Plate' => $vehicle->license_plate,
-                        'Driver' => $trip->driver_name ?? 'Unassigned',
+                        'Driver' => $driverName,
                         'Start Time' => $trip->start_time?->toDateTimeString(),
                         'End Time' => $trip->end_time?->toDateTimeString(),
                         'Start Location' => $trip->start_address ?? ($trip->start_latitude ? "{$trip->start_latitude}, {$trip->start_longitude}" : '—'),
@@ -124,7 +141,7 @@ class ReportController extends Controller
         ])
             ->setPaper('a4', 'portrait')
             ->download("{$company->slug}-trips.pdf");
-            }
+    }
 
     protected function exportAlarms(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {

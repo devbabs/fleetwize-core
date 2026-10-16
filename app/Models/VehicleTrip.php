@@ -122,6 +122,11 @@ class VehicleTrip extends Model
         return $this->belongsTo(Vehicle::class);
     }
 
+    public function companyUser(): BelongsTo
+    {
+        return $this->belongsTo(CompanyUser::class, 'company_user_id');
+    }
+
     public function score(): HasOne
     {
         return $this->hasOne(VehicleTripScore::class);

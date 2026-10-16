@@ -182,7 +182,13 @@
                                     {{ $trip->end_address ?? ($trip->end_latitude ? number_format($trip->end_latitude, 4).', '.number_format($trip->end_longitude, 4) : 'Unknown Destination') }}
                                 </div>
                             </td>
-                            <td>{{ $trip->driver_name ?? 'Unassigned' }}</td>
+                            @php
+                                $driverName = $trip->companyUser?->user?->full_name
+                                    ?? $trip->driver_name
+                                    ?? $vehicle->currentAssignment?->companyUser?->user?->full_name
+                                    ?? 'Unassigned';
+                            @endphp
+                            <td>{{ $driverName }}</td>
                             <td class="text-right">{{ number_format($trip->distance_km ?? 0, 1) }} km</td>
                             <td class="text-right">{{ $durationMin !== null ? $durationMin.'m' : '—' }}</td>
                             <td class="text-right">{{ $trip->average_speed_km_per_hr ? round($trip->average_speed_km_per_hr).' km/h' : '—' }}</td>
