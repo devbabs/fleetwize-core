@@ -79,8 +79,6 @@ class ReportController extends Controller
 
     protected function exportTrips(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {
-        // Notice the column name matching your database (vehicle_trips table):
-        // vehicle_id, start_time, end_time, distance_km, average_speed_km_per_hr, max_speed_km_per_hr
         $vehicles = $company->vehicles()->with([
             'trips' => function ($q) use ($start, $end) {
                 $q->whereBetween('start_time', [$start, $end])
@@ -119,7 +117,10 @@ class ReportController extends Controller
             'start' => $start,
             'end' => $end,
             'generatedAt' => now(),
-        ])->format('a4')->download("{$company->slug}-trips.pdf");
+        ])
+            ->format('a4')
+            ->download("{$company->slug}-trips.pdf")
+            ->toResponse($request);
     }
 
     protected function filteredVehiclesQuery(Request $request, Company $company): Builder
