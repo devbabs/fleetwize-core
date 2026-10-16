@@ -30,9 +30,14 @@ class ReportController extends Controller
         ]);
     }
 
-    public function download(Request $request, string $type, string $format): HttpResponse
+    public function download(Request $request): HttpResponse
     {
         $company = $this->currentCompany($request);
+
+        // Explicitly extract parameters by name to prevent subdomain parameter offset
+        $type = (string) $request->route('type');
+        $format = (string) $request->route('format');
+
         $startDate = $request->date('from') ? Carbon::parse($request->input('from'))->startOfDay() : now()->subDays(7)->startOfDay();
         $endDate = $request->date('to') ? Carbon::parse($request->input('to'))->endOfDay() : now()->endOfDay();
 
@@ -40,7 +45,7 @@ class ReportController extends Controller
             'fleet-summary' => $this->exportFleetSummary($request, $company, $format),
             'trips'         => $this->exportTrips($request, $company, $format, $startDate, $endDate),
             'alarms'        => $this->exportAlarms($request, $company, $format, $startDate, $endDate),
-            default         => abort(404, 'Report type not found'),
+            default         => abort(404, "Report type '{$type}' not found"),
         };
     }
 
@@ -74,39 +79,46 @@ class ReportController extends Controller
 
     protected function exportTrips(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
     {
-        // Query normalized trips synced from Traccar
-        $trips = $company->trips()
-            ->with(['vehicle', 'driver'])
-            ->whereBetween('started_at', [$start, $end])
-            ->when($request->filled('vehicle_id') && $request->input('vehicle_id') !== 'all', function (Builder $q) use ($request) {
-                $q->where('vehicle_id', $request->input('vehicle_id'));
-            })
-            ->get();
+        // Notice the column name matching your database (vehicle_trips table):
+        // vehicle_id, start_time, end_time, distance_km, average_speed_km_per_hr, max_speed_km_per_hr
+        $vehicles = $company->vehicles()->with([
+            'trips' => function ($q) use ($start, $end) {
+                $q->whereBetween('start_time', [$start, $end])
+                  ->orderBy('start_time', 'desc');
+            }
+        ])
+        ->when($request->filled('vehicle_id') && $request->input('vehicle_id') !== 'all', function (Builder $q) use ($request) {
+            $q->where('id', $request->input('vehicle_id'));
+        })
+        ->get();
 
         if ($format === 'csv') {
             $writer = SimpleExcelWriter::streamDownload("{$company->slug}-trips.csv");
-            foreach ($trips as $trip) {
-                $writer->addRow([
-                    'Plate' => $trip->vehicle?->license_plate,
-                    'Driver' => $trip->driver?->name ?? 'Unassigned',
-                    'Start Time' => $trip->started_at->toDateTimeString(),
-                    'End Time' => $trip->ended_at?->toDateTimeString(),
-                    'Start Location' => $trip->start_address,
-                    'End Location' => $trip->end_address,
-                    'Distance (km)' => round($trip->distance_meters / 1000, 2),
-                    'Duration (min)' => round($trip->duration_seconds / 60, 1),
-                    'Max Speed (km/h)' => round($trip->max_speed_knots * 1.852, 1),
-                    'Avg Speed (km/h)' => round($trip->avg_speed_knots * 1.852, 1),
-                ]);
+            foreach ($vehicles as $vehicle) {
+                foreach ($vehicle->trips as $trip) {
+                    $writer->addRow([
+                        'Plate' => $vehicle->license_plate,
+                        'Driver' => $trip->driver_name ?? 'Unassigned',
+                        'Start Time' => $trip->start_time?->toDateTimeString(),
+                        'End Time' => $trip->end_time?->toDateTimeString(),
+                        'Start Location' => $trip->start_address ?? ($trip->start_latitude ? "{$trip->start_latitude}, {$trip->start_longitude}" : '—'),
+                        'End Location' => $trip->end_address ?? ($trip->end_latitude ? "{$trip->end_latitude}, {$trip->end_longitude}" : '—'),
+                        'Distance (km)' => round($trip->distance_km ?? 0, 2),
+                        'Duration (min)' => $trip->duration_seconds ? round($trip->duration_seconds / 60, 1) : 0,
+                        'Max Speed (km/h)' => round($trip->max_speed_km_per_hr ?? 0, 1),
+                        'Avg Speed (km/h)' => round($trip->average_speed_km_per_hr ?? 0, 1),
+                    ]);
+                }
             }
             return response()->stream(fn () => $writer->toBrowser(), 200);
         }
 
         return Pdf::view('reports.trips-summary', [
             'company' => $company,
-            'trips' => $trips,
+            'vehicles' => $vehicles,
             'start' => $start,
             'end' => $end,
+            'generatedAt' => now(),
         ])->format('a4')->download("{$company->slug}-trips.pdf");
     }
 
