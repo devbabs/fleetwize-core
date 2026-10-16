@@ -122,6 +122,10 @@ class ReportController extends Controller
             'end' => $end,
             'generatedAt' => now(),
         ])
+            ->withBrowsershot(function ($browsershot) {
+                $browsershot->noSandbox()
+                            ->setOption('args', ['--disable-web-security', '--disable-setuid-sandbox']);
+            })
             ->format('a4')
             ->download("{$company->slug}-trips.pdf")
             ->toResponse($request);
