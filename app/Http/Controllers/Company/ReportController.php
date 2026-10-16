@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Spatie\LaravelPdf\Facades\Pdf;
+use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
@@ -71,14 +72,14 @@ class ReportController extends Controller
             return response()->stream(fn () => $writer->toBrowser(), 200);
         }
 
-        return Pdf::view('reports.fleet-summary', [
+        return DomPdf::loadView('reports.fleet-summary', [
             'company' => $company,
             'vehicles' => $vehicles,
             'generatedAt' => now(),
         ])
             ->format('a4')
-            ->download("{$company->slug}-fleet-summary.pdf")
-            ->toResponse($request);
+            ->download("{$company->slug}-fleet-summary.pdf");
+            // ->toResponse($request);
     }
 
     protected function exportTrips(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
@@ -115,7 +116,7 @@ class ReportController extends Controller
             return response()->stream(fn () => $writer->toBrowser(), 200);
         }
 
-        return Pdf::view('reports.trips-summary', [
+        return DomPdf::loadView('reports.trips-summary', [
             'company' => $company,
             'vehicles' => $vehicles,
             'start' => $start,
@@ -127,8 +128,8 @@ class ReportController extends Controller
                             ->setOption('args', ['--disable-web-security', '--disable-setuid-sandbox']);
             })
             ->format('a4')
-            ->download("{$company->slug}-trips.pdf")
-            ->toResponse($request);
+            ->download("{$company->slug}-trips.pdf");
+            // ->toResponse($request);
     }
 
     protected function exportAlarms(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
@@ -160,7 +161,7 @@ class ReportController extends Controller
             return response()->stream(fn () => $writer->toBrowser(), 200);
         }
 
-        return Pdf::view('reports.alarms-summary', [
+        return DomPdf::loadView('reports.alarms-summary', [
             'company' => $company,
             'vehicles' => $vehicles,
             'start' => $start,
@@ -168,8 +169,8 @@ class ReportController extends Controller
             'generatedAt' => now(),
         ])
             ->format('a4')
-            ->download("{$company->slug}-alarms.pdf")
-            ->toResponse($request);
+            ->download("{$company->slug}-alarms.pdf");
+            // ->toResponse($request);
     }
 
     protected function exportDriverScorecard(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
@@ -196,7 +197,7 @@ class ReportController extends Controller
             return response()->stream(fn () => $writer->toBrowser(), 200);
         }
 
-        return Pdf::view('reports.driver-scorecard', [
+        return DomPdf::loadView('reports.driver-scorecard', [
             'company' => $company,
             'vehicles' => $vehicles,
             'start' => $start,
@@ -204,8 +205,8 @@ class ReportController extends Controller
             'generatedAt' => now(),
         ])
             ->format('a4')
-            ->download("{$company->slug}-driver-scorecard.pdf")
-            ->toResponse($request);
+            ->download("{$company->slug}-driver-scorecard.pdf");
+            // ->toResponse($request);
     }
 
     protected function exportIdleUtilization(Request $request, Company $company, string $format, Carbon $start, Carbon $end): HttpResponse
@@ -231,7 +232,7 @@ class ReportController extends Controller
             return response()->stream(fn () => $writer->toBrowser(), 200);
         }
 
-        return Pdf::view('reports.idle-utilization', [
+        return DomPdf::loadView('reports.idle-utilization', [
             'company' => $company,
             'vehicles' => $vehicles,
             'start' => $start,
@@ -239,8 +240,8 @@ class ReportController extends Controller
             'generatedAt' => now(),
         ])
             ->format('a4')
-            ->download("{$company->slug}-idle-utilization.pdf")
-            ->toResponse($request);
+            ->download("{$company->slug}-idle-utilization.pdf");
+            // ->toResponse($request);
     }
 
     protected function filteredVehiclesQuery(Request $request, Company $company): Builder|Relation
