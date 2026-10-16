@@ -77,8 +77,11 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
         Route::get('/issues', [IssueController::class, 'index'])->name('issues.index');
 
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
-        Route::get('/reports/vehicles.pdf', [ReportController::class, 'vehiclesPdf'])->name('reports.vehicles-pdf');
-        Route::get('/reports/vehicles.csv', [ReportController::class, 'vehiclesCsv'])->name('reports.vehicles-csv');
+        Route::get('/reports/{type}.{format}', [ReportController::class, 'download'])
+                ->whereIn('format', ['pdf', 'csv'])
+                ->name('reports.download');
+        // Route::get('/reports/vehicles.pdf', [ReportController::class, 'vehiclesPdf'])->name('reports.vehicles-pdf');
+        // Route::get('/reports/vehicles.csv', [ReportController::class, 'vehiclesCsv'])->name('reports.vehicles-csv');
 
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
