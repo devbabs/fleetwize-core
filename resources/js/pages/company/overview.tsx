@@ -10,6 +10,9 @@ type Stats = {
     totalVehicles: number;
     onlineNow: number;
     movingNow: number;
+    onlineIdleNow: number;
+    idleNow: number;
+    offlineNow: number;
     openFaults: number;
     faultsToday: number;
     upcomingService: number;
@@ -31,9 +34,10 @@ type Charts = {
 };
 
 const FLEET_STATUS_COLORS: Record<string, string> = {
-    Moving: '#89c44b',
-    Idle: '#f59e0b',
-    Offline: '#9ca3af',
+    Moving: '#89c44b',          // Brand Green
+    'Online - Idle': '#3b82f6', // Blue (connected within 5m, speed <= 5)
+    Idle: '#f59e0b',            // Amber (last fix 5m - 60m ago)
+    Offline: '#9ca3af',         // Gray (last fix > 60m ago)
 };
 
 const tooltipStyle = {
@@ -46,7 +50,7 @@ const tooltipStyle = {
 
 export default function Overview({ stats, recentFaults, charts }: { stats: Stats; recentFaults: RecentFault[]; charts: Charts }) {
     const statTiles = [
-        {
+       {
             label: 'Total Vehicles',
             value: stats.totalVehicles,
             icon: Truck,
@@ -55,7 +59,7 @@ export default function Overview({ stats, recentFaults, charts }: { stats: Stats
         {
             label: 'Online Now',
             value: stats.onlineNow,
-            sub: `${stats.movingNow} moving`,
+            sub: `${stats.movingNow} moving · ${stats.onlineIdleNow} online-idle`,
             icon: Activity,
             accent: 'text-brand-green',
         },

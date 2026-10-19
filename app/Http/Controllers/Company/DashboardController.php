@@ -21,17 +21,33 @@ class DashboardController extends Controller
         $company = $this->currentCompany($request);
 
         $vehicleIds = $company->vehicles()->pluck('id');
+        $totalVehicles = $vehicleIds->count();
 
+        // Reported within the last 5 minutes (Online umbrella: Moving + Online - Idle)
         $onlineCount = $vehicleIds->isEmpty() ? 0 : VehicleTrackerState::query()
             ->whereIn('vehicle_id', $vehicleIds)
-            ->where('reported_at', '>', now()->subMinutes(5))
+            ->where('reported_at', '>=', now()->subMinutes(5))
             ->count();
 
+        // Moving: Reported within last 5 minutes AND speed > 5
         $movingCount = $vehicleIds->isEmpty() ? 0 : VehicleTrackerState::query()
             ->whereIn('vehicle_id', $vehicleIds)
-            ->where('reported_at', '>', now()->subMinutes(5))
+            ->where('reported_at', '>=', now()->subMinutes(5))
             ->where('speed', '>', 5)
             ->count();
+
+        // Online - Idle: Reported within last 5 minutes AND speed <= 5 (or null)
+        $onlineIdleCount = max($onlineCount - $movingCount, 0);
+
+        // Idle (Stale): Reported between 1 hour ago and 5 minutes ago
+        $idleCount = $vehicleIds->isEmpty() ? 0 : VehicleTrackerState::query()
+            ->whereIn('vehicle_id', $vehicleIds)
+            ->where('reported_at', '>=', now()->subHour())
+            ->where('reported_at', '<', now()->subMinutes(5))
+            ->count();
+
+        // Offline: Reported > 1 hour ago or no tracker state at all
+        $offlineCount = max($totalVehicles - $onlineCount - $idleCount, 0);
 
         $openFaultsCount = VehicleFault::query()
             ->whereIn('vehicle_id', $vehicleIds)
@@ -92,9 +108,12 @@ class DashboardController extends Controller
 
         return Inertia::render('company/overview', [
             'stats' => [
-                'totalVehicles' => $vehicleIds->count(),
+                'totalVehicles' => $totalVehicles,
                 'onlineNow' => $onlineCount,
                 'movingNow' => $movingCount,
+                'onlineIdleNow' => $onlineIdleCount,
+                'idleNow' => $idleCount,
+                'offlineNow' => $offlineCount,
                 'openFaults' => $openFaultsCount,
                 'faultsToday' => $faultsTodayCount,
                 'upcomingService' => $upcomingServiceCount,
@@ -103,8 +122,9 @@ class DashboardController extends Controller
             'charts' => [
                 'fleetStatus' => [
                     ['name' => 'Moving', 'value' => $movingCount],
-                    ['name' => 'Idle', 'value' => max($onlineCount - $movingCount, 0)],
-                    ['name' => 'Offline', 'value' => max($vehicleIds->count() - $onlineCount, 0)],
+                    ['name' => 'Online - Idle', 'value' => $onlineIdleCount],
+                    ['name' => 'Idle', 'value' => $idleCount],
+                    ['name' => 'Offline', 'value' => $offlineCount],
                 ],
                 'categoryBreakdown' => $categoryBreakdown,
                 'faultsTrend' => $faultsTrend,
