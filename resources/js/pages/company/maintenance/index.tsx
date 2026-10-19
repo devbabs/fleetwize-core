@@ -1,10 +1,12 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, Link } from '@inertiajs/react';
+import { useState } from 'react';
 
 import { Pagination } from '@/components/company/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import CompanyLayout from '@/layouts/company/company-layout';
 import type { Paginated } from '@/types/pagination';
+import { Button } from '@/components/ui/button';
 
 type MaintenanceEntry = {
     id: number;

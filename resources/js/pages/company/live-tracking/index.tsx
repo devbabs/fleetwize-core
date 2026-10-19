@@ -355,7 +355,7 @@ export default function LiveTrackingIndex({ vehicles: initialVehicles }: { vehic
                                                 <leaflet.Popup>
                                                     <div className="space-y-1 text-sm">
                                                         <p className="font-semibold">{vehicle.licensePlate ?? vehicle.name}</p>
-                                                        <p className="text-muted-foreground capitalize">{status}</p>
+                                                        <p className="text-muted-foreground capitalize">Status: {status}</p>
                                                         <p>Speed: {vehicle.speed !== null ? `${Math.round(vehicle.speed)} km/h` : '—'}</p>
                                                         <p>Ignition: {vehicle.ignitionOn === null ? '—' : vehicle.ignitionOn ? 'On' : 'Off'}</p>
                                                         <p>Fuel: {vehicle.fuelLevel !== null ? `${Math.round(vehicle.fuelLevel as number)}%` : '—'}</p>
