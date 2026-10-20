@@ -43,14 +43,21 @@ type DriverFormValues = {
 
 const ROLE_LABELS: Record<string, string> = {
     driver: 'Driver',
-    'vehicle-operator': 'Vehicle Operator',
-    staff: 'Staff',
-    supervisor: 'Supervisor',
-    'workshop-admin': 'Workshop Admin',
-    admin: 'Admin',
+    'dispatch-rider': 'Dispatch Rider',
+    'fleet-manager': 'Fleet Manager',
+    dispatcher: 'Dispatcher / Operations Controller',
+    'branch-manager': 'Supervisor / Branch Manager',
+    'control-room-officer': 'Customer Service / Control Room Officer',
+    'maintenance-manager': 'Maintenance Manager / Workshop Officer',
+    mechanic: 'Mechanic / Vendor',
+    'tracker-installer': 'Tracker Installer / Technical Support',
+    admin: 'Fleet Owner / Company Admin',
 };
 
-const ROLES = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }));
+const ROLES = Object.entries(ROLE_LABELS).map(([value, label]) => ({
+    value,
+    label,
+}));
 
 function VehicleSelect({
     value,
@@ -292,39 +299,6 @@ return;
                         <Label htmlFor="edit_phone">Phone</Label>
                         <Input id="edit_phone" value={data.phone} onChange={(e) => setData('phone', e.target.value)} />
                     </div>
-
-                    {/* <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="edit_role">Role</Label>
-
-                            <Select
-                                value={data.role}
-                                onValueChange={(value) => setData('role', value)}
-                            >
-                                <SelectTrigger
-                                    id="edit_role"
-                                    className="w-full"
-                                >
-                                    <SelectValue placeholder="Select role" />
-                                </SelectTrigger>
-
-                                <SelectContent
-                                    position="popper"
-                                    className="z-[9999]"
-                                >
-                                    {ROLES.map((role) => (
-                                        <SelectItem key={role.value} value={role.value}>
-                                            {role.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Assigned vehicle</Label>
-                            <VehicleSelect value={data.vehicle_id} onChange={(v) => setData('vehicle_id', v)} vehicleOptions={vehicleOptions} />
-                        </div>
-                    </div> */}
 
                     <div className={`grid ${data.role === 'driver' ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
                         <div className="grid gap-2">

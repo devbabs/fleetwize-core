@@ -18,7 +18,20 @@ class DriverController extends Controller
 {
     use ResolvesCompany;
 
-    protected const ROLES = ['admin', 'supervisor', 'staff', 'vehicle-operator', 'workshop-admin', 'driver'];
+    // protected const ROLES = ['admin', 'supervisor', 'staff', 'vehicle-operator', 'workshop-admin', 'driver'];
+
+    public const ROLES = [
+        'admin',
+        'fleet-manager',
+        'dispatcher',
+        'branch-manager',
+        'control-room-officer',
+        'driver',
+        'dispatch-rider',
+        'maintenance-manager',
+        'mechanic',
+        'tracker-installer',
+    ];
 
     public function index(Request $request): Response
     {
@@ -83,19 +96,72 @@ class DriverController extends Controller
         ]);
     }
 
+    // public function store(Request $request, SystemLogService $systemLog): RedirectResponse
+    // {
+    //     $company = $this->currentCompany($request);
+
+    //     $validated = $request->validate([
+    //         'first_name' => ['required', 'string', 'max:100'],
+    //         'last_name' => ['required', 'string', 'max:100'],
+    //         'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+    //         'phone' => ['nullable', 'string', 'max:50', 'unique:users,phone'],
+    //         'password' => ['required', 'string', 'min:8'],
+    //         'role' => ['required', Rule::in(self::ROLES)],
+    //         'vehicle_id' => [
+    //             'nullable',
+    //             'integer',
+    //             Rule::exists('vehicles', 'id')->where('company_id', $company->id),
+    //             Rule::prohibitedIf(fn () => $request->input('role') !== 'driver'),
+    //         ],
+    //     ]);
+
+    //     if (! empty($validated['vehicle_id'])) {
+    //         $this->assignVehicle(
+    //             $company->id,
+    //             $companyUser->id,
+    //             (int) $validated['vehicle_id']
+    //         );
+    //     }
+
+    //     $user = new User;
+    //     $user->first_name = $validated['first_name'];
+    //     $user->last_name = $validated['last_name'];
+    //     $user->email = $validated['email'];
+    //     $user->phone = $validated['phone'] ?? null;
+    //     $user->password = $validated['password'];
+    //     $user->email_verified_at = now();
+    //     $user->save();
+
+    //     $companyUser = new CompanyUser;
+    //     $companyUser->user_id = $user->id;
+    //     $companyUser->company_id = $company->id;
+    //     $companyUser->role = $validated['role'];
+    //     $companyUser->save();
+
+    //     if (! empty($validated['vehicle_id'])) {
+    //         $this->assignVehicle($company->id, $companyUser->id, (int) $validated['vehicle_id']);
+    //     }
+
+    //     $systemLog->log(
+    //         event: 'driver.created',
+    //         description: "Created driver {$user->first_name} {$user->last_name}.",
+    //         subject: $user,
+    //         company: $company,
+    //         metadata: [
+    //             'email' => $user->email,
+    //             'role' => $companyUser->role,
+    //             'vehicle_id' => $validated['vehicle_id'] ?? null,
+    //         ],
+    //     );
+
+    //     Inertia::flash('toast', ['type' => 'success', 'message' => 'Driver added.']);
+
+    //     return back();
+    // }
+
     public function store(Request $request, SystemLogService $systemLog): RedirectResponse
     {
         $company = $this->currentCompany($request);
-
-        // $validated = $request->validate([
-        //     'first_name' => ['required', 'string', 'max:100'],
-        //     'last_name' => ['required', 'string', 'max:100'],
-        //     'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-        //     'phone' => ['nullable', 'string', 'max:50', 'unique:users,phone'],
-        //     'password' => ['required', 'string', 'min:8'],
-        //     'role' => ['required', Rule::in(self::ROLES)],
-        //     'vehicle_id' => ['nullable', 'integer', Rule::exists('vehicles', 'id')->where('company_id', $company->id)],
-        // ]);
 
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
@@ -108,17 +174,10 @@ class DriverController extends Controller
                 'nullable',
                 'integer',
                 Rule::exists('vehicles', 'id')->where('company_id', $company->id),
-                Rule::prohibitedIf(fn () => $request->input('role') !== 'driver'),
+                // Restrict vehicle assignment strictly to driver (or dispatch-rider)
+                Rule::prohibitedIf(fn () => ! in_array($request->input('role'), ['driver', 'dispatch-rider'], true)),
             ],
         ]);
-
-        if (! empty($validated['vehicle_id'])) {
-            $this->assignVehicle(
-                $company->id,
-                $companyUser->id,
-                (int) $validated['vehicle_id']
-            );
-        }
 
         $user = new User;
         $user->first_name = $validated['first_name'];
@@ -136,12 +195,18 @@ class DriverController extends Controller
         $companyUser->save();
 
         if (! empty($validated['vehicle_id'])) {
-            $this->assignVehicle($company->id, $companyUser->id, (int) $validated['vehicle_id']);
+            $this->assignVehicle(
+                $company->id,
+                $companyUser->id,
+                (int) $validated['vehicle_id']
+            );
         }
 
+        $roleLabel = CompanyUser::ROLE_LABELS[$companyUser->role] ?? $companyUser->role;
+
         $systemLog->log(
-            event: 'driver.created',
-            description: "Created driver {$user->first_name} {$user->last_name}.",
+            event: 'staff.created',
+            description: "Added {$roleLabel}: {$user->first_name} {$user->last_name}.",
             subject: $user,
             company: $company,
             metadata: [
@@ -151,7 +216,10 @@ class DriverController extends Controller
             ],
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Driver added.']);
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => "{$roleLabel} added successfully.",
+        ]);
 
         return back();
     }

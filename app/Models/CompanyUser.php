@@ -46,6 +46,19 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 #[Fillable(['role', 'is_contact_person'])]
 class CompanyUser extends Model
 {
+    public const ROLE_LABELS = [
+        'admin' => 'Company Admin',
+        'fleet-manager' => 'Fleet Manager',
+        'dispatcher' => 'Dispatcher / Ops Controller',
+        'branch-manager' => 'Regional / Branch Manager',
+        'control-room-officer' => 'Control Room Officer',
+        'driver' => 'Driver',
+        'dispatch-rider' => 'Dispatch Rider',
+        'maintenance-manager' => 'Maintenance Manager',
+        'mechanic' => 'Mechanic / Vendor',
+        'tracker-installer' => 'Tracker Installer',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -143,5 +156,10 @@ class CompanyUser extends Model
         return $this->hasMany(
             DriverScorecard::class
         );
+    }
+
+    public function getRoleTextAttribute(): string
+    {
+        return self::ROLE_LABELS[$this->role] ?? ucfirst(str_replace('-', ' ', $this->role));
     }
 }

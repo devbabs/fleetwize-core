@@ -19,6 +19,9 @@ class DocumentSeeder extends Seeder
             'Vehicle License',
             'Hackney Permit',
             'Driver License',
+            'Proof of Ownership',
+            'Vehicle Registration(Plate Number)',
+            "Central Motor Registry Certificate",
         ];
 
         foreach ($documents as $title) {
