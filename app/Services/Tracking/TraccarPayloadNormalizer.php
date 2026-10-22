@@ -2,6 +2,8 @@
 
 namespace App\Services\Tracking;
 
+use App\Models\Vehicle;
+
 class TraccarPayloadNormalizer
 {
     /**
@@ -69,31 +71,25 @@ class TraccarPayloadNormalizer
     /**
      * Normalize and sanitize incoming odometer data from Traccar.
      *
-     * @param float|null $rawMeters Value from attributes.odometer or obdOdometer (meters)
-     * @param float|null $lastKnownKm Fallback to previous valid reading
-     * @return float|null Sanitized value in Kilometers
+     * @param Vehicle $vehicle The vehicle instance
+     * @param mixed $rawMeters Value from attributes.odometer or obdOdometer (meters)
+     * @return int|null Sanitized value in Kilometers
      */
-    public static function normalizeOdometer(?float $rawMeters, ?float $lastKnownKm = null): ?float
+    public static function normalizeOdometer(Vehicle $vehicle, mixed $rawMeters): ?int
     {
-        if ($rawMeters === null) {
+        $newKm = self::sanitizeOdometer($rawMeters);
+        if ($newKm === null) {
+            return $vehicle->trackerState?->odometer ?? $vehicle->mileage;
+        }
+
+        $lastKnownKm = $vehicle->trackerState?->odometer ?? $vehicle->mileage ?? 0;
+
+        // Prevent odometer roll-back (odometers only go up)
+        if ($newKm < $lastKnownKm) {
             return $lastKnownKm;
         }
 
-        // 1. Guard against 32-bit unsigned integer sentinel errors (>= 1,000,000,000)
-        // 0xFFFFFFFF = 4,294,967,295 (sentinel emitted when CAN bus / ECU register is offline)
-        if ($rawMeters >= 1_000_000_000) {
-            return $lastKnownKm;
-        }
-
-        // 2. Convert meters to kilometers
-        $odometerKm = round($rawMeters / 1000.0, 1);
-
-        // 3. Guard against impossible vehicle mileage (> 1,500,000 km)
-        if ($odometerKm > 1_500_000) {
-            return $lastKnownKm;
-        }
-
-        return $odometerKm;
+        return $newKm;
     }
 
     /**
@@ -147,5 +143,29 @@ class TraccarPayloadNormalizer
             'alarm_description' => $attributes['alarm'] ?? $type,
             'gps_time' => $event['eventTime'] ?? null,
         ];
+    }
+
+    public static function sanitizeOdometer(mixed $rawMeters): ?int
+    {
+        if ($rawMeters === null) {
+            return null;
+        }
+
+        $meters = (float) $rawMeters;
+
+        // Guard against 32-bit unsigned integer error sentinels (e.g. 4294967200)
+        if ($meters >= 4_000_000_000 || $meters < 0) {
+            return null;
+        }
+
+        // Convert meters to kilometers
+        $km = (int) round($meters / 1000.0);
+
+        // Guard against impossible vehicle mileage (> 1,500,000 km)
+        if ($km > 1_500_000) {
+            return null;
+        }
+
+        return $km;
     }
 }
