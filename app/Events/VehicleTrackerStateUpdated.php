@@ -57,10 +57,14 @@ class VehicleTrackerStateUpdated implements ShouldBroadcastNow
             'heading' => $this->trackerState->heading,
             'ignitionOn' => $this->trackerState->ignition_on,
             'fuelLevel' => $this->trackerState->fuel_level,
+            'fuelLevelPercent' => $this->trackerState->fuel_level_percent,
+            'fuelConsumed' => $this->trackerState->fuel_consumed,
             'batteryVoltage' => $this->trackerState->battery_voltage,
+            'trackerBatteryVoltage' => $this->trackerState->tracker_battery_voltage,
             'reportedAt' => $this->trackerState->reported_at?->toIso8601String(),
             'engineRpm' => $this->trackerState->engine_rpm,
             'engineLoad' => $this->trackerState->engine_load,
+            'coolantTemp' => $this->trackerState->coolant_temp,
             'obdSpeed' => $this->trackerState->obd_speed,
             'isMoving' => $this->trackerState->is_moving,
             'batteryLevel' => $this->trackerState->battery_level,
@@ -69,7 +73,6 @@ class VehicleTrackerStateUpdated implements ShouldBroadcastNow
             'engineHours' => $this->trackerState->engine_hours,
             'isBlocked' => $this->trackerState->is_blocked,
             'isCharging' => $this->trackerState->is_charging,
-
             'uniqueId' => $this->trackerState->unique_id,
             'deviceStatus' => $this->trackerState->device_status,
             'protocol' => $this->trackerState->protocol,
@@ -83,6 +86,8 @@ class VehicleTrackerStateUpdated implements ShouldBroadcastNow
             'hardCorneringCount' => $this->trackerState->hard_cornering_count,
             'hardAccelerationCount' => $this->trackerState->hard_acceleration_count,
             'hardDecelerationCount' => $this->trackerState->hard_deceleration_count,
+            'dtcCount' => $this->trackerState->dtc_count,
+            'dtcCodes' => $this->trackerState->dtc_codes,
             'status' => $this->trackerState->status(),
         ];
     }

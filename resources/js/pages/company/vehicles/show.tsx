@@ -126,7 +126,13 @@ type VehicleDetail = {
         hardCorneringCount: number | null;
         hardAccelerationCount: number | null;
         hardDecelerationCount: number | null;
-        status: string;
+        fuelLevelPercent?: number | null;
+        fuelConsumed?: number | null;
+        trackerBatteryVoltage?: number | null;
+        coolantTemp?: number | null;
+        dtcCount?: number | null;
+        dtcCodes?: string | null;
+        status?: string | null;
     } | null;
     trips: Trip[];
     faults: Fault[];
@@ -412,7 +418,13 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                 hardCorneringCount: update.hardCorneringCount,
                 hardAccelerationCount: update.hardAccelerationCount,
                 hardDecelerationCount: update.hardDecelerationCount,
-                status: update.status,
+                fuelLevelPercent: update.fuelLevelPercent ?? null,
+                fuelConsumed: update.fuelConsumed ?? null,
+                trackerBatteryVoltage: update.trackerBatteryVoltage ?? null,
+                coolantTemp: update.coolantTemp ?? null,
+                dtcCount: update.dtcCount ?? null,
+                dtcCodes: update.dtcCodes ?? null,
+                status: update.status ?? 'offline',
             },
         }));
     });
@@ -535,8 +547,9 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
 
             {tab === 'Overview' ? (
                 <div className="grid gap-4 lg:grid-cols-3">
+                    {/* 1. Odometer & Tracked Distance */}
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-muted-foreground">Odometer</CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -545,173 +558,244 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                     ? `${vehicle.liveState.odometer.toLocaleString()} km`
                                     : '—'}
                             </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Ignition</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.ignitionOn === null || vehicle.liveState?.ignitionOn === undefined
-                                    ? '—'
-                                    : vehicle.liveState.ignitionOn
-                                      ? 'On'
-                                      : 'Off'}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.totalDistance !== null && vehicle.liveState?.totalDistance !== undefined
+                                    ? `${vehicle.liveState.totalDistance.toLocaleString()} km tracked since install`
+                                    : 'Dashboard / ECU mileage'}
                             </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Last Updated</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm font-medium text-foreground">{formatDateTime(vehicle.liveState?.reportedAt ?? null)}</p>
                         </CardContent>
                     </Card>
 
+                    {/* 2. Ignition & Motion State */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Total Distance</CardTitle>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Ignition & Motion</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.totalDistance !== null && vehicle.liveState?.totalDistance !== undefined
-                                    ? vehicle.liveState.totalDistance.toLocaleString()
-                                    
-                                    : '—'}
+                            <div className="flex items-center gap-2">
+                                <span
+                                    className={`h-2.5 w-2.5 rounded-full ${
+                                        vehicle.liveState?.ignitionOn ? 'bg-emerald-500' : 'bg-zinc-400'
+                                    }`}
+                                />
+                                <p className="text-2xl font-semibold text-foreground">
+                                    {vehicle.liveState?.ignitionOn === null || vehicle.liveState?.ignitionOn === undefined
+                                        ? '—'
+                                        : vehicle.liveState.ignitionOn
+                                        ? 'Ignition On'
+                                        : 'Ignition Off'}
+                                </p>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.isMoving === null || vehicle.liveState?.isMoving === undefined
+                                    ? 'Motion unknown'
+                                    : (vehicle.liveState?.speed ?? 0) > 5
+                                    ? `Moving (${Math.round(vehicle.liveState?.speed ?? 0)} km/h)`
+                                    : vehicle.liveState?.ignitionOn
+                                        ? 'Stationary · Engine Idling'
+                                        : 'Parked · Stationary'}
                             </p>
                         </CardContent>
                     </Card>
+
+                    {/* 3. Current Speed (GPS + CAN OBD Speed) */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Engine Load</CardTitle>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Current Speed</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.engineLoad !== null && vehicle.liveState?.engineLoad !== undefined
-                                    ? `${Math.round(vehicle.liveState.engineLoad)}%`
+                                {vehicle.liveState?.speed !== null && vehicle.liveState?.speed !== undefined
+                                    ? `${Math.round(vehicle.liveState.speed)} km/h`
                                     : '—'}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.obdSpeed !== null && vehicle.liveState?.obdSpeed !== undefined
+                                    ? `CAN Wheel Speed: ${Math.round(vehicle.liveState.obdSpeed)} km/h`
+                                    : 'GPS ground speed'}
                             </p>
                         </CardContent>
                     </Card>
+
+                    {/* 4. Fuel Tank Level (Liters + Percentage) */}
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Fuel Level</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.fuelLevel !== null && vehicle.liveState?.fuelLevel !== undefined && vehicle.liveState.fuelLevel > 0
+                                    ? `${vehicle.liveState.fuelLevel.toFixed(1)} L`
+                                    : vehicle.liveState?.fuelLevelPercent !== null && vehicle.liveState?.fuelLevelPercent !== undefined
+                                    ? `${vehicle.liveState.fuelLevelPercent}%`
+                                    : '—'}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.fuelLevelPercent !== null && vehicle.liveState?.fuelLevelPercent !== undefined
+                                    ? `${vehicle.liveState.fuelLevelPercent}% of tank capacity`
+                                    : 'Live CAN fuel sensor'}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    {/* 5. Cumulative Fuel Consumed */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Fuel Consumed</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.fuelConsumed !== null && vehicle.liveState?.fuelConsumed !== undefined
+                                    ? `${vehicle.liveState.fuelConsumed.toFixed(1)} L`
+                                    : '—'}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">Total fuel burned since install</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* 6. Vehicle Battery & Alternator Health */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Vehicle Battery</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-2xl font-semibold text-foreground">
+                                {vehicle.liveState?.batteryVoltage !== null && vehicle.liveState?.batteryVoltage !== undefined
+                                    ? `${vehicle.liveState.batteryVoltage.toFixed(2)} V`
+                                    : '—'}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.batteryVoltage === null || vehicle.liveState?.batteryVoltage === undefined
+                                    ? 'External power voltage'
+                                    : vehicle.liveState.batteryVoltage < 11.8
+                                    ? 'Low battery warning (< 11.8V)'
+                                    : vehicle.liveState.ignitionOn && vehicle.liveState.batteryVoltage >= 12.8
+                                        ? 'Alternator charging normally'
+                                        : 'Normal resting voltage'}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    {/* 7. Engine RPM & Throttle Load */}
+                    <Card>
+                        <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-muted-foreground">Engine RPM</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
                                 {vehicle.liveState?.engineRpm !== null && vehicle.liveState?.engineRpm !== undefined
-                                    ? `${Math.round(vehicle.liveState.engineRpm)} RPM`
+                                    ? `${Math.round(vehicle.liveState.engineRpm).toLocaleString()} RPM`
                                     : '—'}
                             </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Motion</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.isMoving === null || vehicle.liveState?.isMoving === undefined
-                                    ? '—'
-                                    : vehicle.liveState.isMoving
-                                      ? 'Moving'
-                                      : 'Stationary'}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.engineLoad !== null && vehicle.liveState?.engineLoad !== undefined
+                                    ? `Throttle / Engine Load: ${Math.round(vehicle.liveState.engineLoad)}%`
+                                    : 'Live crankshaft speed'}
                             </p>
                         </CardContent>
                     </Card>
+
+                    {/* 8. Engine Coolant Temperature */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Battery Voltage</CardTitle>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Coolant Temp</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.batteryVoltage !== null && vehicle.liveState?.batteryVoltage !== undefined
-                                    ? `${Math.round(vehicle.liveState.batteryVoltage)}V`
+                            <p
+                                className={`text-2xl font-semibold ${
+                                    (vehicle.liveState?.coolantTemp ?? 0) >= 105 ? 'text-destructive' : 'text-foreground'
+                                }`}
+                            >
+                                {vehicle.liveState?.coolantTemp !== null && vehicle.liveState?.coolantTemp !== undefined
+                                    ? `${vehicle.liveState.coolantTemp.toFixed(1)} °C`
                                     : '—'}
                             </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Satellites</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.satelliteCount ?? '—'}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.coolantTemp === null || vehicle.liveState?.coolantTemp === undefined
+                                    ? 'ECU temperature sensor'
+                                    : vehicle.liveState.coolantTemp >= 105
+                                    ? 'Overheating warning!'
+                                    : 'Normal operating range'}
                             </p>
                         </CardContent>
                     </Card>
+
+                    {/* 9. Cumulative Engine Hours (Fixed: no longer dividing by 3600 twice) */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Signal Strength</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.signalStrength ?? '—'}
-                            </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
+                        <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-muted-foreground">Engine Hours</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
                                 {vehicle.liveState?.engineHours !== null && vehicle.liveState?.engineHours !== undefined
-                                    ? `${(vehicle.liveState.engineHours / 3600).toFixed(1)} h`
+                                    ? `${vehicle.liveState.engineHours.toFixed(1)} hrs`
                                     : '—'}
                             </p>
+                            <p className="mt-1 text-xs text-muted-foreground">Cumulative engine runtime</p>
                         </CardContent>
                     </Card>
+
+                    {/* 10. Combined Driver Behavior Summary (Replaces 3 separate empty cards) */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Immobilizer</CardTitle>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Harsh Driving Events</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.isBlocked === null || vehicle.liveState?.isBlocked === undefined
-                                    ? '—'
-                                    : vehicle.liveState.isBlocked
-                                      ? 'Blocked'
-                                      : 'Clear'}
+                                {vehicle.liveState?.hardAccelerationCount !== null ||
+                                vehicle.liveState?.hardDecelerationCount !== null ||
+                                vehicle.liveState?.hardCorneringCount !== null
+                                    ? (vehicle.liveState?.hardAccelerationCount ?? 0) +
+                                    (vehicle.liveState?.hardDecelerationCount ?? 0) +
+                                    (vehicle.liveState?.hardCorneringCount ?? 0)
+                                    : 0}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {`Braking: ${vehicle.liveState?.hardDecelerationCount ?? 0} · Accel: ${
+                                    vehicle.liveState?.hardAccelerationCount ?? 0
+                                } · Cornering: ${vehicle.liveState?.hardCorneringCount ?? 0}`}
                             </p>
                         </CardContent>
                     </Card>
+
+                    {/* 11. Tracker GPS & Cellular Health (Combines Satellites, Signal & Backup Battery) */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Hard Cornering</CardTitle>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Tracker Signal & GPS</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.hardCorneringCount !== null && vehicle.liveState?.hardCorneringCount !== undefined
-                                    ? vehicle.liveState.hardCorneringCount.toLocaleString()
+                                {vehicle.liveState?.satelliteCount !== null && vehicle.liveState?.satelliteCount !== undefined
+                                    ? `${vehicle.liveState.satelliteCount} Satellites`
                                     : '—'}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {`Signal: ${
+                                    vehicle.liveState?.protocol === 'teltonika'
+                                        ? `${vehicle.liveState?.signalStrength ?? '—'}/5`
+                                        : `${vehicle.liveState?.signalStrength ?? '—'}/31`
+                                }${
+                                    vehicle.liveState?.trackerBatteryVoltage
+                                        ? ` · Backup: ${vehicle.liveState.trackerBatteryVoltage.toFixed(2)}V`
+                                        : ''
+                                }`}
                             </p>
                         </CardContent>
                     </Card>
+
+                    {/* 12. Last Reported Timestamp & Protocol */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Hard Acceleration</CardTitle>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Last Updated</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.hardAccelerationCount !== null && vehicle.liveState?.hardAccelerationCount !== undefined
-                                    ? vehicle.liveState.hardAccelerationCount.toLocaleString()
-                                    : '—'}
+                            <p className="text-base font-semibold text-foreground">
+                                {formatDateTime(vehicle.liveState?.reportedAt ?? null)}
                             </p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm text-muted-foreground">Hard Deceleration</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.hardDecelerationCount !== null && vehicle.liveState?.hardDecelerationCount !== undefined
-                                    ? vehicle.liveState.hardDecelerationCount.toLocaleString()
-                                    : '—'}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.protocol
+                                    ? `Protocol: ${vehicle.liveState.protocol.toUpperCase()} · IMEI: ${vehicle.liveState?.uniqueId ?? '—'}`
+                                    : 'Live telemetry timestamp'}
                             </p>
                         </CardContent>
                     </Card>

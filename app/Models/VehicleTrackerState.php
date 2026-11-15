@@ -72,11 +72,15 @@ class VehicleTrackerState extends Model
             'heading' => 'float',
             'ignition_on' => 'boolean',
             'battery_voltage' => 'float',
+            'tracker_battery_voltage' => 'float',
             'fuel_level' => 'float',
+            'fuel_level_percent' => 'integer',
+            'fuel_consumed' => 'float',
             'reported_at' => 'datetime',
             'raw_payload' => 'array',
             'engine_rpm' => 'integer',
             'engine_load' => 'float',
+            'coolant_temp' => 'float',
             'obd_speed' => 'float',
             'is_moving' => 'boolean',
             'battery_level' => 'float',
@@ -85,7 +89,6 @@ class VehicleTrackerState extends Model
             'engine_hours' => 'float',
             'is_blocked' => 'boolean',
             'is_charging' => 'boolean',
-
             'unique_id' => 'string',
             'device_status' => 'string',
             'protocol' => 'string',
@@ -99,7 +102,8 @@ class VehicleTrackerState extends Model
             'hard_cornering_count' => 'integer',
             'hard_acceleration_count' => 'integer',
             'hard_deceleration_count' => 'integer',
-
+            'dtc_count' => 'integer',
+            'dtc_codes' => 'string',
         ];
     }
 

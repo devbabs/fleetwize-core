@@ -43,6 +43,13 @@ export type VehicleLiveUpdate = {
     hardCorneringCount: number | null;
     hardAccelerationCount: number | null;
     hardDecelerationCount: number | null;
+    fuelLevelPercent?: number | null;
+    fuelConsumed?: number | null;
+    trackerBatteryVoltage?: number | null;
+    coolantTemp?: number | null;
+    dtcCount?: number | null;
+    dtcCodes?: string | null;
+    status: string; // <-- Changed from string | null to string
 };
 
 /**
