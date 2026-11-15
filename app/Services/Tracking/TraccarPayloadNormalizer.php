@@ -75,21 +75,27 @@ class TraccarPayloadNormalizer
      * @param mixed $rawMeters Value from attributes.odometer or obdOdometer (meters)
      * @return int|null Sanitized value in Kilometers
      */
-    public static function normalizeOdometer(Vehicle $vehicle, mixed $rawMeters): ?int
+    public static function normalizeOdometer(?float $rawMeters, ?float $lastKnownKm = null): ?float
     {
-        $newKm = self::sanitizeOdometer($rawMeters);
-        if ($newKm === null) {
-            return $vehicle->trackerState?->odometer ?? $vehicle->mileage;
-        }
-
-        $lastKnownKm = $vehicle->trackerState?->odometer ?? $vehicle->mileage ?? 0;
-
-        // Prevent odometer roll-back (odometers only go up)
-        if ($newKm < $lastKnownKm) {
+        if ($rawMeters === null) {
             return $lastKnownKm;
         }
 
-        return $newKm;
+        // 1. Guard against 32-bit unsigned integer sentinel errors (>= 1,000,000,000)
+        // 0xFFFFFFFF = 4,294,967,295 (sentinel emitted when CAN bus / ECU register is offline)
+        if ($rawMeters >= 1_000_000_000 || $rawMeters < 0) {
+            return $lastKnownKm;
+        }
+
+        // 2. Convert meters to kilometers
+        $odometerKm = round($rawMeters / 1000.0, 1);
+
+        // 3. Guard against impossible vehicle mileage (> 1,500,000 km)
+        if ($odometerKm > 1_500_000) {
+            return $lastKnownKm;
+        }
+
+        return $odometerKm;
     }
 
     /**
