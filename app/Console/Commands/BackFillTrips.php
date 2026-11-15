@@ -239,13 +239,6 @@ class BackFillTrips extends Command
         }
     }
 
-    // protected function odometerMetersToKilometers(?float $meters): ?float
-    // {
-    //     return $meters !== null
-    //         ? round($meters / 1000, 2)
-    //         : null;
-    // }
-
     protected function metersToKilometers(?float $meters): ?float
     {
         return $meters !== null ? round($meters / 1000, 2) : null;

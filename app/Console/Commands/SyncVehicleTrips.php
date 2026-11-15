@@ -56,7 +56,7 @@ class SyncVehicleTrips extends Command
 
         $from = $lastSyncAt
             ? Carbon::parse($lastSyncAt)->subMinutes(5)
-            : now()->subDay();
+            : now()->subDay(5);
 
         $to = now();
 
