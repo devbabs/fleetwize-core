@@ -13,17 +13,12 @@ class AggregateDriverScores extends Command
 {
     protected $signature = 'tracker:aggregate-driver-scores';
 
-    protected $description = 'Generate daily, weekly and monthly driver scorecards';
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    protected $description = 'Generate daily, weekly and monthly driver scorecards across the 5 Pillars';
+
+    public function handle(): int
     {
-        //
         $this->aggregateDaily();
-
         $this->aggregateWeekly();
-
         $this->aggregateMonthly();
 
         return self::SUCCESS;
@@ -31,70 +26,49 @@ class AggregateDriverScores extends Command
 
     protected function aggregateDaily(): void
     {
-        $date = now()->subDay()->toDateString();
+        // Yesterday (finalized daily scorecard)
+        $yesterday = now()->subDay();
+        $this->aggregatePeriod('daily', $yesterday->copy()->startOfDay(), $yesterday->copy()->endOfDay());
 
-        $this->aggregatePeriod(
-            'daily',
-            Carbon::parse($date)->startOfDay(),
-            Carbon::parse($date)->endOfDay()
-        );
+        // Today (live rolling daily scorecard)
+        $today = now();
+        $this->aggregatePeriod('daily', $today->copy()->startOfDay(), $today->copy()->endOfDay());
     }
 
     protected function aggregateWeekly(): void
     {
-        $start = now()
-            ->subWeek()
-            ->startOfWeek();
+        // Last week (finalized)
+        $lastWeek = now()->subWeek();
+        $this->aggregatePeriod('weekly', $lastWeek->copy()->startOfWeek(), $lastWeek->copy()->endOfWeek());
 
-        $end = now()
-            ->subWeek()
-            ->endOfWeek();
-
-        $this->aggregatePeriod(
-            'weekly',
-            $start,
-            $end
-        );
+        // Current week-to-date (live rolling)
+        $thisWeek = now();
+        $this->aggregatePeriod('weekly', $thisWeek->copy()->startOfWeek(), $thisWeek->copy()->endOfWeek());
     }
 
     protected function aggregateMonthly(): void
     {
-        $start = now()
-            ->subMonth()
-            ->startOfMonth();
+        // Last month (finalized)
+        $lastMonth = now()->subMonth();
+        $this->aggregatePeriod('monthly', $lastMonth->copy()->startOfMonth(), $lastMonth->copy()->endOfMonth());
 
-        $end = now()
-            ->subMonth()
-            ->endOfMonth();
-
-        $this->aggregatePeriod(
-            'monthly',
-            $start,
-            $end
-        );
+        // Current month-to-date (live rolling)
+        $thisMonth = now();
+        $this->aggregatePeriod('monthly', $thisMonth->copy()->startOfMonth(), $thisMonth->copy()->endOfMonth());
     }
 
-    protected function aggregatePeriod(string $periodType, CarbonInterface $start, CarbonInterface $end): void 
+    protected function aggregatePeriod(string $periodType, CarbonInterface $start, CarbonInterface $end): void
     {
-
         VehicleTrip::query()
             ->whereNotNull('company_user_id')
             ->whereNotNull('score_calculated_at')
-            ->whereBetween(
-                'start_time',
-                [$start, $end]
-            )
+            ->whereBetween('start_time', [$start, $end])
             ->select('company_user_id')
             ->distinct()
             ->get()
-            ->each(function ($trip) use (
-                $periodType,
-                $start,
-                $end
-            ) {
-
+            ->each(function ($trip) use ($periodType, $start, $end) {
                 $this->buildScorecard(
-                    $trip->company_user_id,
+                    (int) $trip->company_user_id,
                     $periodType,
                     $start,
                     $end
@@ -118,191 +92,102 @@ class AggregateDriverScores extends Command
             return;
         }
 
-        $totalDistance = $trips->sum(
+        $totalDistance = round($trips->sum(
             fn ($trip) => (float) ($trip->distance_km ?? 0)
-        );
+        ), 2);
 
         /*
         |--------------------------------------------------------------------------
-        | Five pillar scores
+        | Five Pillar Scores (Distance-Weighted Averages)
         |--------------------------------------------------------------------------
-        |
-        | Distance-weighted averages are preferable because a 2 km trip
-        | shouldn't have the same influence as a 200 km trip.
-        |
         */
-
-        $riskScore = $this->weightedAverage(
-            $trips,
-            'risk_score',
-            $totalDistance
-        );
-
-        $speedingScore = $this->weightedAverage(
-            $trips,
-            'speeding_score',
-            $totalDistance
-        );
-
-        $ecoScore = $this->weightedAverage(
-            $trips,
-            'eco_score',
-            $totalDistance
-        );
-
-        $fatigueScore = $this->weightedAverage(
-            $trips,
-            'fatigue_score',
-            $totalDistance
-        );
-
-        $distractionScore = $this->weightedAverage(
-            $trips,
-            'distraction_score',
-            $totalDistance
-        );
+        $riskScore = $this->weightedAverage($trips, 'risk_score', $totalDistance);
+        $speedingScore = $this->weightedAverage($trips, 'speeding_score', $totalDistance);
+        $ecoScore = $this->weightedAverage($trips, 'eco_score', $totalDistance);
+        $fatigueScore = $this->weightedAverage($trips, 'fatigue_score', $totalDistance);
+        $distractionScore = $this->weightedAverage($trips, 'distraction_score', $totalDistance);
 
         /*
         |--------------------------------------------------------------------------
-        | Overall score
+        | Weighted Overall Score (Risk 25%, Speeding 25%, Eco 20%, Fatigue 15%, Distraction 15%)
         |--------------------------------------------------------------------------
         */
-
         $score = round(
-            (
-                $riskScore
-                + $speedingScore
-                + $ecoScore
-                + $fatigueScore
-                + $distractionScore
-            ) / 5,
+            ($riskScore * 0.25)
+            + ($speedingScore * 0.25)
+            + ($ecoScore * 0.20)
+            + ($fatigueScore * 0.15)
+            + ($distractionScore * 0.15),
             2
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | Backward compatibility
-        |--------------------------------------------------------------------------
-        |
-        | Keep these until the frontend/API has completely moved to the
-        | five-pillar model.
-        |
-        */
-
-        $safetyScore = round(
-            ($riskScore + $speedingScore) / 2,
-            2
-        );
-
-        $efficiencyScore = round(
-            ($ecoScore + $distractionScore) / 2,
-            2
-        );
+        $safetyScore = round(($riskScore + $speedingScore) / 2, 2);
+        $efficiencyScore = round(($ecoScore + $distractionScore) / 2, 2);
 
         /*
         |--------------------------------------------------------------------------
-        | Aggregate metrics
+        | Aggregate Supporting Metrics
         |--------------------------------------------------------------------------
         */
+        $durationSeconds = (int) $trips->sum(fn ($trip) => (int) ($trip->duration_seconds ?? 0));
+        $overspeedEvents = (int) $trips->sum(fn ($trip) => (int) ($trip->overspeed_events ?? 0));
+        $severeOverspeedEvents = (int) $trips->sum(fn ($trip) => (int) ($trip->severe_overspeed_events ?? 0));
+        $overspeedDurationSeconds = (int) $trips->sum(fn ($trip) => (int) ($trip->overspeed_duration_seconds ?? 0));
+        $harshAccelerationEvents = (int) $trips->sum(fn ($trip) => (int) ($trip->harsh_acceleration_events ?? 0));
+        $harshBrakingEvents = (int) $trips->sum(fn ($trip) => (int) ($trip->harsh_braking_events ?? 0));
+        $harshCorneringEvents = (int) $trips->sum(fn ($trip) => (int) ($trip->harsh_cornering_events ?? 0));
+        $highEngineLoadEvents = (int) $trips->sum(fn ($trip) => (int) ($trip->high_engine_load_events ?? 0));
+        $fatigueEvents = (int) $trips->sum(fn ($trip) => (int) ($trip->fatigue_events ?? 0));
 
-        $distanceKm = $trips->sum(
-            fn ($trip) => (float) ($trip->distance_km ?? 0)
+        // Longest single continuous driving stint in the period (not sum of all trips)
+        $continuousDrivingSeconds = (int) $trips->max(
+            fn ($trip) => (int) ($trip->continuous_driving_seconds ?? $trip->duration_seconds ?? 0)
         );
 
-        $durationSeconds = $trips->sum(
-            fn ($trip) => (int) ($trip->duration_seconds ?? 0)
-        );
+        $idleMinutes = (int) $trips->sum(fn ($trip) => (int) ($trip->idle_minutes ?? 0));
 
-        $overspeedEvents = $trips->sum(
-            fn ($trip) => (int) ($trip->overspeed_events ?? 0)
-        );
-
-        $severeOverspeedEvents = $trips->sum(
-            fn ($trip) => (int) ($trip->severe_overspeed_events ?? 0)
-        );
-
-        $overspeedDurationSeconds = $trips->sum(
-            fn ($trip) => (int) ($trip->overspeed_duration_seconds ?? 0)
-        );
-
-        $harshAccelerationEvents = $trips->sum(
-            fn ($trip) => (int) ($trip->harsh_acceleration_events ?? 0)
-        );
-
-        $harshBrakingEvents = $trips->sum(
-            fn ($trip) => (int) ($trip->harsh_braking_events ?? 0)
-        );
-
-        $harshCorneringEvents = $trips->sum(
-            fn ($trip) => (int) ($trip->harsh_cornering_events ?? 0)
-        );
-
-        $highEngineLoadEvents = $trips->sum(
-            fn ($trip) => (int) ($trip->high_engine_load_events ?? 0)
-        );
-
-        $fatigueEvents = $trips->sum(
-            fn ($trip) => (int) ($trip->fatigue_events ?? 0)
-        );
-
-        $continuousDrivingSeconds = $trips->sum(
-            fn ($trip) => (int) ($trip->continuous_driving_seconds ?? 0)
-        );
-
-        $idleMinutes = $trips->sum(
-            fn ($trip) => (int) ($trip->idle_minutes ?? 0)
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Score breakdown
-        |--------------------------------------------------------------------------
-        |
-        | This makes the scorecard easier to explain in the UI later.
-        |
-        */
+        // Normalized rates per 100 km & idle ratio for UI coaching insights
+        $distanceFactor = $totalDistance > 0 ? (100.0 / $totalDistance) : 0;
+        $totalDrivingMinutes = max(1, round($durationSeconds / 60));
+        $idleRatioPercent = round(min(100, ($idleMinutes / $totalDrivingMinutes) * 100), 1);
 
         $scoreBreakdown = [
             'risk' => [
                 'score' => $riskScore,
+                'weight_percent' => 25,
                 'harsh_braking_events' => $harshBrakingEvents,
                 'harsh_cornering_events' => $harshCorneringEvents,
+                'events_per_100km' => round(($harshBrakingEvents + $harshCorneringEvents) * $distanceFactor, 1),
             ],
-
             'speeding' => [
                 'score' => $speedingScore,
+                'weight_percent' => 25,
                 'overspeed_events' => $overspeedEvents,
                 'severe_overspeed_events' => $severeOverspeedEvents,
-                'overspeed_duration_seconds' =>
-                    $overspeedDurationSeconds,
+                'overspeed_duration_seconds' => $overspeedDurationSeconds,
+                'events_per_100km' => round(($overspeedEvents + $severeOverspeedEvents) * $distanceFactor, 1),
             ],
-
             'eco' => [
                 'score' => $ecoScore,
-                'harsh_acceleration_events' =>
-                    $harshAccelerationEvents,
-                'high_engine_load_events' =>
-                    $highEngineLoadEvents,
+                'weight_percent' => 20,
+                'harsh_acceleration_events' => $harshAccelerationEvents,
+                'high_engine_load_events' => $highEngineLoadEvents,
+                'estimated_idle_fuel_liters' => round(($idleMinutes / 60.0) * 1.5, 2),
             ],
-
             'fatigue' => [
                 'score' => $fatigueScore,
+                'weight_percent' => 15,
                 'fatigue_events' => $fatigueEvents,
-                'continuous_driving_seconds' =>
-                    $continuousDrivingSeconds,
+                'continuous_driving_seconds' => $continuousDrivingSeconds,
+                'max_continuous_hours' => round($continuousDrivingSeconds / 3600.0, 1),
             ],
-
             'distraction' => [
                 'score' => $distractionScore,
+                'weight_percent' => 15,
                 'idle_minutes' => $idleMinutes,
+                'idle_ratio_percent' => $idleRatioPercent,
             ],
         ];
-
-        /*
-        |--------------------------------------------------------------------------
-        | Save scorecard
-        |--------------------------------------------------------------------------
-        */
 
         DriverScorecard::updateOrCreate(
             [
@@ -312,129 +197,63 @@ class AggregateDriverScores extends Command
             ],
             [
                 'period_end' => $end->toDateString(),
-
                 'trip_count' => $trips->count(),
-
                 'score' => $score,
-
-                /*
-                | Five pillars
-                */
                 'risk_score' => $riskScore,
                 'speeding_score' => $speedingScore,
                 'eco_score' => $ecoScore,
                 'fatigue_score' => $fatigueScore,
                 'distraction_score' => $distractionScore,
-
-                /*
-                | Backward compatibility
-                */
                 'safety_score' => $safetyScore,
                 'efficiency_score' => $efficiencyScore,
-
-                /*
-                | Trip metrics
-                */
-                'distance_km' => $distanceKm,
+                'distance_km' => $totalDistance,
                 'duration_seconds' => $durationSeconds,
-
                 'overspeed_events' => $overspeedEvents,
-                'severe_overspeed_events' =>
-                    $severeOverspeedEvents,
-
-                'overspeed_duration_seconds' =>
-                    $overspeedDurationSeconds,
-
-                'harsh_acceleration_events' =>
-                    $harshAccelerationEvents,
-
-                'harsh_braking_events' =>
-                    $harshBrakingEvents,
-
-                'harsh_cornering_events' =>
-                    $harshCorneringEvents,
-
-                'high_engine_load_events' =>
-                    $highEngineLoadEvents,
-
-                'fatigue_events' =>
-                    $fatigueEvents,
-
-                'continuous_driving_seconds' =>
-                    $continuousDrivingSeconds,
-
+                'severe_overspeed_events' => $severeOverspeedEvents,
+                'overspeed_duration_seconds' => $overspeedDurationSeconds,
+                'harsh_acceleration_events' => $harshAccelerationEvents,
+                'harsh_braking_events' => $harshBrakingEvents,
+                'harsh_cornering_events' => $harshCorneringEvents,
+                'high_engine_load_events' => $highEngineLoadEvents,
+                'fatigue_events' => $fatigueEvents,
+                'continuous_driving_seconds' => $continuousDrivingSeconds,
                 'idle_minutes' => $idleMinutes,
-
-                /*
-                | Detailed explanation of the score
-                */
                 'score_breakdown' => $scoreBreakdown,
-
                 'grade' => $this->grade($score),
             ]
         );
     }
 
-    protected function weightedAverage(
-        $trips,
-        string $scoreColumn,
-        float $totalDistance
-    ): float {
-        /*
-        * Prefer distance-weighted scoring when there is
-        * meaningful distance data.
-        */
+    protected function weightedAverage($trips, string $scoreColumn, float $totalDistance): float
+    {
         if ($totalDistance > 0) {
-
-            $weightedTotal = $trips->sum(
-                function ($trip) use ($scoreColumn) {
-
-                    $score = $trip->{$scoreColumn};
-
-                    if ($score === null) {
-                        return 0;
-                    }
-
-                    return
-                        (float) $score
-                        *
-                        (float) ($trip->distance_km ?? 0);
+            $weightedTotal = $trips->sum(function ($trip) use ($scoreColumn) {
+                $score = $trip->{$scoreColumn};
+                if ($score === null) {
+                    return 0;
                 }
-            );
+
+                return (float) $score * (float) ($trip->distance_km ?? 0);
+            });
 
             $distanceForScoredTrips = $trips
-                ->filter(
-                    fn ($trip) =>
-                        $trip->{$scoreColumn} !== null
-                )
-                ->sum(
-                    fn ($trip) =>
-                        (float) ($trip->distance_km ?? 0)
-                );
+                ->filter(fn ($trip) => $trip->{$scoreColumn} !== null)
+                ->sum(fn ($trip) => (float) ($trip->distance_km ?? 0));
 
             if ($distanceForScoredTrips > 0) {
-                return round(
-                    $weightedTotal / $distanceForScoredTrips,
-                    2
-                );
+                return round($weightedTotal / $distanceForScoredTrips, 2);
             }
         }
 
-        /*
-        * Fallback for trips with no distance.
-        */
         $scores = $trips
             ->pluck($scoreColumn)
             ->filter(fn ($score) => $score !== null);
 
         if ($scores->isEmpty()) {
-            return 100;
+            return 100.0;
         }
 
-        return round(
-            $scores->avg(),
-            2
-        );
+        return round((float) $scores->avg(), 2);
     }
 
     protected function grade(float $score): string

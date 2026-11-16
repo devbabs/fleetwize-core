@@ -61,7 +61,7 @@ class SyncVehicleRoutes extends Command
         }
     }
 
-    protected function syncTrip(Vehicle $vehicle, VehicleTrip $trip, TraccarService $traccar): void 
+    protected function syncTrip(Vehicle $vehicle, VehicleTrip $trip, TraccarService $traccar): void
     {
         $positions = $traccar->routeReport(
             $vehicle->traccar_device_id,
@@ -70,6 +70,23 @@ class SyncVehicleRoutes extends Command
         );
 
         foreach ($positions as $position) {
+            $obdSpeedRaw = data_get($position, 'attributes.obdSpeed')
+                ?? data_get($position, 'attributes.io81');
+
+            $gpsSpeedKmh = isset($position['speed'])
+                ? $this->knotsToKmPerHour((float) $position['speed'])
+                : null;
+
+            // Guard against GPS drift spikes when fix is invalid or satellites < 4
+            if (data_get($position, 'valid') === false || (int) data_get($position, 'attributes.sat', 0) < 4) {
+                $gpsSpeedKmh = 0.0;
+            }
+
+            $rawPrimaryOdometer = data_get($position, 'attributes.io87')
+                ?? data_get($position, 'attributes.odometer');
+
+            $rawObdOdometer = data_get($position, 'attributes.obdOdometer')
+                ?? data_get($position, 'attributes.io87');
 
             VehicleRoutePoint::updateOrCreate(
                 [
@@ -82,64 +99,64 @@ class SyncVehicleRoutes extends Command
 
                     'latitude' => $position['latitude'] ?? null,
                     'longitude' => $position['longitude'] ?? null,
-
                     'altitude' => $position['altitude'] ?? null,
                     'accuracy' => $position['accuracy'] ?? null,
                     'valid' => $position['valid'] ?? null,
-
                     'course' => $position['course'] ?? null,
 
-                    'speed_kmh' => $this->knotsToKmPerHour($position['speed'] ?? null),
+                    'speed_kmh' => $gpsSpeedKmh,
+                    // OBD / CAN wheel speed (already in km/h, do not multiply by 1.852)
+                    'obd_speed_kmh' => $obdSpeedRaw !== null ? round((float) $obdSpeedRaw, 1) : null,
 
-                    'obd_speed_kmh' => $this->knotsToKmPerHour(data_get($position, 'attributes.obdSpeed')),
+                    'ignition' => data_get($position, 'attributes.ignition')
+                        ?? (data_get($position, 'attributes.io1') !== null ? (bool) data_get($position, 'attributes.io1') : null),
+                    'motion' => data_get($position, 'attributes.motion'),
+                    'blocked' => data_get($position, 'attributes.blocked'),
+                    'charge' => data_get($position, 'attributes.charge'),
 
-                    'ignition' => data_get($position,'attributes.ignition'),
-
-                    'motion' => data_get($position,'attributes.motion'),
-
-                    'blocked' => data_get($position,'attributes.blocked'),
-
-                    'charge' => data_get($position,'attributes.charge'),
-
-                    'odometer' => $this->metersToKilometers(data_get($position, 'attributes.odometer')),
-
-                    'obd_odometer' => $this->metersToKilometers(data_get($position, 'attributes.obdOdometer')),
-
+                    'odometer' => $this->metersToKilometers($rawPrimaryOdometer !== null ? (float) $rawPrimaryOdometer : null),
+                    'obd_odometer' => $this->metersToKilometers($rawObdOdometer !== null ? (float) $rawObdOdometer : null),
                     'distance' => $this->metersToKilometers(data_get($position, 'attributes.distance')),
-
                     'total_distance' => $this->metersToKilometers(data_get($position, 'attributes.totalDistance')),
 
-                    'fuel' => data_get($position,'attributes.fuel'),
+                    // JT808 'fuel' or Teltonika CAN 'io84' (0.1 L multiplier)
+                    'fuel' => data_get($position, 'attributes.fuel')
+                        ?? (data_get($position, 'attributes.io84') !== null ? round(((float) data_get($position, 'attributes.io84')) * 0.1, 1) : null),
 
-                    'fuel_consumption' => data_get($position,'attributes.fuelConsumption'),
+                    // JT808 'fuelConsumption' or Teltonika CAN 'io107' (0.1 L multiplier)
+                    'fuel_consumption' => data_get($position, 'attributes.fuelConsumption')
+                        ?? (data_get($position, 'attributes.io107') !== null ? round(((float) data_get($position, 'attributes.io107')) * 0.1, 1) : null),
 
-                    'rpm' => data_get($position,'attributes.rpm'),
+                    // JT808 'rpm' or Teltonika CAN 'io85'
+                    'rpm' => data_get($position, 'attributes.rpm')
+                        ?? data_get($position, 'attributes.io85'),
 
-                    'engine_load' => data_get($position,'attributes.engineLoad'),
+                    // JT808 'engineLoad' or Teltonika CAN 'io82' (throttle position %)
+                    'engine_load' => data_get($position, 'attributes.engineLoad')
+                        ?? data_get($position, 'attributes.io82'),
 
-                    'power' => data_get($position,'attributes.power'),
+                    'power' => data_get($position, 'attributes.power'),
+                    'battery' => data_get($position, 'attributes.battery'),
+                    'battery_level' => data_get($position, 'attributes.batteryLevel'),
+                    'sat' => data_get($position, 'attributes.sat'),
+                    'rssi' => data_get($position, 'attributes.rssi'),
+                    'hours' => data_get($position, 'attributes.hours')
+                        ?? (data_get($position, 'attributes.io103') !== null ? ((int) data_get($position, 'attributes.io103')) * 60000 : null),
 
-                    'battery' => data_get($position,'attributes.battery'),
-
-                    'battery_level' => data_get($position,'attributes.batteryLevel'),
-
-                    'sat' => data_get($position,'attributes.sat'),
-
-                    'rssi' => data_get($position,'attributes.rssi'),
-
-                    'hours' => data_get($position,'attributes.hours'),
-
-                    'hard_acceleration_count' => data_get($position,'attributes.hardAccelerationCount'),
-
-                    'hard_deceleration_count' => data_get($position,'attributes.hardDecelerationCount'),
-
-                    'hard_cornering_count' => data_get($position,'attributes.hardCorneringCount'),
+                    'hard_acceleration_count' => data_get($position, 'attributes.hardAccelerationCount'),
+                    'hard_deceleration_count' => data_get($position, 'attributes.hardDecelerationCount'),
+                    'hard_cornering_count' => data_get($position, 'attributes.hardCorneringCount'),
 
                     'fix_time' => $position['fixTime'] ?? null,
                     'device_time' => $position['deviceTime'] ?? null,
                     'server_time' => $position['serverTime'] ?? null,
 
                     'raw_payload' => $position,
+
+                    'fuel_level_percent' => data_get($position, 'attributes.io89'),
+                    'coolant_temp' => data_get($position, 'attributes.coolantTemp')
+                        ?? (data_get($position, 'attributes.io115') !== null ? round(((float) data_get($position, 'attributes.io115')) * 0.1, 1) : null),
+                    'green_driving_event' => data_get($position, 'attributes.io253'),
                 ]
             );
         }
