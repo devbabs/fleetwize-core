@@ -81,10 +81,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(CheckMaintenanceSchedules::class)
             ->everyFifteenMinutes();
 
-        $schedule->command(SendTrackerCommand::class)
-            ->hourly()
-            ->withoutOverlapping()
-            ->runInBackground();
+        // $schedule->command(SendTrackerCommand::class)
+        //     ->hourly()
+        //     ->withoutOverlapping()
+        //     ->runInBackground();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

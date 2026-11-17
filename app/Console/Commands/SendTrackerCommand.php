@@ -12,11 +12,10 @@ class SendTrackerCommand extends Command
 {
     protected $signature = 'tracker:send-command
                             {vehicle_id : The Fleetwize vehicle ID (e.g. 17)}
-                            {command : The command string (e.g. "getver" or "setparam 11000:1")}
+                            {payload : The command string (e.g. "getver" or "setparam 11000:1")}
                             {--type=custom : Traccar command type (custom, engineStop, engineResume)}';
 
     protected $description = 'Send a GPRS command over TCP to a vehicle tracker via TraccarService';
-
 
     public function handle(TraccarService $traccar): int
     {
@@ -30,7 +29,7 @@ class SendTrackerCommand extends Command
 
         $response = $traccar->sendCommand(
             (int) $vehicle->traccar_device_id,
-            (string) $this->argument('command'),
+            (string) $this->argument('payload'),
             (string) $this->option('type')
         );
 
