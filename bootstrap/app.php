@@ -82,7 +82,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyFifteenMinutes();
 
         $schedule->command(SendTrackerCommand::class)
-            ->everyHour()
+            ->hourly()
             ->withoutOverlapping()
             ->runInBackground();
     })
