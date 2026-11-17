@@ -37,6 +37,7 @@
             }
 
             $this->linkDeviceIfNeeded($traccar);
+            $this->provisionTeltonikaIfNeeded($traccar);
 
             $vehicle = Vehicle::query()->where('obd_device_imei', $imei)->first();
 
@@ -103,6 +104,42 @@
                 Cache::forever($cacheKey, true);
             } catch (Throwable $e) {
                 Log::warning("Failed to auto-link Traccar device {$deviceId} to owner user.", ['error' => $e->getMessage()]);
+            }
+        }
+
+        /**
+     * Automatically push Green Driving (io253), OBD/CAN Fault Code reading (io30/io281),
+     * Unplug Detection (io252), and Excessive Idling (io251) parameters once per
+     * Teltonika tracker so new installs don't require manual curl/SMS setup.
+     */
+        protected function provisionTeltonikaIfNeeded(TraccarService $traccar): void
+        {
+            $deviceId = $this->device['id'] ?? null;
+            $protocol = $this->position['protocol'] ?? null;
+
+            if (! $deviceId || $protocol !== 'teltonika') {
+                return;
+            }
+
+            $cacheKey = "traccar-teltonika-provisioned:{$deviceId}";
+
+            if (Cache::has($cacheKey)) {
+                return;
+            }
+
+            try {
+                $traccar->sendCommand(
+                    (int) $deviceId,
+                    'setparam 11000:1;11004:25;11005:28;11006:30;11007:0;40100:1;40430:1;11500:2;11200:1',
+                    'custom'
+                );
+
+                Cache::forever($cacheKey, true);
+                Log::info("Auto-provisioned Teltonika device {$deviceId} over TCP.");
+            } catch (Throwable $e) {
+                Log::warning("Failed to auto-provision Teltonika device {$deviceId}.", [
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
     }

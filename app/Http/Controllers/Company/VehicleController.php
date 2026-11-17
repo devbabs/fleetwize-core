@@ -546,4 +546,70 @@ class VehicleController extends Controller
             'traccar_device_id' => $device['id'],
         ]);
     }
+
+    public function sendCommand(Request $request, string $company_slug, Vehicle $vehicle, TraccarService $traccar)
+    {
+        $company = $this->currentCompany($request);
+        abort_unless($vehicle->company_id === $company->id, 404);
+
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'in:immobilize,restore,scan_dtc,provision_teltonika,custom'],
+            'custom_command' => ['nullable', 'required_if:action,custom', 'string', 'max:255'],
+        ]);
+
+        if (! $vehicle->traccar_device_id) {
+            return back()->with('error', 'This vehicle does not have a linked Traccar device ID yet.');
+        }
+
+        $protocol = $vehicle->trackerState?->protocol ?? 'teltonika';
+        $deviceId = (int) $vehicle->traccar_device_id;
+
+        // Map high-level fleet action to protocol-specific command
+        [$type, $commandData] = match ($validated['action']) {
+            // Teltonika triggers DOUT1 immobilizer relay via "setdigout 1" / "setdigout 0"
+            // JT808 / VD40 uses Traccar's native engineStop / engineResume command type
+            'immobilize' => $protocol === 'teltonika'
+                ? ['custom', 'setdigout 1']
+                : ['engineStop', ''],
+
+            'restore' => $protocol === 'teltonika'
+                ? ['custom', 'setdigout 0']
+                : ['engineResume', ''],
+
+            'scan_dtc' => $protocol === 'teltonika'
+                ? ['custom', 'readio 30']
+                : ['custom', 'OBD,DTC'],
+
+            'provision_teltonika' => [
+                'custom',
+                'setparam 11000:1;11004:25;11005:28;11006:30;11007:0;40100:1;40430:1;11500:2;11200:1',
+            ],
+
+            'custom' => ['custom', trim((string) $validated['custom_command'])],
+        };
+
+        $traccar->sendCommand($deviceId, $commandData, $type);
+
+        // Update local blocked state immediately if immobilizing/restoring
+        if ($validated['action'] === 'immobilize' && $vehicle->trackerState) {
+            $vehicle->trackerState->update(['is_blocked' => true]);
+        } elseif ($validated['action'] === 'restore' && $vehicle->trackerState) {
+            $vehicle->trackerState->update(['is_blocked' => false]);
+        }
+
+        // FRD VC-02 & RBAC-03: Log command with timestamp, issuing user, and vehicle ID
+        Log::info('Vehicle remote command dispatched', [
+            'company_id' => $company->id,
+            'vehicle_id' => $vehicle->id,
+            'traccar_device_id' => $deviceId,
+            'user_id' => $request->user()?->id,
+            'user_email' => $request->user()?->email,
+            'action' => $validated['action'],
+            'type' => $type,
+            'command' => $commandData,
+            'ip' => $request->ip(),
+        ]);
+
+        return back()->with('success', 'Command sent to vehicle tracker.');
+    }
 }

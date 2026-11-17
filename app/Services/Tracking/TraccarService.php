@@ -278,4 +278,22 @@ class TraccarService
             ->throw()
             ->json();
     }
+
+    public function sendCommand(int $deviceId, string $commandData = '', string $type = 'custom'): array
+    {
+        $payload = [
+            'deviceId' => $deviceId,
+            'type' => $type,
+            'textChannel' => false,
+        ];
+
+        if ($type === 'custom') {
+            $payload['attributes'] = ['data' => $commandData];
+        }
+
+        return $this->client()
+            ->post('/api/commands/send', $payload)
+            ->throw()
+            ->json() ?? [];
+    }
 }

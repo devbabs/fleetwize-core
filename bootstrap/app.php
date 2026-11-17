@@ -3,6 +3,7 @@
 use App\Console\Commands\AggregateDriverScores;
 use App\Console\Commands\CalculateTripScores;
 use App\Console\Commands\CheckMaintenanceSchedules;
+use App\Console\Commands\SendTrackerCommand;
 use App\Console\Commands\SyncVehicleEvents;
 use App\Console\Commands\SyncVehicleRoutes;
 use App\Console\Commands\SyncVehicleTrips;
@@ -79,6 +80,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $schedule->command(CheckMaintenanceSchedules::class)
             ->everyFifteenMinutes();
+
+        $schedule->command(SendTrackerCommand::class)
+            ->everyHour()
+            ->withoutOverlapping()
+            ->runInBackground();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

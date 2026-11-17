@@ -345,6 +345,14 @@ const eventTypeLabels: Record<string, string> = {
     maintenance: 'Maintenance',
 };
 
+// const sendTrackerCommand = (action: 'immobilize' | 'restore' | 'scan_dtc') => {
+//     router.post(
+//         `/vehicles/${vehicle.id}/command`,
+//         { action },
+//         { preserveScroll: true }
+//     );
+// };
+
 export default function VehicleShow({ vehicle: initialVehicle, documentOptions = [], }: { vehicle: VehicleDetail; documentOptions?: DocumentOption[];}) {
     const [tab, setTab] = useState<Tab>('Overview');
     const [vehicle, setVehicle] = useState(initialVehicle);
