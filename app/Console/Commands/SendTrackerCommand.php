@@ -8,8 +8,6 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('app:send-tracker-command')]
-#[Description('Command description')]
 class SendTrackerCommand extends Command
 {
     protected $signature = 'tracker:send-command
