@@ -409,7 +409,7 @@ class VehicleController extends Controller
                     'durationSeconds' => $trip->duration_seconds,
                     'distanceKm' => $trip->distance_km,
                     'averageSpeed' => $trip->average_speed_km_per_hr,
-                    'maxSpeed' => $trip->max_speed_km_per_hr,
+                    'maxSpeed' => $trip->max_speed,
                     'fuelConsumed' => $trip->fuel_consumed,
                     'startOdometer' => $trip->start_odometer,
                     'endOdometer' => $trip->end_odometer,
