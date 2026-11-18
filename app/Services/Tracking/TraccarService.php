@@ -280,8 +280,8 @@ class TraccarService
 
     public function routeReport(
         int $deviceId,
-        Carbon $from,
-        Carbon $to
+        CarbonInterface $from,
+        CarbonInterface $to
     ): array {
         return $this->client()
             ->get('/api/reports/route', [
