@@ -74,15 +74,42 @@ class TraccarService
             return null;
         }
 
-        $position = $this->latestPosition($device['id']);
+        $position = $this->latestPosition((int) $device['id']);
 
         if (! $position) {
             return null;
         }
 
+        $existingState = $vehicle->trackerState()->first();
+        $normalized = TraccarPayloadNormalizer::normalize($position, $device);
+
+        if ($existingState) {
+            $stickyColumns = [
+                'ignition_on',
+                'odometer',
+                'obd_odometer',
+                'total_distance',
+                'fuel_level',
+                'fuel_level_percent',
+                'fuel_consumed',
+                'engine_hours',
+                'battery_voltage',
+                'tracker_battery_voltage',
+                'coolant_temp',
+                'satellite_count',
+                'signal_strength',
+            ];
+
+            foreach ($stickyColumns as $column) {
+                if (($normalized[$column] ?? null) === null && $existingState->{$column} !== null) {
+                    $normalized[$column] = $existingState->{$column};
+                }
+            }
+        }
+
         return VehicleTrackerState::query()->updateOrCreate(
             ['vehicle_id' => $vehicle->id],
-            TraccarPayloadNormalizer::normalize($position, $device),
+            $normalized,
         );
     }
 

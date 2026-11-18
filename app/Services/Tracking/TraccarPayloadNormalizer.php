@@ -39,6 +39,12 @@ public static function normalize(array $position, array $device): array
 
         $rawMotion = $attributes['motion'] ?? null;
 
+        // If a heartbeat or commandResult packet reports motion=false and speed=0 without an ignition key,
+        // treat ignition as false (engine off) rather than null.
+        if ($rawIgnition === null && $rawMotion === false && ($speedKmh === null || $speedKmh < 1.0)) {
+            $rawIgnition = false;
+        }
+
         // Guard against constant-12V DIN1 miswiring on 12V vehicles:
         // If GPS speed is 0, CAN speed is 0, distance is 0, and external battery voltage
         // is resting (< 13.0V, meaning alternator is OFF), the engine is physically OFF.
