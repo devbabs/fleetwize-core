@@ -15,7 +15,7 @@ class TraccarPayloadNormalizer
      * @param  array<string, mixed>  $device
      * @return array<string, mixed>
      */
-    public static function normalize(array $position, array $device): array
+public static function normalize(array $position, array $device): array
     {
         $attributes = $position['attributes'] ?? [];
 
@@ -30,12 +30,51 @@ class TraccarPayloadNormalizer
             ?? $attributes['io87']
             ?? null;
 
+        $speedKmh = isset($position['speed']) ? round($position['speed'] * 1.852, 2) : null; // knots -> km/h
+        $obdSpeedKmh = $attributes['obdSpeed'] ?? $attributes['io81'] ?? null;
+        $powerVoltage = isset($attributes['power']) ? (float) $attributes['power'] : null;
+
+        $rawIgnition = $attributes['ignition']
+            ?? (isset($attributes['io1']) ? (bool) $attributes['io1'] : null);
+
+        $rawMotion = $attributes['motion'] ?? null;
+
+        // Guard against constant-12V DIN1 miswiring on 12V vehicles:
+        // If GPS speed is 0, CAN speed is 0, distance is 0, and external battery voltage
+        // is resting (< 13.0V, meaning alternator is OFF), the engine is physically OFF.
+        if (
+            $rawIgnition === true
+            && ($speedKmh === null || $speedKmh < 1.0)
+            && ($obdSpeedKmh === null || (float) $obdSpeedKmh < 1.0)
+            && $powerVoltage !== null
+            && $powerVoltage > 8.0
+            && $powerVoltage < 13.0
+            && ((float) ($attributes['distance'] ?? 0)) === 0.0
+        ) {
+            $rawIgnition = false;
+            $rawMotion = false;
+        }
+
+        // When ignition is OFF and speed is 0, force motion to false and zero out
+        // stale CAN bus RPM / load registers cached by the FMC150 after engine shutoff.
+        if ($rawIgnition === false && ($speedKmh === null || $speedKmh < 1.0)) {
+            $rawMotion = false;
+        }
+
+        $engineRpm = $rawIgnition === false
+            ? 0
+            : ($attributes['rpm'] ?? $attributes['io85'] ?? null);
+
+        $engineLoad = $rawIgnition === false
+            ? 0.0
+            : ($attributes['engineLoad'] ?? $attributes['io82'] ?? null);
+
         return [
             'latitude' => $position['latitude'] ?? null,
             'longitude' => $position['longitude'] ?? null,
-            'speed' => isset($position['speed']) ? round($position['speed'] * 1.852, 2) : null, // knots -> km/h
+            'speed' => $speedKmh,
             'heading' => $position['course'] ?? null,
-            'ignition_on' => $attributes['ignition'] ?? (isset($attributes['io1']) ? (bool) $attributes['io1'] : null),
+            'ignition_on' => $rawIgnition,
 
             // External vehicle battery / alternator voltage (Teltonika 'power' or AVL ID 66 in mV)
             'battery_voltage' => isset($attributes['power'])
@@ -66,20 +105,20 @@ class TraccarPayloadNormalizer
             'reported_at' => $position['fixTime'] ?? null,
             'raw_payload' => ['position' => $position, 'device' => $device],
 
-            // Engine RPM: JT808 'rpm' or Teltonika CAN 'io85'
-            'engine_rpm' => $attributes['rpm'] ?? $attributes['io85'] ?? null,
+            // Engine RPM: JT808 'rpm' or Teltonika CAN 'io85' (0 when ignition is off)
+            'engine_rpm' => $engineRpm,
 
-            // Engine / Throttle Load (%): JT808 'engineLoad' or Teltonika CAN 'io82'
-            'engine_load' => $attributes['engineLoad'] ?? $attributes['io82'] ?? null,
+            // Engine / Throttle Load (%): JT808 'engineLoad' or Teltonika CAN 'io82' (0 when ignition is off)
+            'engine_load' => $engineLoad,
 
             // Engine Coolant Temperature (°C): JT808 'coolantTemp' or Teltonika CAN 'io115' (0.1 °C multiplier: 860 -> 86.0 °C)
             'coolant_temp' => $attributes['coolantTemp']
                 ?? (isset($attributes['io115']) ? round(((float) $attributes['io115']) * 0.1, 1) : null),
 
             // Wheel / OBD Speed (km/h): JT808 'obdSpeed' or Teltonika CAN 'io81'
-            'obd_speed' => $attributes['obdSpeed'] ?? $attributes['io81'] ?? null,
+            'obd_speed' => $obdSpeedKmh,
 
-            'is_moving' => $attributes['motion'] ?? null,
+            'is_moving' => $rawMotion,
             'battery_level' => $attributes['batteryLevel'] ?? null,
             'satellite_count' => $attributes['sat'] ?? null,
             'signal_strength' => $attributes['rssi'] ?? null,
