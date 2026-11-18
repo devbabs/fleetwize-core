@@ -239,13 +239,48 @@ public static function normalize(array $position, array $device): array
     public static function normalizeEvent(array $event, array $device): array
     {
         $attributes = $event['attributes'] ?? [];
-        $type = $event['type'] ?? null;
+        $type = $event['type'] ?? 'unknown';
+        $alarmSubType = $attributes['alarm'] ?? null;
+
+        // If type is generic "alarm", promote the specific alarm subtype (e.g. "vibration", "hardBraking", "powerCut")
+        $effectiveType = ($type === 'alarm' && is_string($alarmSubType) && $alarmSubType !== '')
+            ? $alarmSubType
+            : $type;
+
+        $description = match ($effectiveType) {
+            'vibration' => 'Security Alert: Physical vibration or impact detected while parked',
+            'movement' => 'Security Alert: Unauthorized vehicle movement / towing detected while ignition is off',
+            'powerCut', 'powerOff' => 'Critical: Main vehicle battery disconnected or tracker unplugged',
+            'powerOn', 'powerRestored' => 'Main vehicle battery power restored',
+            'lowBattery' => 'Warning: Low battery voltage detected',
+            'lowPower' => 'Warning: External vehicle battery voltage dropped below threshold',
+            'deviceOverspeed', 'overspeed' => isset($attributes['speed'])
+                ? 'Speeding Violation: Vehicle exceeded speed limit (' . round(((float) $attributes['speed']) * 1.852) . ' km/h)'
+                : 'Speeding Violation: Vehicle exceeded configured speed limit',
+            'hardAcceleration' => 'Driver Behavior: Harsh acceleration detected',
+            'hardBraking', 'hardDeceleration' => 'Driver Behavior: Harsh braking detected',
+            'hardCornering' => 'Driver Behavior: Harsh cornering / sharp turn at speed detected',
+            'fatigueDriving' => 'Driver Behavior: Continuous driving exceeded 4.5-hour fatigue threshold',
+            'idle' => 'Eco Alert: Excessive stationary engine idling detected',
+            'accident', 'crash' => 'Critical: High-G impact / possible collision detected',
+            'fault' => 'OBD-II / CAN Engine Fault Code: ' . ($attributes['dtcs'] ?? $attributes['faultCodes'] ?? 'Active ECU fault'),
+            'ignitionOn' => 'Vehicle ignition switched ON',
+            'ignitionOff' => 'Vehicle ignition switched OFF',
+            'deviceMoving' => 'Vehicle started moving',
+            'deviceStopped' => 'Vehicle came to a stop',
+            'deviceOnline' => 'Tracker connected to network',
+            'deviceOffline' => 'Tracker went offline',
+            'geofenceEnter' => 'Entered designated geofence boundary',
+            'geofenceExit' => 'Exited designated geofence boundary',
+            'commandResult' => 'Tracker Command Response: ' . ($attributes['result'] ?? 'Executed'),
+            default => $attributes['result'] ?? $alarmSubType ?? $type,
+        };
 
         return [
             'obd_device_id' => isset($device['id']) ? (string) $device['id'] : null,
             'alarm_id' => isset($event['id']) ? (string) $event['id'] : null,
-            'alarm_type' => $type,
-            'alarm_description' => $attributes['alarm'] ?? $type,
+            'alarm_type' => $effectiveType,
+            'alarm_description' => $description,
             'gps_time' => $event['eventTime'] ?? null,
         ];
     }

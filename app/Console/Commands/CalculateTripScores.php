@@ -351,6 +351,48 @@ class CalculateTripScores extends Command
             ?? $trip->vehicle?->driver_id
             ?? $trip->vehicle?->company_user_id;
 
+        // Extract Teltonika CAN start/end odometer (io87) and exact fuel burned (io107) across the trip
+        $firstPoint = $points->first();
+        $lastPoint = $points->last();
+
+        $startCanOdo = $firstPoint->obd_odometer
+            ?? (isset($firstPoint->raw_payload['attributes']['io87'])
+                ? round(((float) $firstPoint->raw_payload['attributes']['io87']) / 1000.0, 1)
+                : null);
+
+        $endCanOdo = $lastPoint->obd_odometer
+            ?? (isset($lastPoint->raw_payload['attributes']['io87'])
+                ? round(((float) $lastPoint->raw_payload['attributes']['io87']) / 1000.0, 1)
+                : null);
+
+        $startFuelConsumed = $firstPoint->fuel_consumption
+            ?? (isset($firstPoint->raw_payload['attributes']['io107'])
+                ? round(((float) $firstPoint->raw_payload['attributes']['io107']) * 0.1, 1)
+                : null);
+
+        $endFuelConsumed = $lastPoint->fuel_consumption
+            ?? (isset($lastPoint->raw_payload['attributes']['io107'])
+                ? round(((float) $lastPoint->raw_payload['attributes']['io107']) * 0.1, 1)
+                : null);
+
+        $tripFuelBurned = ($startFuelConsumed !== null && $endFuelConsumed !== null && $endFuelConsumed >= $startFuelConsumed)
+            ? round($endFuelConsumed - $startFuelConsumed, 2)
+            : $trip->fuel_consumed;
+
+        // If CAN start & end odometer are valid, compute exact CAN trip distance as fallback/refinement
+        $canTripDistanceKm = ($startCanOdo !== null && $endCanOdo !== null && $endCanOdo >= $startCanOdo)
+            ? round($endCanOdo - $startCanOdo, 2)
+            : null;
+
+        $effectiveDistanceKm = ($trip->distance_km !== null && $trip->distance_km > 0)
+            ? (float) $trip->distance_km
+            : ($canTripDistanceKm ?? 0.0);
+
+        // Ensure trip is linked to the vehicle's assigned driver if not already set
+        $driverId = $trip->company_user_id
+            ?? $trip->vehicle?->driver_id
+            ?? $trip->vehicle?->company_user_id;
+
         $trip->update([
             'company_user_id' => $driverId,
             'score' => $score,
@@ -379,8 +421,14 @@ class CalculateTripScores extends Command
             'continuous_driving_seconds' => $maxContinuousDrivingSeconds,
             'idle_minutes' => $idleMinutes,
 
+            // CAN Odometer & Fuel Consumed (from $startCanOdo, $endCanOdo, $tripFuelBurned)
+            'start_odometer' => $startCanOdo ?? $trip->start_odometer,
+            'end_odometer' => $endCanOdo ?? $trip->end_odometer,
+            'fuel_consumed' => $tripFuelBurned,
+
             // Trip summary metrics
-            'trip_distance_km' => $trip->distance_km,
+            'distance_km' => $effectiveDistanceKm,
+            'trip_distance_km' => $effectiveDistanceKm,
             'trip_duration_seconds' => $trip->duration_seconds,
             'average_speed' => $trip->average_speed_km_per_hr,
             'max_speed' => $trip->max_speed_km_per_hr,

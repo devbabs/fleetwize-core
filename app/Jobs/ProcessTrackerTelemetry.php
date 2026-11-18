@@ -39,7 +39,10 @@
             $this->linkDeviceIfNeeded($traccar);
             $this->provisionTeltonikaIfNeeded($traccar);
 
-            $vehicle = Vehicle::query()->where('obd_device_imei', $imei)->first();
+            $vehicle = Vehicle::query()
+                ->with('trackerState')
+                ->where('obd_device_imei', $imei)
+                ->first();
 
             if (! $vehicle) {
                 Log::warning("Tracker telemetry received for an IMEI with no matching vehicle: {$imei}");
@@ -47,24 +50,46 @@
                 return;
             }
 
-            // --- REPLACE STARTS HERE ---
-            // 1. Fetch current stored odometer to protect against sentinels / drops
-            $lastKnownKm = $vehicle->trackerState?->odometer;
+            $existingState = $vehicle->trackerState;
 
-            // 2. Normalize incoming telemetry (converts meters -> km, knots -> km/h, etc.)
+            // 1. Normalize incoming telemetry (converts meters -> km, knots -> km/h, Teltonika io* -> columns)
             $normalized = TraccarPayloadNormalizer::normalize($this->position, $this->device);
 
-            // 3. Fall back to last known reading if raw odometer was invalid, sentinel, or absent
-            if ($normalized['odometer'] === null && $lastKnownKm !== null) {
-                $normalized['odometer'] = $lastKnownKm;
+            // 2. Anti-Flicker Guard: Preserve last known cumulative/sensor readings if a heartbeat packet omits them
+            $stickyColumns = [
+                'odometer',
+                'obd_odometer',
+                'total_distance',
+                'fuel_level',
+                'fuel_level_percent',
+                'fuel_consumed',
+                'engine_hours',
+                'battery_voltage',
+                'tracker_battery_voltage',
+                'coolant_temp',
+            ];
+
+            if ($existingState) {
+                foreach ($stickyColumns as $column) {
+                    if (($normalized[$column] ?? null) === null && $existingState->{$column} !== null) {
+                        // Guard against perpetuating legacy 32-bit sentinel values (>= 1,500,000 km)
+                        if (in_array($column, ['odometer', 'obd_odometer'], true) && $existingState->{$column} >= 1_500_000) {
+                            continue;
+                        }
+
+                        $normalized[$column] = $existingState->{$column};
+                    }
+                }
             }
 
-            // 4. Upsert the state record
+            // 3. Upsert the state record
             $trackerState = VehicleTrackerState::query()->updateOrCreate(
                 ['vehicle_id' => $vehicle->id],
                 $normalized,
             );
-            // --- REPLACE ENDS HERE ---
+
+            // 4. Evaluate Teltonika / OBD diagnostic & Green Driving alerts from position attributes
+            $this->evaluatePositionDiagnostics($vehicle, $trackerState);
 
             try {
                 broadcast(new VehicleTrackerStateUpdated($vehicle, $trackerState));
@@ -130,7 +155,7 @@
             try {
                 $traccar->sendCommand(
                     (int) $deviceId,
-                    'setparam 11000:1;11004:25;11005:28;11006:30;11007:0;40100:1;40430:1;11500:2;11200:1',
+                    'setparam 101:4;104:30000;105:13200;11000:1;11004:25;11005:28;11006:30;11007:0;40100:1;40430:1;11500:2;11200:1',
                     'custom'
                 );
 
@@ -140,6 +165,83 @@
                 Log::warning("Failed to auto-provision Teltonika device {$deviceId}.", [
                     'error' => $e->getMessage(),
                 ]);
+            }
+        }
+
+        protected function evaluatePositionDiagnostics(Vehicle $vehicle, VehicleTrackerState $state): void
+        {
+            $attr = $this->position['attributes'] ?? [];
+            $gpsTime = $this->position['fixTime'] ?? now()->toIso8601String();
+            $deviceId = isset($this->device['id']) ? (string) $this->device['id'] : null;
+
+            // A. Teltonika Green Driving Event (AVL ID 253: 1=Harsh Accel, 2=Harsh Brake, 3=Harsh Cornering)
+            if (isset($attr['io253']) && (int) $attr['io253'] > 0) {
+                [$type, $desc] = match ((int) $attr['io253']) {
+                    1 => ['hardAcceleration', 'Driver Behavior: Harsh acceleration detected (Green Driving)'],
+                    2 => ['hardBraking', 'Driver Behavior: Harsh braking detected (Green Driving)'],
+                    3 => ['hardCornering', 'Driver Behavior: Harsh cornering detected (Green Driving)'],
+                    default => ['greenDriving', 'Driver Behavior: Harsh driving maneuver detected'],
+                };
+
+                VehicleAlarm::firstOrCreate(
+                    [
+                        'vehicle_id' => $vehicle->id,
+                        'alarm_type' => $type,
+                        'gps_time' => $gpsTime,
+                    ],
+                    [
+                        'obd_device_id' => $deviceId,
+                        'alarm_description' => $desc,
+                    ]
+                );
+            }
+
+            // B. Teltonika Unplug / Power Disconnect Detection (AVL ID 252 == 1)
+            if (isset($attr['io252']) && (int) $attr['io252'] === 1) {
+                VehicleAlarm::firstOrCreate(
+                    [
+                        'vehicle_id' => $vehicle->id,
+                        'alarm_type' => 'powerCut',
+                        'gps_time' => $gpsTime,
+                    ],
+                    [
+                        'obd_device_id' => $deviceId,
+                        'alarm_description' => 'Critical: Tracker unplugged or main vehicle power disconnected (running on backup battery)',
+                    ]
+                );
+            }
+
+            // C. Engine Overheating Alert (Coolant Temp >= 105 °C)
+            if ($state->coolant_temp !== null && $state->coolant_temp >= 105.0) {
+                VehicleAlarm::firstOrCreate(
+                    [
+                        'vehicle_id' => $vehicle->id,
+                        'alarm_type' => 'highCoolantTemp',
+                        'gps_time' => $gpsTime,
+                    ],
+                    [
+                        'obd_device_id' => $deviceId,
+                        'alarm_description' => "Critical: Engine overheating detected ({$state->coolant_temp} °C)",
+                    ]
+                );
+            }
+
+            // D. Low Vehicle Battery Alert (< 11.8V) — debounced once per 6 hours per vehicle
+            if ($state->battery_voltage !== null && $state->battery_voltage > 6.0 && $state->battery_voltage < 11.8) {
+                $recentBatteryAlarm = VehicleAlarm::where('vehicle_id', $vehicle->id)
+                    ->where('alarm_type', 'lowBattery')
+                    ->where('created_at', '>=', now()->subHours(6))
+                    ->exists();
+
+                if (! $recentBatteryAlarm) {
+                    VehicleAlarm::create([
+                        'vehicle_id' => $vehicle->id,
+                        'obd_device_id' => $deviceId,
+                        'alarm_type' => 'lowBattery',
+                        'alarm_description' => "Warning: Low vehicle battery voltage ({$state->battery_voltage}V)",
+                        'gps_time' => $gpsTime,
+                    ]);
+                }
             }
         }
     }
