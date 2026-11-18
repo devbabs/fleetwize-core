@@ -487,10 +487,27 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
         });
     };
 
-    const handleCreateSchedule = (e: React.FormEvent) => {
+    const handleCreateSchedule = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        console.log('Maintenance form submitted');
+        console.log('Form data:', scheduleForm.data);
+
         scheduleForm.post(`/vehicles/${vehicle.id}/maintenance-schedules`, {
             preserveScroll: true,
+
+            onSuccess: (page) => {
+                console.log('Schedule saved successfully:', page);
+            },
+
+            onError: (errors) => {
+                console.error('Schedule validation errors:', errors);
+            },
+
+            onFinish: () => {
+                console.log('Request finished');
+                console.log('Processing:', scheduleForm.processing);
+            },
         });
     };
 
@@ -1376,6 +1393,15 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                     </Button>
                                 </div>
                             </form>
+                            {Object.keys(scheduleForm.errors).length > 0 && (
+                                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                                    {Object.entries(scheduleForm.errors).map(([field, message]) => (
+                                        <p key={field}>
+                                            {field}: {message}
+                                        </p>
+                                    ))}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 

@@ -346,6 +346,13 @@ class VehicleController extends Controller
             ])
             ->findOrFail((string) $request->route('vehicle'));
 
+            Log::info('Fleetwize Vehicle Fuel Consumption - Tracker State', [
+                'vehicle_id' => $model->id,
+                'vehicle_name' => $model->name,
+                'tracker_imei' => $model->obd_device_imei,
+                'fuel_consumed' => $model->trackerState?->fuel_consumed,
+            ]);
+
         return Inertia::render('company/vehicles/show', [
             'vehicle' => [
                 'id' => $model->id,
@@ -402,28 +409,40 @@ class VehicleController extends Controller
                     'dtcCodes' => $model->trackerState->dtc_codes,
                     'status' => $model->trackerState->status(),
                 ] : null,
-                'trips' => $model->trips->map(fn ($trip) => [
-                    'id' => $trip->id,
-                    'startTime' => $trip->start_time?->toIso8601String(),
-                    'endTime' => $trip->end_time?->toIso8601String(),
-                    'durationSeconds' => $trip->duration_seconds,
-                    'distanceKm' => $trip->distance_km,
-                    'averageSpeed' => $trip->average_speed_km_per_hr,
-                    'maxSpeed' => $trip->max_speed,
-                    'fuelConsumed' => $trip->fuel_consumed,
-                    'startOdometer' => $trip->start_odometer,
-                    'endOdometer' => $trip->end_odometer,
-                    'startPositionId' => $trip->start_position_id,
-                    'endPositionId' => $trip->end_position_id,
-                    'startLatitude' => $trip->start_latitude,
-                    'startLongitude' => $trip->start_longitude,
-                    'endLatitude' => $trip->end_latitude,
-                    'endLongitude' => $trip->end_longitude,
-                    'startAddress' => $trip->start_address,
-                    'endAddress' => $trip->end_address,
-                    'driverUniqueId' => $trip->driver_unique_id,
-                    'driverName' => $trip->driver_name,
-                ]),
+                'trips' => $model->trips->map(function ($trip) {
+
+                    Log::info('Fleetwize Vehicle Fuel Consumption - Trip', [
+                        'trip_id' => $trip->id,
+                        'vehicle_id' => $trip->vehicle_id,
+                        'start_time' => $trip->start_time,
+                        'end_time' => $trip->end_time,
+                        'fuel_consumed' => $trip->fuel_consumed,
+                    ]);
+
+                    return [
+                        'id' => $trip->id,
+                        'startTime' => $trip->start_time?->toIso8601String(),
+                        'endTime' => $trip->end_time?->toIso8601String(),
+                        'durationSeconds' => $trip->duration_seconds,
+                        'distanceKm' => $trip->distance_km,
+                        'averageSpeed' => $trip->average_speed_km_per_hr,
+                        'maxSpeed' => $trip->max_speed,
+                        'fuelConsumed' => $trip->fuel_consumed,
+                        'startOdometer' => $trip->start_odometer,
+                        'endOdometer' => $trip->end_odometer,
+                        'startPositionId' => $trip->start_position_id,
+                        'endPositionId' => $trip->end_position_id,
+                        'startLatitude' => $trip->start_latitude,
+                        'startLongitude' => $trip->start_longitude,
+                        'endLatitude' => $trip->end_latitude,
+                        'endLongitude' => $trip->end_longitude,
+                        'startAddress' => $trip->start_address,
+                        'endAddress' => $trip->end_address,
+                        'driverUniqueId' => $trip->driver_unique_id,
+                        'driverName' => $trip->driver_name,
+                    ];
+                }),
+
                 'faults' => $model->faults->map(fn ($fault) => [
                     'id' => $fault->id,
                     'code' => $fault->obd_code,

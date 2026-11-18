@@ -423,7 +423,7 @@ return;
                                     <td className="px-6 py-3 text-muted-foreground capitalize">{vehicle.category}</td>
                                     <td className="px-6 py-3">{statusBadge(vehicle)}</td>
                                     <td className="px-6 py-3 text-muted-foreground">
-                                        {vehicle.fuelLevel !== null ? `${Math.round(vehicle.fuelLevel)}%` : '—'}
+                                        {vehicle.fuelLevel !== null ? `${Math.round(vehicle.fuelLevel)}L` : '—'}
                                     </td>
                                     <td className="px-6 py-3 text-muted-foreground">{Math.round(vehicle.mileage).toLocaleString()} km</td>
                                     <td className="px-6 py-3">
