@@ -11,6 +11,7 @@ use App\Services\SystemLogService;
 use App\Services\Tracking\TraccarService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -52,6 +53,40 @@ class VehicleController extends Controller
             $vehicle,
             $traccar
         );
+
+        // Use live tracker odometer if already reporting, or onboarding mileage if entered;
+        // otherwise leave null so CheckMaintenanceSchedules locks in the first valid tracker ping.
+        $initialOdometer = $vehicle->trackerState?->odometer ?? $vehicle->mileage;
+        $baselineOdometer = ($initialOdometer !== null && $initialOdometer > 0)
+            ? (int) round((float) $initialOdometer)
+            : null;
+
+        $vehicle->maintenanceSchedules()->createMany([
+            [
+                'name' => 'Oil Change',
+                'distance_interval_km' => 5000,
+                'time_interval_days' => 180,
+                'baseline_odometer_km' => $baselineOdometer,
+                'baseline_started_at' => now(),
+                'active' => true,
+            ],
+            [
+                'name' => 'Tire Rotation',
+                'distance_interval_km' => 10000,
+                'time_interval_days' => 365,
+                'baseline_odometer_km' => $baselineOdometer,
+                'baseline_started_at' => now(),
+                'active' => true,
+            ],
+            [
+                'name' => 'General Service',
+                'distance_interval_km' => 20000,
+                'time_interval_days' => 365,
+                'baseline_odometer_km' => $baselineOdometer,
+                'baseline_started_at' => now(),
+                'active' => true,
+            ],
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Vehicle added.']);
 
