@@ -238,7 +238,7 @@ class MaintenanceController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'distance_interval_km' => ['nullable', 'integer', 'min:100', 'required_without:time_interval_days'],
+            'distance_interval_km' => ['nullable', 'integer', 'min:1', 'required_without:time_interval_days'],
             'time_interval_days' => ['nullable', 'integer', 'min:1', 'required_without:distance_interval_km'],
             'baseline_odometer_km' => ['nullable', 'integer', 'min:0'],
             'baseline_started_at' => ['nullable', 'date'],
