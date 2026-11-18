@@ -352,43 +352,74 @@ class CalculateTripScores extends Command
             ?? $trip->vehicle?->company_user_id;
 
         // Extract Teltonika CAN start/end odometer (io87) and exact fuel burned (io107) across the trip
+        
         $firstPoint = $points->first();
         $lastPoint = $points->last();
 
-        $startCanOdo = $firstPoint->obd_odometer
-            ?? (isset($firstPoint->raw_payload['attributes']['io87'])
-                ? round(((float) $firstPoint->raw_payload['attributes']['io87']) / 1000.0, 1)
-                : null);
+        // 1. Peak Speed (km/h) across all route points (GPS speed_kmh or CAN io81)
+        $calculatedMaxSpeed = round((float) $points->max(function ($p) {
+            $rawAttr = is_array($p->raw_payload) ? ($p->raw_payload['attributes'] ?? []) : [];
 
-        $endCanOdo = $lastPoint->obd_odometer
-            ?? (isset($lastPoint->raw_payload['attributes']['io87'])
-                ? round(((float) $lastPoint->raw_payload['attributes']['io87']) / 1000.0, 1)
-                : null);
+            return max(
+                (float) ($p->speed_kmh ?? 0),
+                (float) ($p->obd_speed_kmh ?? $rawAttr['io81'] ?? 0)
+            );
+        }), 2);
 
-        $startFuelConsumed = $firstPoint->fuel_consumption
-            ?? (isset($firstPoint->raw_payload['attributes']['io107'])
-                ? round(((float) $firstPoint->raw_payload['attributes']['io107']) * 0.1, 1)
-                : null);
+        $effectiveMaxSpeed = $calculatedMaxSpeed > 0
+            ? $calculatedMaxSpeed
+            : (float) ($trip->max_speed_km_per_hr ?? $trip->max_speed ?? 0);
 
-        $endFuelConsumed = $lastPoint->fuel_consumption
-            ?? (isset($lastPoint->raw_payload['attributes']['io107'])
-                ? round(((float) $lastPoint->raw_payload['attributes']['io107']) * 0.1, 1)
-                : null);
+        // 2. Average Speed fallback if missing or 0
+        $effectiveAvgSpeed = ((float) ($trip->average_speed_km_per_hr ?? 0)) > 0
+            ? round((float) $trip->average_speed_km_per_hr, 2)
+            : (($trip->duration_seconds > 0 && $trip->distance_km > 0)
+                ? round(((float) $trip->distance_km) / (((float) $trip->duration_seconds) / 3600.0), 2)
+                : 0.0);
+
+        // 3. Peak Engine RPM (io85 / rpm) & Peak Throttle Load % (io82 / engine_load)
+        $maxRpm = (int) $points->max(function ($p) {
+            $rawAttr = is_array($p->raw_payload) ? ($p->raw_payload['attributes'] ?? []) : [];
+
+            return (int) ($p->rpm ?? $rawAttr['io85'] ?? 0);
+        });
+
+        $maxEngineLoad = round((float) $points->max(function ($p) {
+            $rawAttr = is_array($p->raw_payload) ? ($p->raw_payload['attributes'] ?? []) : [];
+
+            return (float) ($p->engine_load ?? $rawAttr['io82'] ?? 0);
+        }), 2);
+
+        // 4. CAN Start & End Odometer in km (io87 in meters -> km)
+        // Scan first/last point with a non-null io87 or obd_odometer in case the edge packet was a partial event
+        $firstOdoPoint = $points->first(fn ($p) => ($p->obd_odometer ?? $p->raw_payload['attributes']['io87'] ?? null) !== null);
+        $lastOdoPoint = $points->reverse()->first(fn ($p) => ($p->obd_odometer ?? $p->raw_payload['attributes']['io87'] ?? null) !== null);
+
+        $startCanOdo = $firstOdoPoint
+            ? ($firstOdoPoint->obd_odometer ?? round(((float) $firstOdoPoint->raw_payload['attributes']['io87']) / 1000.0, 1))
+            : $trip->start_odometer;
+
+        $endCanOdo = $lastOdoPoint
+            ? ($lastOdoPoint->obd_odometer ?? round(((float) $lastOdoPoint->raw_payload['attributes']['io87']) / 1000.0, 1))
+            : $trip->end_odometer;
+
+        // 5. Exact Fuel Burned in Liters (io107 in 0.1L units -> Liters)
+        $firstFuelPoint = $points->first(fn ($p) => ($p->fuel_consumption ?? $p->raw_payload['attributes']['io107'] ?? null) !== null);
+        $lastFuelPoint = $points->reverse()->first(fn ($p) => ($p->fuel_consumption ?? $p->raw_payload['attributes']['io107'] ?? null) !== null);
+
+        $startFuelConsumed = $firstFuelPoint
+            ? ($firstFuelPoint->fuel_consumption ?? round(((float) $firstFuelPoint->raw_payload['attributes']['io107']) * 0.1, 1))
+            : null;
+
+        $endFuelConsumed = $lastFuelPoint
+            ? ($lastFuelPoint->fuel_consumption ?? round(((float) $lastFuelPoint->raw_payload['attributes']['io107']) * 0.1, 1))
+            : null;
 
         $tripFuelBurned = ($startFuelConsumed !== null && $endFuelConsumed !== null && $endFuelConsumed >= $startFuelConsumed)
             ? round($endFuelConsumed - $startFuelConsumed, 2)
             : $trip->fuel_consumed;
 
-        // If CAN start & end odometer are valid, compute exact CAN trip distance as fallback/refinement
-        $canTripDistanceKm = ($startCanOdo !== null && $endCanOdo !== null && $endCanOdo >= $startCanOdo)
-            ? round($endCanOdo - $startCanOdo, 2)
-            : null;
-
-        $effectiveDistanceKm = ($trip->distance_km !== null && $trip->distance_km > 0)
-            ? (float) $trip->distance_km
-            : ($canTripDistanceKm ?? 0.0);
-
-        // Ensure trip is linked to the vehicle's assigned driver if not already set
+        // 6. Ensure trip is linked to the vehicle's assigned driver
         $driverId = $trip->company_user_id
             ?? $trip->vehicle?->driver_id
             ?? $trip->vehicle?->company_user_id;
@@ -421,17 +452,20 @@ class CalculateTripScores extends Command
             'continuous_driving_seconds' => $maxContinuousDrivingSeconds,
             'idle_minutes' => $idleMinutes,
 
-            // CAN Odometer & Fuel Consumed (from $startCanOdo, $endCanOdo, $tripFuelBurned)
+            // Saved CAN & Route Telemetry Metrics
+            'max_speed_km_per_hr' => $effectiveMaxSpeed,
+            'max_speed' => $effectiveMaxSpeed,
+            'average_speed_km_per_hr' => $effectiveAvgSpeed,
+            'average_speed' => $effectiveAvgSpeed,
+            'max_rpm' => $maxRpm > 0 ? $maxRpm : null,
+            'max_engine_load' => $maxEngineLoad > 0 ? $maxEngineLoad : null,
+            'fuel_consumed' => $tripFuelBurned,
             'start_odometer' => $startCanOdo ?? $trip->start_odometer,
             'end_odometer' => $endCanOdo ?? $trip->end_odometer,
-            'fuel_consumed' => $tripFuelBurned,
 
             // Trip summary metrics
-            'distance_km' => $effectiveDistanceKm,
-            'trip_distance_km' => $effectiveDistanceKm,
+            'trip_distance_km' => $trip->distance_km,
             'trip_duration_seconds' => $trip->duration_seconds,
-            'average_speed' => $trip->average_speed_km_per_hr,
-            'max_speed' => $trip->max_speed_km_per_hr,
 
             'score_calculated_at' => now(),
         ]);
