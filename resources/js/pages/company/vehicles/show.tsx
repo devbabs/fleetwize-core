@@ -941,81 +941,6 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                 </Card>
             ) : null}
 
-            {tab === 'Alarms/Alerts' ? (
-                <Card className="overflow-hidden py-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                                <tr>
-                                    <th className="px-6 py-3 font-medium">
-                                        Event
-                                    </th>
-
-                                    <th className="px-6 py-3 font-medium">
-                                        Logged
-                                    </th>
-
-                                    <th className="px-6 py-3 font-medium">
-                                        Details
-                                    </th>
-
-                                    <th className="px-6 py-3 font-medium">
-                                        Status
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-border">
-                                {vehicle.events.map((event) => (
-                                    <tr key={event.id}>
-                                        <td className="px-6 py-3">
-                                            <span className="font-medium text-foreground">
-                                                {eventTypeLabels[event.eventType] ??
-                                                    event.eventType}
-                                            </span>
-                                        </td>
-
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {formatDateTime(event.logTime)}
-                                        </td>
-
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {event.alarm ??
-                                                (event.attributes?.message
-                                                    ? String(event.attributes.message)
-                                                    : '—')}
-                                        </td>
-
-                                        <td className="px-6 py-3">
-                                            {event.eventType === 'alarm' ? (
-                                                <Badge className="border-transparent bg-brand-green/15 text-brand-green">
-                                                    Alarm
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant="outline">
-                                                    Event
-                                                </Badge>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-
-                                {vehicle.events.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={4}
-                                            className="px-6 py-10 text-center text-muted-foreground"
-                                        >
-                                            No events logged yet.
-                                        </td>
-                                    </tr>
-                                ) : null}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            ) : null}
-
             <Dialog
                 open={!!selectedTrip}
                 onOpenChange={(open) => !open && setSelectedTrip(null)}
@@ -1218,30 +1143,72 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                 </DialogContent>
             </Dialog>
 
-
-            {/* {tab === 'Maintenance' ? (
+            {tab === 'Alarms/Alerts' ? (
                 <Card className="overflow-hidden py-0">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
                                 <tr>
-                                    <th className="px-6 py-3 font-medium">Scheduled</th>
-                                    <th className="px-6 py-3 font-medium">Completed</th>
-                                    <th className="px-6 py-3 font-medium">Notes</th>
+                                    <th className="px-6 py-3 font-medium">
+                                        Event
+                                    </th>
+
+                                    <th className="px-6 py-3 font-medium">
+                                        Logged
+                                    </th>
+
+                                    <th className="px-6 py-3 font-medium">
+                                        Details
+                                    </th>
+
+                                    <th className="px-6 py-3 font-medium">
+                                        Status
+                                    </th>
                                 </tr>
                             </thead>
+
                             <tbody className="divide-y divide-border">
-                                {vehicle.serviceEntries.map((entry) => (
-                                    <tr key={entry.id}>
-                                        <td className="px-6 py-3 text-foreground">{formatDateTime(entry.startsAt)}</td>
-                                        <td className="px-6 py-3 text-muted-foreground">{formatDateTime(entry.endsAt)}</td>
-                                        <td className="px-6 py-3 text-muted-foreground">{entry.comments ?? '—'}</td>
+                                {vehicle.events.map((event) => (
+                                    <tr key={event.id}>
+                                        <td className="px-6 py-3">
+                                            <span className="font-medium text-foreground">
+                                                {eventTypeLabels[event.eventType] ??
+                                                    event.eventType}
+                                            </span>
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {formatDateTime(event.logTime)}
+                                        </td>
+
+                                        <td className="px-6 py-3 text-muted-foreground">
+                                            {event.alarm ??
+                                                (event.attributes?.message
+                                                    ? String(event.attributes.message)
+                                                    : '—')}
+                                        </td>
+
+                                        <td className="px-6 py-3">
+                                            {event.eventType === 'alarm' ? (
+                                                <Badge className="border-transparent bg-brand-green/15 text-brand-green">
+                                                    Alarm
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline">
+                                                    Event
+                                                </Badge>
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
-                                {vehicle.serviceEntries.length === 0 ? (
+
+                                {vehicle.events.length === 0 ? (
                                     <tr>
-                                        <td colSpan={3} className="px-6 py-10 text-center text-muted-foreground">
-                                            No service history yet.
+                                        <td
+                                            colSpan={4}
+                                            className="px-6 py-10 text-center text-muted-foreground"
+                                        >
+                                            No events logged yet.
                                         </td>
                                     </tr>
                                 ) : null}
@@ -1249,157 +1216,8 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         </table>
                     </div>
                 </Card>
-            ) : null} */}
+            ) : null}
 
-            {/* {tab === 'Maintenance' ? (
-                <div className="space-y-6">
-
-                    {vehicle.maintenanceAlerts.length > 0 ? (
-                        <Card className="border-destructive/30">
-                            <CardHeader>
-                                <CardTitle>Maintenance Alerts</CardTitle>
-                            </CardHeader>
-
-                            <CardContent className="space-y-3">
-                                {vehicle.maintenanceAlerts.map((alert) => (
-                                    <div
-                                        key={alert.id}
-                                        className="rounded-lg border border-destructive/30 bg-destructive/5 p-4"
-                                    >
-                                        <p className="font-medium text-foreground">
-                                            {alert.title}
-                                        </p>
-
-                                        {alert.description ? (
-                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                {alert.description}
-                                            </p>
-                                        ) : null}
-
-                                        {alert.alertedAt ? (
-                                            <p className="mt-2 text-xs text-muted-foreground">
-                                                Alerted {formatDateTime(alert.alertedAt)}
-                                            </p>
-                                        ) : null}
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    ) : null}
-
-                    <Card className="overflow-hidden py-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                                    <tr>
-                                        <th className="px-6 py-3 font-medium">
-                                            Maintenance
-                                        </th>
-                                        <th className="px-6 py-3 font-medium">
-                                            Distance Interval
-                                        </th>
-                                        <th className="px-6 py-3 font-medium">
-                                            Time Interval
-                                        </th>
-                                        <th className="px-6 py-3 font-medium">
-                                            Status
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody className="divide-y divide-border">
-                                    {vehicle.maintenanceSchedules.map((schedule) => (
-                                        <tr key={schedule.id}>
-                                            <td className="px-6 py-3 font-medium text-foreground">
-                                                {schedule.name}
-                                            </td>
-
-                                            <td className="px-6 py-3 text-muted-foreground">
-                                                {schedule.distanceIntervalKm !== null
-                                                    ? `${schedule.distanceIntervalKm.toLocaleString()} km`
-                                                    : '—'}
-                                            </td>
-
-                                            <td className="px-6 py-3 text-muted-foreground">
-                                                {schedule.timeIntervalDays !== null
-                                                    ? `${schedule.timeIntervalDays} days`
-                                                    : '—'}
-                                            </td>
-
-                                            <td className="px-6 py-3">
-                                                <Badge variant="outline">
-                                                    Active
-                                                </Badge>
-                                            </td>
-                                        </tr>
-                                    ))}
-
-                                    {vehicle.maintenanceSchedules.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={4}
-                                                className="px-6 py-10 text-center text-muted-foreground"
-                                            >
-                                                No maintenance schedules configured.
-                                            </td>
-                                        </tr>
-                                    ) : null}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
-
-                    <Card className="overflow-hidden py-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                                    <tr>
-                                        <th className="px-6 py-3 font-medium">
-                                            Scheduled
-                                        </th>
-                                        <th className="px-6 py-3 font-medium">
-                                            Completed
-                                        </th>
-                                        <th className="px-6 py-3 font-medium">
-                                            Notes
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody className="divide-y divide-border">
-                                    {vehicle.serviceEntries.map((entry) => (
-                                        <tr key={entry.id}>
-                                            <td className="px-6 py-3 text-foreground">
-                                                {formatDateTime(entry.startsAt)}
-                                            </td>
-
-                                            <td className="px-6 py-3 text-muted-foreground">
-                                                {formatDateTime(entry.endsAt)}
-                                            </td>
-
-                                            <td className="px-6 py-3 text-muted-foreground">
-                                                {entry.comments ?? '—'}
-                                            </td>
-                                        </tr>
-                                    ))}
-
-                                    {vehicle.serviceEntries.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={3}
-                                                className="px-6 py-10 text-center text-muted-foreground"
-                                            >
-                                                No service history yet.
-                                            </td>
-                                        </tr>
-                                    ) : null}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
-
-                </div>
-            ) : null} */}
 
             {tab === 'Maintenance' ? (
                 <div className="space-y-6">
@@ -1511,7 +1329,7 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                         onChange={(e) =>
                                             scheduleForm.setData('distance_interval_km', e.target.value)
                                         }
-                                        min={100}
+                                        min={1}
                                         placeholder="5000"
                                     />
                                 </div>
