@@ -12,9 +12,10 @@ use Illuminate\Console\Command;
 class CalculateTripScores extends Command
 {
     protected $signature = 'tracker:calculate-trip-scores
-                            {--recalculate : Recalculate scores for all synced trips}';
+                            {--recalculate : Recalculate scores for all synced trips}
+                            {--speed-limit= : Override default max speed limit in km/h}';
 
-    protected $description = 'Calculate driver behaviour and safety scores across the 5 Pillars for completed trips';
+    protected $description = 'Calculate trip scores from harsh braking, harsh acceleration, speeding, hard cornering, and idling';
 
     public function handle(): int
     {
@@ -51,73 +52,35 @@ class CalculateTripScores extends Command
             ->sortBy('fix_time')
             ->values();
 
-        // If a micro-trip has fewer than 2 points, mark it scored with baseline 100
-        // so the cron job does not re-query it forever every 15 minutes.
-        if ($points->count() < 2) {
-            $trip->update([
-                'company_user_id' => $trip->company_user_id ?? $trip->vehicle?->driver_id ?? $trip->vehicle?->company_user_id,
-                'score' => 100,
-                'grade' => 'A',
-                'risk_score' => 100,
-                'speeding_score' => 100,
-                'eco_score' => 100,
-                'fatigue_score' => 100,
-                'distraction_score' => 100,
-                'safety_score' => 100,
-                'efficiency_score' => 100,
-                'score_calculated_at' => now(),
-            ]);
+        // Speed limit priority: CLI option -> vehicle speed_limit -> default 85 km/h
+        $speedLimit = (float) ($this->option('speed-limit')
+            ?? $trip->vehicle?->speed_limit
+            ?? 85);
 
-            return;
-        }
-
-        // Default Nigerian commercial fleet thresholds (80 km/h urban/arterial, 100 km/h highway/severe)
-        // Uses vehicle custom speed_limit if configured on the vehicle model
-        $speedLimit = (float) ($trip->vehicle?->speed_limit ?? 85);
-        $severeSpeedLimit = $speedLimit + 20;
-
-        $overspeedEvents = 0;
-        $severeOverspeedEvents = 0;
-        $overspeedDurationSeconds = 0;
-
-        $harshAcceleration = 0;
         $harshBraking = 0;
-        $harshCornering = 0;
-
-        $highEngineLoadEvents = 0;
+        $harshAcceleration = 0;
+        $hardCornering = 0;
         $idleSeconds = 0;
-
-        $continuousDrivingSeconds = 0;
-        $maxContinuousDrivingSeconds = 0;
-        $fatigueEvents = 0;
+        $peakSpeedKmh = 0.0;
 
         $previousPoint = null;
-
-        $isOverspeeding = false;
-        $overspeedStartTime = null;
-        $isSevereOverspeeding = false;
-        $isHighEngineLoad = false;
 
         foreach ($points as $point) {
             $rawAttr = is_array($point->raw_payload)
                 ? ($point->raw_payload['attributes'] ?? [])
                 : [];
 
-            // Resolve speed: prefer OBD/CAN wheel speed (io81 / obd_speed_kmh) or GPS speed_kmh
             $gpsSpeed = (float) ($point->speed_kmh ?? 0);
             $canSpeed = isset($rawAttr['io81'])
                 ? (float) $rawAttr['io81']
                 : (float) ($point->obd_speed_kmh ?? 0);
             $speed = max($gpsSpeed, $canSpeed);
 
-            // Resolve ignition (column or Teltonika io1)
-            $ignition = $point->ignition ?? (isset($rawAttr['ignition']) ? (bool) $rawAttr['ignition'] : true);
+            if ($speed > $peakSpeedKmh) {
+                $peakSpeedKmh = $speed;
+            }
 
-            /*
-            |--------------------------------------------------------------------------
-            | 1. HARSH DRIVING (JT808 Counters + Teltonika io253 + Kinematics Fallback)
-            |--------------------------------------------------------------------------
-            */
+            // 1. Harsh events from counters / Teltonika io253 / alarm attributes
             $pointAccelAdded = 0;
             $pointBrakeAdded = 0;
             $pointCornerAdded = 0;
@@ -127,20 +90,16 @@ class CalculateTripScores extends Command
                     $previousPoint->hard_acceleration_count,
                     $point->hard_acceleration_count
                 );
-
                 $pointBrakeAdded += $this->counterDelta(
                     $previousPoint->hard_deceleration_count,
                     $point->hard_deceleration_count
                 );
-
                 $pointCornerAdded += $this->counterDelta(
                     $previousPoint->hard_cornering_count,
                     $point->hard_cornering_count
                 );
             }
 
-            // Teltonika Green Driving hardware event (AVL ID 253: 1 = Accel, 2 = Brake, 3 = Cornering)
-            // or Traccar alarm attribute
             $greenDrivingType = isset($rawAttr['io253']) ? (int) $rawAttr['io253'] : null;
             $alarmAttr = $rawAttr['alarm'] ?? null;
 
@@ -154,12 +113,11 @@ class CalculateTripScores extends Command
                 $pointCornerAdded = 1;
             }
 
-            // Kinematic fallback when hardware counters/io253 did not fire on this interval
+            // 2. Kinematics fallback across consecutive points (1s to 60s)
             if ($previousPoint && $pointAccelAdded === 0 && $pointBrakeAdded === 0 && $pointCornerAdded === 0) {
                 $dt = $this->rawIntervalSeconds($previousPoint, $point);
 
-                // Only evaluate kinematics across tight consecutive pings (1s to 30s)
-                if ($dt >= 1 && $dt <= 30) {
+                if ($dt >= 1 && $dt <= 60) {
                     $prevRawAttr = is_array($previousPoint->raw_payload)
                         ? ($previousPoint->raw_payload['attributes'] ?? [])
                         : [];
@@ -168,17 +126,14 @@ class CalculateTripScores extends Command
                         isset($prevRawAttr['io81']) ? (float) $prevRawAttr['io81'] : (float) ($previousPoint->obd_speed_kmh ?? 0)
                     );
 
-                    // Convert km/h delta to m/s^2 longitudinal acceleration
-                    $deltaSpeedMs = ($speed - $prevSpeed) / 3.6;
-                    $longitudinalAccelMs2 = $deltaSpeedMs / $dt;
+                    $longitudinalAccelMs2 = (($speed - $prevSpeed) / 3.6) / $dt;
 
                     if ($longitudinalAccelMs2 >= 2.8) {
-                        $pointAccelAdded = 1; // >= +0.29g rapid launch
+                        $pointAccelAdded = 1;
                     } elseif ($longitudinalAccelMs2 <= -3.2) {
-                        $pointBrakeAdded = 1; // <= -0.33g harsh brake
+                        $pointBrakeAdded = 1;
                     }
 
-                    // Centripetal cornering check at speeds >= 30 km/h
                     $avgSpeedMs = (($speed + $prevSpeed) / 2.0) / 3.6;
                     if ($avgSpeedMs >= 8.33 && $previousPoint->course !== null && $point->course !== null) {
                         $headingDiffDeg = abs((float) $point->course - (float) $previousPoint->course);
@@ -197,69 +152,16 @@ class CalculateTripScores extends Command
 
             $harshAcceleration += $pointAccelAdded;
             $harshBraking += $pointBrakeAdded;
-            $harshCornering += $pointCornerAdded;
+            $hardCornering += $pointCornerAdded;
 
-            /*
-            |--------------------------------------------------------------------------
-            | 2. SPEEDING (> 15 seconds sustained)
-            |--------------------------------------------------------------------------
-            */
-            $currentlyOverspeeding = $speed > $speedLimit;
-            $currentlySevereOverspeeding = $speed > $severeSpeedLimit;
-
-            if ($currentlyOverspeeding && ! $isOverspeeding) {
-                $overspeedStartTime = $this->pointTime($point);
-            }
-
-            if (! $currentlyOverspeeding && $isOverspeeding) {
-                if ($overspeedStartTime) {
-                    $endTime = $this->pointTime($point);
-                    $duration = (int) abs($endTime->diffInSeconds($overspeedStartTime));
-
-                    if ($duration >= 15) {
-                        $overspeedEvents++;
-                        $overspeedDurationSeconds += $duration;
-                    }
-                }
-
-                $overspeedStartTime = null;
-            }
-
-            if ($currentlySevereOverspeeding && ! $isSevereOverspeeding) {
-                $severeOverspeedEvents++;
-            }
-
-            $isOverspeeding = $currentlyOverspeeding;
-            $isSevereOverspeeding = $currentlySevereOverspeeding;
-
-            /*
-            |--------------------------------------------------------------------------
-            | 3. ECO — HIGH ENGINE LOAD (> 85%) OR HIGH RPM (> 3,500 RPM)
-            |--------------------------------------------------------------------------
-            */
-            $engineLoad = (float) ($point->engine_load ?? $rawAttr['io82'] ?? 0);
-            $engineRpm = (int) ($point->rpm ?? $rawAttr['io85'] ?? 0);
-
-            $currentlyHighLoad = ($engineLoad > 85) || ($engineRpm > 3500);
-
-            if ($currentlyHighLoad && ! $isHighEngineLoad) {
-                $highEngineLoadEvents++;
-            }
-
-            $isHighEngineLoad = $currentlyHighLoad;
-
-            /*
-            |--------------------------------------------------------------------------
-            | 4. IDLE / DISTRACTION (Ignition ON + Stationary Speed < 2 km/h)
-            |--------------------------------------------------------------------------
-            */
+            // 3. Idling: ignition ON and speed < 2 km/h between consecutive points
             if ($previousPoint) {
                 $prevRawAttr = is_array($previousPoint->raw_payload)
                     ? ($previousPoint->raw_payload['attributes'] ?? [])
                     : [];
                 $previousSpeed = max(
                     (float) ($previousPoint->speed_kmh ?? 0),
-                    isset($prevRawAttr['io81']) ? (float) $prevRawAttr['io81'] : 0.0
+                    isset($prevRawAttr['io81']) ? (float) $prevRawAttr['io81'] : (float) ($previousPoint->obd_speed_kmh ?? 0)
                 );
                 $previousIgnition = $previousPoint->ignition
                     ?? (isset($prevRawAttr['ignition']) ? (bool) $prevRawAttr['ignition'] : true);
@@ -269,172 +171,55 @@ class CalculateTripScores extends Command
                 if ($previousIgnition === true && $previousSpeed < 2.0) {
                     $idleSeconds += $seconds;
                 }
-
-                /*
-                |--------------------------------------------------------------------------
-                | 5. FATIGUE (Continuous driving > 4.5 hours without ignition OFF)
-                |--------------------------------------------------------------------------
-                */
-                if ($previousIgnition === true && $previousSpeed >= 2.0) {
-                    $continuousDrivingSeconds += $seconds;
-                    $maxContinuousDrivingSeconds = max($maxContinuousDrivingSeconds, $continuousDrivingSeconds);
-
-                    $fatigueThresholdSeconds = (int) (4.5 * 3600); // 16,200s
-                    $prevBucket = intdiv(max(0, $continuousDrivingSeconds - $seconds), $fatigueThresholdSeconds);
-                    $currBucket = intdiv($continuousDrivingSeconds, $fatigueThresholdSeconds);
-
-                    if ($currBucket > $prevBucket) {
-                        $fatigueEvents++;
-                    }
-                } elseif ($previousIgnition === false) {
-                    $continuousDrivingSeconds = 0;
-                }
             }
 
             $previousPoint = $point;
         }
 
-        // Close an overspeed event that remained active up to the final route point
-        if ($isOverspeeding && $overspeedStartTime) {
-            $endTime = $this->pointTime($points->last());
-            $duration = (int) abs($endTime->diffInSeconds($overspeedStartTime));
+        // Ensure we always have a max speed value for the trip
+        $effectiveMaxSpeed = max(
+            round($peakSpeedKmh, 2),
+            (float) ($trip->max_speed_km_per_hr ?? 0),
+            (float) ($trip->max_speed ?? 0)
+        );
 
-            if ($duration >= 15) {
-                $overspeedEvents++;
-                $overspeedDurationSeconds += $duration;
-            }
-        }
+        // Ensure we always have an idle_minutes value (fallback to existing trip value if route had no intervals)
+        $idleMinutes = $points->count() >= 2
+            ? (int) round($idleSeconds / 60)
+            : (int) ($trip->idle_minutes ?? 0);
 
-        $idleMinutes = (int) round($idleSeconds / 60);
+        // Speeding calculation based on max speed over the configured speed limit
+        $speedExcessKmh = max(0.0, round($effectiveMaxSpeed - $speedLimit, 2));
+        $overspeedEvents = $speedExcessKmh > 0 ? 1 : 0;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Calculate the 5 Pillar Scores (0 - 100)
-        |--------------------------------------------------------------------------
-        */
+        // Individual behaviour scores (0 - 100)
+        $harshBrakingScore = max(0, min(100, 100 - ($harshBraking * 5)));
+        $harshAccelerationScore = max(0, min(100, 100 - ($harshAcceleration * 4)));
+        $hardCorneringScore = max(0, min(100, 100 - ($hardCornering * 4)));
 
-        // 1. RISK: Harsh braking (-5), Harsh cornering (-3)
-        $riskScore = max(0, min(100, 100 - ($harshBraking * 5) - ($harshCornering * 3)));
+        // Speeding score: penalize based on how far max speed exceeded the limit
+        // e.g., -10 base for exceeding limit + -1 per km/h over limit
+        $speedingPenalty = $speedExcessKmh > 0
+            ? (10 + (int) floor($speedExcessKmh))
+            : 0;
+        $speedingScore = max(0, min(100, 100 - $speedingPenalty));
 
-        // 2. SPEEDING: Sustained overspeed (-10), Severe overspeed spike (-15)
-        $speedingScore = max(0, min(100, 100 - ($overspeedEvents * 10) - ($severeOverspeedEvents * 15)));
-
-        // 3. ECO: Harsh acceleration (-3), High engine load / RPM surge (-2)
-        $ecoScore = max(0, min(100, 100 - ($harshAcceleration * 3) - ($highEngineLoadEvents * 2)));
-
-        // 4. FATIGUE: Continuous driving > 4.5 hours (-15)
-        $fatigueScore = max(0, min(100, 100 - ($fatigueEvents * 15)));
-
-        // 5. DISTRACTION: First 10 mins idle grace; -1 pt per 5 mins thereafter
+        // Idling score: 10-minute grace period, then -1 pt per 5 mins over
         $excessIdleMinutes = max(0, $idleMinutes - 10);
-        $distractionScore = max(0, min(100, 100 - (int) floor($excessIdleMinutes / 5)));
+        $idlingScore = max(0, min(100, 100 - (int) floor($excessIdleMinutes / 5)));
 
-        /*
-        |--------------------------------------------------------------------------
-        | Weighted Overall Score (Matches AggregateDriverScores weights)
-        | Risk 25% | Speeding 25% | Eco 20% | Fatigue 15% | Distraction 15%
-        |--------------------------------------------------------------------------
-        */
+        // Overall trip score (equal 20% across the 5 core behaviours; adjust weights as needed)
         $score = round(
-            ($riskScore * 0.25)
-            + ($speedingScore * 0.25)
-            + ($ecoScore * 0.20)
-            + ($fatigueScore * 0.15)
-            + ($distractionScore * 0.15),
+            ($harshBrakingScore * 0.20)
+            + ($harshAccelerationScore * 0.20)
+            + ($speedingScore * 0.20)
+            + ($hardCorneringScore * 0.20)
+            + ($idlingScore * 0.20),
             2
         );
 
         $grade = $this->grade($score);
 
-        // Ensure trip is linked to the vehicle's assigned driver if not already set
-        $driverId = $trip->company_user_id
-            ?? $trip->vehicle?->driver_id
-            ?? $trip->vehicle?->company_user_id;
-
-        // Extract Teltonika CAN start/end odometer (io87) and exact fuel burned (io107) across the trip
-        
-        $firstPoint = $points->first();
-        $lastPoint = $points->last();
-
-        // 1. Peak Speed (km/h) across all route points (GPS speed_kmh or CAN io81)
-        $calculatedMaxSpeed = round((float) $points->max(function ($p) {
-            $rawAttr = is_array($p->raw_payload) ? ($p->raw_payload['attributes'] ?? []) : [];
-
-            return max(
-                (float) ($p->speed_kmh ?? 0),
-                (float) ($p->obd_speed_kmh ?? $rawAttr['io81'] ?? 0)
-            );
-        }), 2);
-
-        $effectiveMaxSpeed = $calculatedMaxSpeed > 0
-            ? $calculatedMaxSpeed
-            : (float) ($trip->max_speed_km_per_hr ?? $trip->max_speed ?? 0);
-
-        // 2. Average Speed fallback if missing or 0
-        $effectiveAvgSpeed = ((float) ($trip->average_speed_km_per_hr ?? 0)) > 0
-            ? round((float) $trip->average_speed_km_per_hr, 2)
-            : (($trip->duration_seconds > 0 && $trip->distance_km > 0)
-                ? round(((float) $trip->distance_km) / (((float) $trip->duration_seconds) / 3600.0), 2)
-                : 0.0);
-
-        // 3. Peak Engine RPM (io85 / rpm) & Peak Throttle Load % (io82 / engine_load)
-        $maxRpm = (int) $points->max(function ($p) {
-            $rawAttr = is_array($p->raw_payload) ? ($p->raw_payload['attributes'] ?? []) : [];
-
-            return (int) ($p->rpm ?? $rawAttr['io85'] ?? 0);
-        });
-
-        $maxEngineLoad = round((float) $points->max(function ($p) {
-            $rawAttr = is_array($p->raw_payload) ? ($p->raw_payload['attributes'] ?? []) : [];
-
-            return (float) ($p->engine_load ?? $rawAttr['io82'] ?? 0);
-        }), 2);
-
-        // 4. CAN Start & End Odometer in km (io87 in meters -> km)
-        // Scan first/last point with a non-null io87 or obd_odometer in case the edge packet was a partial event
-        $firstOdoPoint = $points->first(fn ($p) => ($p->obd_odometer ?? $p->raw_payload['attributes']['io87'] ?? null) !== null);
-        $lastOdoPoint = $points->reverse()->first(fn ($p) => ($p->obd_odometer ?? $p->raw_payload['attributes']['io87'] ?? null) !== null);
-
-        $startCanOdo = $firstOdoPoint
-            ? ($firstOdoPoint->obd_odometer ?? round(((float) $firstOdoPoint->raw_payload['attributes']['io87']) / 1000.0, 1))
-            : $trip->start_odometer;
-
-        $endCanOdo = $lastOdoPoint
-            ? ($lastOdoPoint->obd_odometer ?? round(((float) $lastOdoPoint->raw_payload['attributes']['io87']) / 1000.0, 1))
-            : $trip->end_odometer;
-
-        // 5. Exact Fuel Burned in Liters (io107 in 0.1L units -> Liters)
-
-        // $firstFuelPoint = $points->first(fn ($p) => ($p->fuel_consumption ?? $p->raw_payload['attributes']['io107'] ?? null) !== null);
-        // $lastFuelPoint = $points->reverse()->first(fn ($p) => ($p->fuel_consumption ?? $p->raw_payload['attributes']['io107'] ?? null) !== null);
-
-        // $startFuelConsumed = $firstFuelPoint
-        //     ? ($firstFuelPoint->fuel_consumption ?? round(((float) $firstFuelPoint->raw_payload['attributes']['io107']) * 0.1, 1))
-        //     : null;
-
-        // $endFuelConsumed = $lastFuelPoint
-        //     ? ($lastFuelPoint->fuel_consumption ?? round(((float) $lastFuelPoint->raw_payload['attributes']['io107']) * 0.1, 1))
-        //     : null;
-
-        // $tripFuelBurned = ($startFuelConsumed !== null && $endFuelConsumed !== null && $endFuelConsumed >= $startFuelConsumed)
-        //     ? round($endFuelConsumed - $startFuelConsumed, 2)
-        //     : $trip->fuel_consumed;
-
-        // Extract Teltonika CAN start/end odometer (io87) and exact fuel burned (io107) across the trip
-        $firstPoint = $points->first();
-        $lastPoint = $points->last();
-
-        $startFuelConsumed = $firstPoint?->fuel_consumption 
-            ?? (isset($firstPoint?->raw_payload['attributes']['io107']) ? round(((float) $firstPoint->raw_payload['attributes']['io107']) * 0.1, 1) : null);
-
-        $endFuelConsumed = $lastPoint?->fuel_consumption 
-            ?? (isset($lastPoint?->raw_payload['attributes']['io107']) ? round(((float) $lastPoint->raw_payload['attributes']['io107']) * 0.1, 1) : null);
-
-        $tripFuelBurned = ($startFuelConsumed !== null && $endFuelConsumed !== null && $endFuelConsumed >= $startFuelConsumed)
-            ? round($endFuelConsumed - $startFuelConsumed, 2)
-            : ($trip->fuel_consumed > 0 ? $trip->fuel_consumed : 0.0);
-
-        // 6. Ensure trip is linked to the vehicle's assigned driver
         $driverId = $trip->company_user_id
             ?? $trip->vehicle?->driver_id
             ?? $trip->vehicle?->company_user_id;
@@ -444,50 +229,26 @@ class CalculateTripScores extends Command
             'score' => $score,
             'grade' => $grade,
 
-            // Five Pillars
-            'risk_score' => $riskScore,
-            'speeding_score' => $speedingScore,
-            'eco_score' => $ecoScore,
-            'fatigue_score' => $fatigueScore,
-            'distraction_score' => $distractionScore,
-
-            // Backward compatibility
-            'safety_score' => round(($riskScore + $speedingScore) / 2, 2),
-            'efficiency_score' => round(($ecoScore + $distractionScore) / 2, 2),
-
-            // Event counters
-            'overspeed_events' => $overspeedEvents,
-            'severe_overspeed_events' => $severeOverspeedEvents,
-            'overspeed_duration_seconds' => $overspeedDurationSeconds,
-            'harsh_acceleration_events' => $harshAcceleration,
+            // Core 5 behaviour event/metric values (guaranteed present)
             'harsh_braking_events' => $harshBraking,
-            'harsh_cornering_events' => $harshCornering,
-            'high_engine_load_events' => $highEngineLoadEvents,
-            'fatigue_events' => $fatigueEvents,
-            'continuous_driving_seconds' => $maxContinuousDrivingSeconds,
+            'harsh_acceleration_events' => $harshAcceleration,
+            'overspeed_events' => $overspeedEvents,
+            'harsh_cornering_events' => $hardCornering,
             'idle_minutes' => $idleMinutes,
 
-            // Saved CAN & Route Telemetry Metrics
+            // Pillar / sub-scores (mapped cleanly to existing columns)
+            'risk_score' => round(($harshBrakingScore + $hardCorneringScore) / 2, 2),
+            'speeding_score' => $speedingScore,
+            'eco_score' => round(($harshAccelerationScore + $idlingScore) / 2, 2),
+            'distraction_score' => $idlingScore,
+            'fatigue_score' => 100,
+
+            // Speed fields
             'max_speed_km_per_hr' => $effectiveMaxSpeed,
             'max_speed' => $effectiveMaxSpeed,
-            'average_speed_km_per_hr' => $effectiveAvgSpeed,
-            'average_speed' => $effectiveAvgSpeed,
-            'max_rpm' => $maxRpm > 0 ? $maxRpm : null,
-            'max_engine_load' => $maxEngineLoad > 0 ? $maxEngineLoad : null,
-            'fuel_consumed' => $tripFuelBurned,
-            'start_odometer' => $startCanOdo ?? $trip->start_odometer,
-            'end_odometer' => $endCanOdo ?? $trip->end_odometer,
-
-            // Trip summary metrics
-            'trip_distance_km' => $trip->distance_km,
-            'trip_duration_seconds' => $trip->duration_seconds,
 
             'score_calculated_at' => now(),
         ]);
-
-        $this->line(
-            "Trip {$trip->id}: Score {$score} | Risk {$riskScore} | Speed {$speedingScore} | Eco {$ecoScore} | Fatigue {$fatigueScore} | Distraction {$distractionScore} | Grade {$grade}"
-        );
     }
 
     protected function counterDelta(?int $previous, ?int $current): int
@@ -501,11 +262,6 @@ class CalculateTripScores extends Command
         }
 
         return $current - $previous;
-    }
-
-    protected function pointTime($point): Carbon
-    {
-        return Carbon::parse($point->fix_time);
     }
 
     protected function rawIntervalSeconds($previous, $current): int
