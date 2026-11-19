@@ -487,6 +487,9 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
         });
     };
 
+    const [processingScheduleId, setProcessingScheduleId] =
+    useState<number | null>(null);
+
     const handleCreateSchedule = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -511,7 +514,11 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
         });
     };
 
-    const handleCompleteService = (schedule: MaintenanceScheduleItem) => {
+
+    const handleCompleteService = (schedule: MaintenanceSchedule) => {
+        // Prevent another submission while this schedule is processing.
+        if (processingScheduleId !== null) return;
+
         const confirmedOdo = window.prompt(
             `Confirm odometer reading (km) for completed ${schedule.name}:`,
             String(currentLiveOdometer)
@@ -519,15 +526,33 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
 
         if (confirmedOdo === null) return;
 
+        const parsedOdo = Number(confirmedOdo);
+
+        if (
+            confirmedOdo.trim() === '' ||
+            !Number.isFinite(parsedOdo) ||
+            parsedOdo < 0
+        ) {
+            alert('Please enter a valid odometer reading.');
+            return;
+        }
+
+        setProcessingScheduleId(schedule.id);
+
         router.post(
             `/vehicles/${vehicle.id}/maintenance-records`,
             {
                 maintenance_schedule_id: schedule.id,
                 maintained_at: new Date().toISOString().split('T')[0],
-                odometer_km: Number(confirmedOdo) || currentLiveOdometer,
+                odometer_km: parsedOdo,
                 notes: `Completed scheduled ${schedule.name}`,
             },
-            { preserveScroll: true }
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setProcessingScheduleId(null);
+                },
+            }
         );
     };
 
@@ -1478,9 +1503,12 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                                     type="button"
                                                     size="sm"
                                                     variant="outline"
+                                                    disabled={processingScheduleId !== null}
                                                     onClick={() => handleCompleteService(schedule)}
                                                 >
-                                                    Log Service
+                                                    {processingScheduleId === schedule.id
+                                                        ? 'Logging...'
+                                                        : 'Log Service'}
                                                 </Button>
                                             </td>
                                         </tr>
