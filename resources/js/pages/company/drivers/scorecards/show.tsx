@@ -1,189 +1,63 @@
-import { Head } from '@inertiajs/react';
-
+import { Head, Link } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import CompanyLayout from '@/layouts/company/company-layout';
 
-import { Badge } from '@/components/ui/badge';
-
-interface Driver {
+interface DriverInfo {
     id: number;
     name: string;
 }
 
-interface Scorecard {
+interface ScorecardRecord {
     id: number;
-
-    period_type: string;
-    period_start: string;
-    period_end: string;
-
+    period_type: 'daily' | 'weekly' | 'monthly' | string;
+    period_start: string | null;
+    period_end: string | null;
+    trip_count: number;
     score: number;
     grade: string;
-
-    trip_count: number;
-
-    risk_score: number;
-    speeding_score: number;
-    eco_score: number;
-    fatigue_score: number;
-    distraction_score: number;
-
-    distance_km: number;
-    duration_seconds: number;
-
-    overspeed_events: number;
-    severe_overspeed_events: number;
-    overspeed_duration_seconds: number;
-
-    harsh_acceleration_events: number;
-    harsh_braking_events: number;
-    harsh_cornering_events: number;
-
-    high_engine_load_events: number;
-
-    fatigue_events: number;
-    continuous_driving_seconds: number;
-
-    idle_minutes: number;
-
+    // Scores (0 - 100) mapped to the 5 core behaviours
+    risk_score: number;        // Harsh braking score
+    eco_score: number;         // Harsh acceleration score
+    speeding_score: number;    // Speeding score (vs. max speed limit)
+    fatigue_score: number;     // Hard cornering score
+    distraction_score: number; // Idling score
+    // Event / metric counts
+    harsh_braking_events?: number;
+    harsh_acceleration_events?: number;
+    overspeed_events?: number;
+    harsh_cornering_events?: number;
+    idle_minutes?: number;
     score_breakdown?: {
-        risk?: number;
-        speeding?: number;
-        eco?: number;
-        fatigue?: number;
-        distraction?: number;
-    };
+        harsh_braking_events?: number;
+        harsh_acceleration_events?: number;
+        overspeed_events?: number;
+        harsh_cornering_events?: number;
+        idle_minutes?: number;
+    } | null;
 }
 
 interface Props {
-    driver: Driver;
-    latest_scorecard: Scorecard | null;
-    scorecards: Scorecard[];
+    driver: DriverInfo;
+    latest_scorecard: ScorecardRecord | null;
+    scorecards: ScorecardRecord[];
 }
 
+function gradeBadgeVariant(grade: string): 'default' | 'secondary' | 'outline' | 'destructive' {
+    if (grade === 'A') return 'default';
+    if (grade === 'B') return 'secondary';
+    if (grade === 'C') return 'outline';
+    return 'destructive';
+}
 
-
-function DriverBehaviourFramework() {
-    const pillars = [
-        {
-            name: 'Risk',
-            icon: '⚠️',
-            description:
-                'Assesses driving manoeuvres associated with increased driving risk.',
-            metrics: [
-                'Harsh braking events',
-                'Harsh cornering events',
-            ],
-        },
-        {
-            name: 'Speeding',
-            icon: '🏎️',
-            description:
-                'Assesses the frequency, severity and duration of speeding.',
-            metrics: [
-                'Overspeed events',
-                'Severe overspeed events',
-                'Overspeed duration',
-            ],
-        },
-        {
-            name: 'Distraction',
-            icon: '👁️',
-            description:
-                'Assesses the indicators assigned to the distraction component of the current scoring model.',
-            metrics: [
-                'Confirm the underlying metrics from the scoring logic',
-            ],
-        },
-        {
-            name: 'Fatigue',
-            icon: '🕒',
-            description:
-                'Assesses fatigue indicators and prolonged continuous driving.',
-            metrics: [
-                'Fatigue events',
-                'Continuous driving duration',
-            ],
-        },
-        {
-            name: 'Eco',
-            icon: '🌱',
-            description:
-                'Assesses driving smoothness and engine-load behaviour.',
-            metrics: [
-                'Harsh acceleration events',
-                'High engine load events',
-            ],
-        },
-    ];
-
-    return (
-        <div className="space-y-4 rounded-xl border p-5">
-            <div>
-                <h2 className="text-lg font-semibold">
-                    Driver Behaviour Scoring Framework
-                </h2>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Fleetwize assesses driver performance across
-                    five pillars using the metrics defined by
-                    its scoring model. These pillars provide
-                    separate views of driver behaviour and
-                    contribute to the overall performance profile.
-                </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {pillars.map((pillar) => (
-                    <div
-                        key={pillar.name}
-                        className="rounded-lg border p-4"
-                    >
-                        <div className="flex items-center gap-2">
-                            <span className="text-xl">
-                                {pillar.icon}
-                            </span>
-
-                            <h3 className="font-semibold">
-                                {pillar.name}
-                            </h3>
-                        </div>
-
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            {pillar.description}
-                        </p>
-
-                        <div className="mt-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Metrics
-                            </p>
-
-                            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                                {pillar.metrics.map((metric) => (
-                                    <li key={metric}>
-                                        {metric}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="rounded-lg bg-muted/50 p-4">
-                <h3 className="text-sm font-semibold">
-                    Understanding the scores
-                </h3>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Pillar scores and the overall score are
-                    displayed on a scale of 0–100. Refer to the
-                    scoring rules to interpret individual values
-                    and understand how the overall score and
-                    grade are calculated.
-                </p>
-            </div>
-        </div>
-    );
+function scoreToneClass(value: number | null | undefined): string {
+    if (value === null || value === undefined) return 'text-foreground';
+    if (value >= 90) return 'text-emerald-600';
+    if (value >= 75) return 'text-sky-600';
+    if (value >= 60) return 'text-amber-600';
+    return 'text-rose-600';
 }
 
 export default function Show({
@@ -191,280 +65,217 @@ export default function Show({
     latest_scorecard,
     scorecards,
 }: Props) {
+    const brakingEvents =
+        latest_scorecard?.harsh_braking_events ??
+        latest_scorecard?.score_breakdown?.harsh_braking_events ??
+        0;
+
+    const accelerationEvents =
+        latest_scorecard?.harsh_acceleration_events ??
+        latest_scorecard?.score_breakdown?.harsh_acceleration_events ??
+        0;
+
+    const speedingEvents =
+        latest_scorecard?.overspeed_events ??
+        latest_scorecard?.score_breakdown?.overspeed_events ??
+        0;
+
+    const corneringEvents =
+        latest_scorecard?.harsh_cornering_events ??
+        latest_scorecard?.score_breakdown?.harsh_cornering_events ??
+        0;
+
+    const idleMinutes =
+        latest_scorecard?.idle_minutes ??
+        latest_scorecard?.score_breakdown?.idle_minutes ??
+        0;
+
+    const behaviourCards = [
+        {
+            label: 'Harsh Braking',
+            score: latest_scorecard?.risk_score,
+            metricText: `${brakingEvents} events`,
+            hint: 'Sudden deceleration',
+        },
+        {
+            label: 'Harsh Acceleration',
+            score: latest_scorecard?.eco_score,
+            metricText: `${accelerationEvents} events`,
+            hint: 'Rapid throttle launches',
+        },
+        {
+            label: 'Speeding',
+            score: latest_scorecard?.speeding_score,
+            metricText: `${speedingEvents} trips over limit`,
+            hint: 'Max speed vs. speed limit',
+        },
+        {
+            label: 'Hard Cornering',
+            score: latest_scorecard?.fatigue_score,
+            metricText: `${corneringEvents} events`,
+            hint: 'Sharp turns at speed',
+        },
+        {
+            label: 'Idling',
+            score: latest_scorecard?.distraction_score,
+            metricText: `${idleMinutes} mins`,
+            hint: 'Stationary engine-on time',
+        },
+    ];
+
     return (
-        <CompanyLayout title={`${driver.name} - Driver Scorecard`}>
-            <Head title={`${driver.name} - Driver Scorecard`} />
+        <CompanyLayout title={`${driver.name} Driver Scorecard`}>
+            <Head title={`${driver.name} Driver Scorecard`} />
+
             <div className="space-y-6">
-                <div>
-                    <h1 className="text-2xl font-bold">
-                        {driver.name}
-                    </h1>
+                {/* Top Navigation & Header */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div className="mb-1">
+                            <Button asChild variant="ghost" size="sm" className="-ml-2">
+                                <Link href="/driver-scorecards">
+                                    <ArrowLeft className="mr-1.5 h-4 w-4" />
+                                    Back to Scorecards
+                                </Link>
+                            </Button>
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-tight">{driver.name}</h1>
+                        <p className="text-sm text-muted-foreground">
+                            Performance across Harsh Braking, Harsh Acceleration, Speeding, Hard Cornering, and Idling.
+                        </p>
+                    </div>
 
-                    <p className="text-sm text-muted-foreground">
-                        Driver performance across Risk, Speeding, Eco,
-                        Fatigue and Distraction.
-                    </p>
+                    {latest_scorecard && (
+                        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2.5">
+                            <div>
+                                <div className="text-xs text-muted-foreground">Latest Period</div>
+                                <div className="text-sm font-medium capitalize">
+                                    {latest_scorecard.period_type} ({latest_scorecard.period_start ?? '-'} – {latest_scorecard.period_end ?? '-'})
+                                </div>
+                            </div>
+                            <Badge variant={gradeBadgeVariant(latest_scorecard.grade)}>
+                                Grade {latest_scorecard.grade}
+                            </Badge>
+                        </div>
+                    )}
                 </div>
 
-                <DriverBehaviourFramework />
+                {/* Overall + 5 Core Behaviours Grid */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                Overall Score
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className={`text-3xl font-bold tabular-nums ${scoreToneClass(latest_scorecard?.score)}`}>
+                                {latest_scorecard?.score ?? '—'}
+                                {latest_scorecard && (
+                                    <span className="text-sm font-normal text-muted-foreground"> / 100</span>
+                                )}
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                                {latest_scorecard?.trip_count ?? 0} trips evaluated
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Overall Score
-                        </div>
-
-                        <div className="mt-1 text-3xl font-bold">
-                            {latest_scorecard?.score ?? '-'}
-                            {latest_scorecard && (
-                                <span className="text-sm font-normal text-muted-foreground">
-                                    /100
-                                </span>
-                            )}
-                        </div>
-
-                        <div className="mt-1 text-sm">
-                            Grade {latest_scorecard?.grade ?? '-'}
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Risk
-                        </div>
-
-                        <div className="mt-1 text-3xl font-bold">
-                            {latest_scorecard?.risk_score ?? '-'}
-                        </div>
-
-                        <div className="mt-1 text-xs text-muted-foreground">
-                            Braking & Cornering
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Speeding
-                        </div>
-
-                        <div className="mt-1 text-3xl font-bold">
-                            {latest_scorecard?.speeding_score ?? '-'}
-                        </div>
-
-                        <div className="mt-1 text-xs text-muted-foreground">
-                            Speed Compliance
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Eco
-                        </div>
-
-                        <div className="mt-1 text-3xl font-bold">
-                            {latest_scorecard?.eco_score ?? '-'}
-                        </div>
-
-                        <div className="mt-1 text-xs text-muted-foreground">
-                            Acceleration & Engine Load
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Fatigue
-                        </div>
-
-                        <div className="mt-1 text-3xl font-bold">
-                            {latest_scorecard?.fatigue_score ?? '-'}
-                        </div>
-
-                        <div className="mt-1 text-xs text-muted-foreground">
-                            Driving & Rest
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Distraction
-                        </div>
-
-                        <div className="mt-1 text-3xl font-bold">
-                            {latest_scorecard?.distraction_score ?? '-'}
-                        </div>
-
-                        <div className="mt-1 text-xs text-muted-foreground">
-                            Idle Behaviour
-                        </div>
-                    </div>
+                    {behaviourCards.map((item) => (
+                        <Card key={item.label}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    {item.label}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className={`text-3xl font-bold tabular-nums ${scoreToneClass(item.score)}`}>
+                                    {item.score ?? '—'}
+                                </div>
+                                <div className="mt-1 text-xs font-medium text-foreground">
+                                    {item.metricText}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                    {item.hint}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Overspeed Events
+                {/* Scorecard History Table */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Scorecard History</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Historical daily, weekly, and monthly scores across all five driving behaviours.
+                        </p>
+                    </CardHeader>
+
+                    <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
+                                        <th className="p-3 text-left">Period</th>
+                                        <th className="p-3 text-left">Overall</th>
+                                        <th className="p-3 text-left">Braking</th>
+                                        <th className="p-3 text-left">Accel</th>
+                                        <th className="p-3 text-left">Speeding</th>
+                                        <th className="p-3 text-left">Cornering</th>
+                                        <th className="p-3 text-left">Idling</th>
+                                        <th className="p-3 text-left">Grade</th>
+                                        <th className="p-3 text-right">Trips</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody className="divide-y">
+                                    {scorecards.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                                                No historical scorecards recorded for this driver yet.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        scorecards.map((scorecard) => (
+                                            <tr key={scorecard.id} className="hover:bg-muted/30">
+                                                <td className="p-3 whitespace-nowrap">
+                                                    <div className="font-medium capitalize">
+                                                        {scorecard.period_type}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {scorecard.period_start ?? '-'} – {scorecard.period_end ?? '-'}
+                                                    </div>
+                                                </td>
+
+                                                <td className="p-3 whitespace-nowrap tabular-nums">
+                                                    <span className="font-semibold">{scorecard.score}</span>
+                                                    <span className="text-xs text-muted-foreground">/100</span>
+                                                </td>
+
+                                                <td className="p-3 tabular-nums">{scorecard.risk_score}</td>
+                                                <td className="p-3 tabular-nums">{scorecard.eco_score}</td>
+                                                <td className="p-3 tabular-nums">{scorecard.speeding_score}</td>
+                                                <td className="p-3 tabular-nums">{scorecard.fatigue_score}</td>
+                                                <td className="p-3 tabular-nums">{scorecard.distraction_score}</td>
+
+                                                <td className="p-3">
+                                                    <Badge variant={gradeBadgeVariant(scorecard.grade)}>
+                                                        {scorecard.grade}
+                                                    </Badge>
+                                                </td>
+
+                                                <td className="p-3 text-right tabular-nums">
+                                                    {scorecard.trip_count}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
-
-                        <div className="mt-1 text-2xl font-semibold">
-                            {latest_scorecard?.overspeed_events ?? 0}
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Fatigue Events
-                        </div>
-
-                        <div className="mt-1 text-2xl font-semibold">
-                            {latest_scorecard?.fatigue_events ?? 0}
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Idle Minutes
-                        </div>
-
-                        <div className="mt-1 text-2xl font-semibold">
-                            {latest_scorecard?.idle_minutes ?? 0}
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Trips
-                        </div>
-
-                        <div className="mt-1 text-2xl font-semibold">
-                            {latest_scorecard?.trip_count ?? 0}
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <h2 className="text-lg font-semibold">
-                        Scorecard History
-                    </h2>
-
-                    <p className="text-sm text-muted-foreground">
-                        Historical daily, weekly and monthly driver performance.
-                    </p>
-                </div>
-
-                <div className="overflow-hidden rounded-lg border">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="border-b">
-                                <th className="p-3 text-left">
-                                    Period
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Overall
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Risk
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Speeding
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Eco
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Fatigue
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Distraction
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Grade
-                                </th>
-
-                                <th className="p-3 text-left">
-                                    Trips
-                                </th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {scorecards.map((scorecard) => (
-                                <tr
-                                    key={scorecard.id}
-                                    className="border-b"
-                                >
-                                    <td className="p-3">
-                                        <div className="font-medium capitalize">
-                                            {scorecard.period_type}
-                                        </div>
-
-                                        <div className="text-xs text-muted-foreground">
-                                            {scorecard.period_start ?? '-'}
-                                            {' – '}
-                                            {scorecard.period_end ?? '-'}
-                                        </div>
-                                    </td>
-
-                                    <td className="p-3">
-                                        <span className="font-semibold">
-                                            {scorecard.score}
-                                        </span>
-
-                                        <span className="text-xs text-muted-foreground">
-                                            /100
-                                        </span>
-                                    </td>
-
-                                    <td className="p-3">
-                                        {scorecard.risk_score}
-                                    </td>
-
-                                    <td className="p-3">
-                                        {scorecard.speeding_score}
-                                    </td>
-
-                                    <td className="p-3">
-                                        {scorecard.eco_score}
-                                    </td>
-
-                                    <td className="p-3">
-                                        {scorecard.fatigue_score}
-                                    </td>
-
-                                    <td className="p-3">
-                                        {scorecard.distraction_score}
-                                    </td>
-
-                                    <td className="p-3">
-                                        <Badge
-                                            variant={
-                                                scorecard.grade === 'A'
-                                                    ? 'default'
-                                                    : scorecard.grade === 'B'
-                                                        ? 'secondary'
-                                                        : scorecard.grade === 'C'
-                                                            ? 'outline'
-                                                            : 'destructive'
-                                            }
-                                        >
-                                            {scorecard.grade}
-                                        </Badge>
-                                    </td>
-
-                                    <td className="p-3">
-                                        {scorecard.trip_count}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                    </CardContent>
+                </Card>
             </div>
         </CompanyLayout>
     );
