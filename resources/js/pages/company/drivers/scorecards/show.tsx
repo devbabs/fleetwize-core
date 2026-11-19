@@ -10,6 +10,14 @@ interface DriverInfo {
     name: string;
 }
 
+interface ScorecardBreakdown {
+    harsh_braking?: { score?: number; events?: number };
+    harsh_acceleration?: { score?: number; events?: number };
+    speeding?: { score?: number; events?: number };
+    hard_cornering?: { score?: number; events?: number };
+    idling?: { score?: number; idle_minutes?: number };
+}
+
 interface ScorecardRecord {
     id: number;
     period_type: 'daily' | 'weekly' | 'monthly' | string;
@@ -18,25 +26,21 @@ interface ScorecardRecord {
     trip_count: number;
     score: number;
     grade: string;
-    // Scores (0 - 100) mapped to the 5 core behaviours
-    risk_score: number;        // Harsh braking score
-    eco_score: number;         // Harsh acceleration score
-    speeding_score: number;    // Speeding score (vs. max speed limit)
-    fatigue_score: number;     // Hard cornering score
-    distraction_score: number; // Idling score
-    // Event / metric counts
+    // 5 core behaviour scores (0 - 100)
+    harsh_braking_score: number;
+    harsh_acceleration_score: number;
+    speeding_score: number;
+    hard_cornering_score: number;
+    idling_score: number;
+    // 5 core behaviour counts / minutes
     harsh_braking_events?: number;
     harsh_acceleration_events?: number;
     overspeed_events?: number;
     harsh_cornering_events?: number;
     idle_minutes?: number;
-    score_breakdown?: {
-        harsh_braking_events?: number;
-        harsh_acceleration_events?: number;
-        overspeed_events?: number;
-        harsh_cornering_events?: number;
-        idle_minutes?: number;
-    } | null;
+    distance_km?: number;
+    duration_seconds?: number;
+    score_breakdown?: ScorecardBreakdown | null;
 }
 
 interface Props {
@@ -54,9 +58,11 @@ function gradeBadgeVariant(grade: string): 'default' | 'secondary' | 'outline' |
 
 function scoreToneClass(value: number | null | undefined): string {
     if (value === null || value === undefined) return 'text-foreground';
-    if (value >= 90) return 'text-emerald-600';
-    if (value >= 75) return 'text-sky-600';
-    if (value >= 60) return 'text-amber-600';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 'text-foreground';
+    if (num >= 90) return 'text-emerald-600';
+    if (num >= 75) return 'text-sky-600';
+    if (num >= 60) return 'text-amber-600';
     return 'text-rose-600';
 }
 
@@ -67,39 +73,39 @@ export default function Show({
 }: Props) {
     const brakingEvents =
         latest_scorecard?.harsh_braking_events ??
-        latest_scorecard?.score_breakdown?.harsh_braking_events ??
+        latest_scorecard?.score_breakdown?.harsh_braking?.events ??
         0;
 
     const accelerationEvents =
         latest_scorecard?.harsh_acceleration_events ??
-        latest_scorecard?.score_breakdown?.harsh_acceleration_events ??
+        latest_scorecard?.score_breakdown?.harsh_acceleration?.events ??
         0;
 
     const speedingEvents =
         latest_scorecard?.overspeed_events ??
-        latest_scorecard?.score_breakdown?.overspeed_events ??
+        latest_scorecard?.score_breakdown?.speeding?.events ??
         0;
 
     const corneringEvents =
         latest_scorecard?.harsh_cornering_events ??
-        latest_scorecard?.score_breakdown?.harsh_cornering_events ??
+        latest_scorecard?.score_breakdown?.hard_cornering?.events ??
         0;
 
     const idleMinutes =
         latest_scorecard?.idle_minutes ??
-        latest_scorecard?.score_breakdown?.idle_minutes ??
+        latest_scorecard?.score_breakdown?.idling?.idle_minutes ??
         0;
 
     const behaviourCards = [
         {
             label: 'Harsh Braking',
-            score: latest_scorecard?.risk_score,
+            score: latest_scorecard?.harsh_braking_score,
             metricText: `${brakingEvents} events`,
             hint: 'Sudden deceleration',
         },
         {
             label: 'Harsh Acceleration',
-            score: latest_scorecard?.eco_score,
+            score: latest_scorecard?.harsh_acceleration_score,
             metricText: `${accelerationEvents} events`,
             hint: 'Rapid throttle launches',
         },
@@ -111,13 +117,13 @@ export default function Show({
         },
         {
             label: 'Hard Cornering',
-            score: latest_scorecard?.fatigue_score,
+            score: latest_scorecard?.hard_cornering_score,
             metricText: `${corneringEvents} events`,
             hint: 'Sharp turns at speed',
         },
         {
             label: 'Idling',
-            score: latest_scorecard?.distraction_score,
+            score: latest_scorecard?.idling_score,
             metricText: `${idleMinutes} mins`,
             hint: 'Stationary engine-on time',
         },
@@ -133,7 +139,7 @@ export default function Show({
                     <div>
                         <div className="mb-1">
                             <Button asChild variant="ghost" size="sm" className="-ml-2">
-                                <Link href="/driver-scorecards">
+                                <Link href="/drivers-scorecard">
                                     <ArrowLeft className="mr-1.5 h-4 w-4" />
                                     Back to Scorecards
                                 </Link>
@@ -253,11 +259,11 @@ export default function Show({
                                                     <span className="text-xs text-muted-foreground">/100</span>
                                                 </td>
 
-                                                <td className="p-3 tabular-nums">{scorecard.risk_score}</td>
-                                                <td className="p-3 tabular-nums">{scorecard.eco_score}</td>
+                                                <td className="p-3 tabular-nums">{scorecard.harsh_braking_score}</td>
+                                                <td className="p-3 tabular-nums">{scorecard.harsh_acceleration_score}</td>
                                                 <td className="p-3 tabular-nums">{scorecard.speeding_score}</td>
-                                                <td className="p-3 tabular-nums">{scorecard.fatigue_score}</td>
-                                                <td className="p-3 tabular-nums">{scorecard.distraction_score}</td>
+                                                <td className="p-3 tabular-nums">{scorecard.hard_cornering_score}</td>
+                                                <td className="p-3 tabular-nums">{scorecard.idling_score}</td>
 
                                                 <td className="p-3">
                                                     <Badge variant={gradeBadgeVariant(scorecard.grade)}>

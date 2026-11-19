@@ -13,9 +13,9 @@ class CalculateTripScores extends Command
 {
     protected $signature = 'tracker:calculate-trip-scores
                             {--recalculate : Recalculate scores for all synced trips}
-                            {--speed-limit= : Override default max speed limit in km/h}';
+                            {--speed-limit= : Override max speed limit in km/h}';
 
-    protected $description = 'Calculate trip scores from harsh braking, harsh acceleration, speeding, hard cornering, and idling';
+    protected $description = 'Calculate trip scores across Harsh Braking, Harsh Acceleration, Speeding, Hard Cornering, and Idling';
 
     public function handle(): int
     {
@@ -52,7 +52,6 @@ class CalculateTripScores extends Command
             ->sortBy('fix_time')
             ->values();
 
-        // Speed limit priority: CLI option -> vehicle speed_limit -> default 85 km/h
         $speedLimit = (float) ($this->option('speed-limit')
             ?? $trip->vehicle?->speed_limit
             ?? 85);
@@ -80,44 +79,35 @@ class CalculateTripScores extends Command
                 $peakSpeedKmh = $speed;
             }
 
-            // 1. Harsh events from counters / Teltonika io253 / alarm attributes
-            $pointAccelAdded = 0;
-            $pointBrakeAdded = 0;
-            $pointCornerAdded = 0;
+            // 1. Harsh event deltas / Teltonika io253 / alarm attributes
+            $accelAdded = 0;
+            $brakeAdded = 0;
+            $cornerAdded = 0;
 
             if ($previousPoint) {
-                $pointAccelAdded += $this->counterDelta(
-                    $previousPoint->hard_acceleration_count,
-                    $point->hard_acceleration_count
-                );
-                $pointBrakeAdded += $this->counterDelta(
-                    $previousPoint->hard_deceleration_count,
-                    $point->hard_deceleration_count
-                );
-                $pointCornerAdded += $this->counterDelta(
-                    $previousPoint->hard_cornering_count,
-                    $point->hard_cornering_count
-                );
+                $accelAdded += $this->counterDelta($previousPoint->hard_acceleration_count, $point->hard_acceleration_count);
+                $brakeAdded += $this->counterDelta($previousPoint->hard_deceleration_count, $point->hard_deceleration_count);
+                $cornerAdded += $this->counterDelta($previousPoint->hard_cornering_count, $point->hard_cornering_count);
             }
 
             $greenDrivingType = isset($rawAttr['io253']) ? (int) $rawAttr['io253'] : null;
             $alarmAttr = $rawAttr['alarm'] ?? null;
 
-            if ($pointAccelAdded === 0 && ($greenDrivingType === 1 || $alarmAttr === 'hardAcceleration')) {
-                $pointAccelAdded = 1;
+            if ($accelAdded === 0 && ($greenDrivingType === 1 || $alarmAttr === 'hardAcceleration')) {
+                $accelAdded = 1;
             }
-            if ($pointBrakeAdded === 0 && ($greenDrivingType === 2 || $alarmAttr === 'hardBraking')) {
-                $pointBrakeAdded = 1;
+            if ($brakeAdded === 0 && ($greenDrivingType === 2 || $alarmAttr === 'hardBraking')) {
+                $brakeAdded = 1;
             }
-            if ($pointCornerAdded === 0 && ($greenDrivingType === 3 || $alarmAttr === 'hardCornering')) {
-                $pointCornerAdded = 1;
+            if ($cornerAdded === 0 && ($greenDrivingType === 3 || $alarmAttr === 'hardCornering')) {
+                $cornerAdded = 1;
             }
 
-            // 2. Kinematics fallback across consecutive points (1s to 60s)
-            if ($previousPoint && $pointAccelAdded === 0 && $pointBrakeAdded === 0 && $pointCornerAdded === 0) {
+            // Kinematic fallback across tight consecutive points (1s to 30s)
+            if ($previousPoint && $accelAdded === 0 && $brakeAdded === 0 && $cornerAdded === 0) {
                 $dt = $this->rawIntervalSeconds($previousPoint, $point);
 
-                if ($dt >= 1 && $dt <= 60) {
+                if ($dt >= 1 && $dt <= 30) {
                     $prevRawAttr = is_array($previousPoint->raw_payload)
                         ? ($previousPoint->raw_payload['attributes'] ?? [])
                         : [];
@@ -129,9 +119,9 @@ class CalculateTripScores extends Command
                     $longitudinalAccelMs2 = (($speed - $prevSpeed) / 3.6) / $dt;
 
                     if ($longitudinalAccelMs2 >= 2.8) {
-                        $pointAccelAdded = 1;
+                        $accelAdded = 1;
                     } elseif ($longitudinalAccelMs2 <= -3.2) {
-                        $pointBrakeAdded = 1;
+                        $brakeAdded = 1;
                     }
 
                     $avgSpeedMs = (($speed + $prevSpeed) / 2.0) / 3.6;
@@ -144,17 +134,17 @@ class CalculateTripScores extends Command
                         $lateralAccelMs2 = $avgSpeedMs * $omegaRadSec;
 
                         if ($lateralAccelMs2 >= 3.2 && $headingDiffDeg >= 25) {
-                            $pointCornerAdded = 1;
+                            $cornerAdded = 1;
                         }
                     }
                 }
             }
 
-            $harshAcceleration += $pointAccelAdded;
-            $harshBraking += $pointBrakeAdded;
-            $hardCornering += $pointCornerAdded;
+            $harshAcceleration += $accelAdded;
+            $harshBraking += $brakeAdded;
+            $hardCornering += $cornerAdded;
 
-            // 3. Idling: ignition ON and speed < 2 km/h between consecutive points
+            // 2. Idling: ignition ON and speed < 2 km/h between consecutive points
             if ($previousPoint) {
                 $prevRawAttr = is_array($previousPoint->raw_payload)
                     ? ($previousPoint->raw_payload['attributes'] ?? [])
@@ -176,39 +166,30 @@ class CalculateTripScores extends Command
             $previousPoint = $point;
         }
 
-        // Ensure we always have a max speed value for the trip
+        // Guarantee values for all 5 behaviours on every trip
         $effectiveMaxSpeed = max(
             round($peakSpeedKmh, 2),
             (float) ($trip->max_speed_km_per_hr ?? 0),
             (float) ($trip->max_speed ?? 0)
         );
 
-        // Ensure we always have an idle_minutes value (fallback to existing trip value if route had no intervals)
         $idleMinutes = $points->count() >= 2
             ? (int) round($idleSeconds / 60)
             : (int) ($trip->idle_minutes ?? 0);
 
-        // Speeding calculation based on max speed over the configured speed limit
         $speedExcessKmh = max(0.0, round($effectiveMaxSpeed - $speedLimit, 2));
-        $overspeedEvents = $speedExcessKmh > 0 ? 1 : 0;
+        $speedingViolations = $speedExcessKmh > 0 ? 1 : 0;
 
-        // Individual behaviour scores (0 - 100)
+        // 5 core behaviour scores (0 - 100)
         $harshBrakingScore = max(0, min(100, 100 - ($harshBraking * 5)));
         $harshAccelerationScore = max(0, min(100, 100 - ($harshAcceleration * 4)));
-        $hardCorneringScore = max(0, min(100, 100 - ($hardCornering * 4)));
-
-        // Speeding score: penalize based on how far max speed exceeded the limit
-        // e.g., -10 base for exceeding limit + -1 per km/h over limit
-        $speedingPenalty = $speedExcessKmh > 0
-            ? (10 + (int) floor($speedExcessKmh))
-            : 0;
+        $speedingPenalty = $speedExcessKmh > 0 ? (10 + (int) floor($speedExcessKmh)) : 0;
         $speedingScore = max(0, min(100, 100 - $speedingPenalty));
-
-        // Idling score: 10-minute grace period, then -1 pt per 5 mins over
+        $hardCorneringScore = max(0, min(100, 100 - ($hardCornering * 4)));
         $excessIdleMinutes = max(0, $idleMinutes - 10);
         $idlingScore = max(0, min(100, 100 - (int) floor($excessIdleMinutes / 5)));
 
-        // Overall trip score (equal 20% across the 5 core behaviours; adjust weights as needed)
+        // Equal 20% weighting across the 5 core behaviours
         $score = round(
             ($harshBrakingScore * 0.20)
             + ($harshAccelerationScore * 0.20)
@@ -224,55 +205,28 @@ class CalculateTripScores extends Command
             ?? $trip->vehicle?->driver_id
             ?? $trip->vehicle?->company_user_id;
 
-        // Inside CalculateTripScores::calculateTripScore(VehicleTrip $trip)
-        $fuelReadings = $points
-            ->map(function ($p) {
-                if ($p->fuel_consumption !== null && (float) $p->fuel_consumption > 0) {
-                    return (float) $p->fuel_consumption;
-                }
-                $io107 = data_get($p->raw_payload, 'attributes.io107');
-                return $io107 !== null ? round(((float) $io107) * 0.1, 2) : null;
-            })
-            ->filter(fn ($val) => $val !== null)
-            ->values();
-
-        $computedFuel = null;
-        if ($fuelReadings->count() >= 2) {
-            $delta = round((float) $fuelReadings->last() - (float) $fuelReadings->first(), 2);
-            if ($delta >= 0) {
-                $computedFuel = $delta;
-            }
-        }
-
-        $finalFuelConsumed = $computedFuel !== null
-            ? $computedFuel
-            : ((float) ($trip->fuel_consumed ?? 0) > 0 ? (float) $trip->fuel_consumed : 0.0);
-
         $trip->update([
             'company_user_id' => $driverId,
             'score' => $score,
             'grade' => $grade,
 
-            // Core 5 behaviour event/metric values (guaranteed present)
+            // Five core behaviour metrics
             'harsh_braking_events' => $harshBraking,
             'harsh_acceleration_events' => $harshAcceleration,
-            'overspeed_events' => $overspeedEvents,
+            'overspeed_events' => $speedingViolations,
             'harsh_cornering_events' => $hardCornering,
             'idle_minutes' => $idleMinutes,
 
-            // Pillar / sub-scores (mapped cleanly to existing columns)
-            'risk_score' => round(($harshBrakingScore + $hardCorneringScore) / 2, 2),
+            // Five core behaviour scores
+            'harsh_braking_score' => $harshBrakingScore,
+            'harsh_acceleration_score' => $harshAccelerationScore,
             'speeding_score' => $speedingScore,
-            'eco_score' => round(($harshAccelerationScore + $idlingScore) / 2, 2),
-            'distraction_score' => $idlingScore,
-            'fatigue_score' => 100,
+            'hard_cornering_score' => $hardCorneringScore,
+            'idling_score' => $idlingScore,
 
-            // Speed fields
             'max_speed_km_per_hr' => $effectiveMaxSpeed,
             'max_speed' => $effectiveMaxSpeed,
-
             'score_calculated_at' => now(),
-            'fuel_consumed' => $finalFuelConsumed,
         ]);
     }
 

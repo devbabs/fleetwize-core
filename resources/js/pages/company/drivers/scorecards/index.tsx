@@ -15,13 +15,13 @@ interface ScorecardItem {
     trip_count: number;
     score: number;
     grade: string;
-    // Pillar scores (0-100)
-    risk_score: number;
+    // 5 core behaviour scores (0 - 100)
+    harsh_braking_score: number;
+    harsh_acceleration_score: number;
     speeding_score: number;
-    eco_score: number;
-    fatigue_score: number;
-    distraction_score: number;
-    // Optional behaviour counts if passed from controller/breakdown
+    hard_cornering_score: number;
+    idling_score: number;
+    // 5 core behaviour counts / minutes
     harsh_braking_events?: number;
     harsh_acceleration_events?: number;
     overspeed_events?: number;
@@ -36,12 +36,17 @@ interface Props {
 }
 
 const BEHAVIOUR_PILLARS = [
-    { key: 'risk_score', label: 'Braking' },
-    { key: 'eco_score', label: 'Accel' },
-    { key: 'speeding_score', label: 'Speeding' },
-    { key: 'fatigue_score', label: 'Cornering' },
-    { key: 'distraction_score', label: 'Idling' },
+    { key: 'harsh_braking_score', countKey: 'harsh_braking_events', label: 'Braking', unit: 'events' },
+    { key: 'harsh_acceleration_score', countKey: 'harsh_acceleration_events', label: 'Accel', unit: 'events' },
+    { key: 'speeding_score', countKey: 'overspeed_events', label: 'Speeding', unit: 'trips over limit' },
+    { key: 'hard_cornering_score', countKey: 'harsh_cornering_events', label: 'Cornering', unit: 'events' },
+    { key: 'idling_score', countKey: 'idle_minutes', label: 'Idling', unit: 'mins' },
 ] as const;
+
+function toSafeNumber(value: unknown, fallback = 0): number {
+    const parsed = Number(value ?? fallback);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 function scoreBarColor(value: number): string {
     if (value >= 90) return 'bg-emerald-500';
@@ -67,11 +72,12 @@ export default function Index({ scorecards }: Props) {
 
     const summary = useMemo(() => {
         if (rows.length === 0) {
-            return { count: 0, avgScore: 0, totalTrips: 0, atRiskCount: 0 };
+            return { count: 0, avgScore: '0.0', totalTrips: 0, atRiskCount: 0 };
         }
-        const totalScore = rows.reduce((acc, r) => acc + Number(r.score || 0), 0);
-        const totalTrips = rows.reduce((acc, r) => acc + Number(r.trip_count || 0), 0);
-        const atRiskCount = rows.filter((r) => Number(r.score || 0) < 70).length;
+
+        const totalScore = rows.reduce((acc, r) => acc + toSafeNumber(r.score), 0);
+        const totalTrips = rows.reduce((acc, r) => acc + toSafeNumber(r.trip_count), 0);
+        const atRiskCount = rows.filter((r) => toSafeNumber(r.score) < 70).length;
 
         return {
             count: rows.length,
@@ -120,7 +126,7 @@ export default function Index({ scorecards }: Props) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
+                            <div className="text-2xl font-bold tabular-nums">
                                 {summary.avgScore}
                                 <span className="text-sm font-normal text-muted-foreground"> / 100</span>
                             </div>
@@ -134,7 +140,7 @@ export default function Index({ scorecards }: Props) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{summary.count}</div>
+                            <div className="text-2xl font-bold tabular-nums">{summary.count}</div>
                         </CardContent>
                     </Card>
 
@@ -145,7 +151,7 @@ export default function Index({ scorecards }: Props) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{summary.totalTrips}</div>
+                            <div className="text-2xl font-bold tabular-nums">{summary.totalTrips}</div>
                         </CardContent>
                     </Card>
 
@@ -156,7 +162,7 @@ export default function Index({ scorecards }: Props) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-rose-600">{summary.atRiskCount}</div>
+                            <div className="text-2xl font-bold tabular-nums text-rose-600">{summary.atRiskCount}</div>
                         </CardContent>
                     </Card>
                 </div>
@@ -191,7 +197,8 @@ export default function Index({ scorecards }: Props) {
                                         </tr>
                                     ) : (
                                         rows.map((scorecard) => {
-                                            const overall = Number(scorecard.score ?? 0);
+                                            const overall = toSafeNumber(scorecard.score);
+                                            const clampedOverall = Math.max(0, Math.min(100, overall));
 
                                             return (
                                                 <tr key={scorecard.id} className="hover:bg-muted/30">
@@ -222,19 +229,23 @@ export default function Index({ scorecards }: Props) {
                                                         <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-muted">
                                                             <div
                                                                 className={`h-full ${scoreBarColor(overall)}`}
-                                                                style={{ width: `${Math.max(0, Math.min(100, overall))}%` }}
+                                                                style={{ width: `${clampedOverall}%` }}
                                                             />
                                                         </div>
                                                     </td>
 
                                                     <td className="p-3">
-                                                        <div className="grid min-w-[320px] grid-cols-5 gap-2 text-xs">
+                                                        <div className="grid min-w-[340px] grid-cols-5 gap-2 text-xs">
                                                             {BEHAVIOUR_PILLARS.map((pillar) => {
-                                                                const val = Number(scorecard[pillar.key] ?? 0);
+                                                                const val = toSafeNumber(scorecard[pillar.key]);
+                                                                const count = toSafeNumber(scorecard[pillar.countKey]);
+                                                                const clampedVal = Math.max(0, Math.min(100, val));
+
                                                                 return (
                                                                     <div
                                                                         key={pillar.key}
                                                                         className="rounded border bg-background px-2 py-1.5"
+                                                                        title={`${pillar.label}: ${val}/100 (${count} ${pillar.unit})`}
                                                                     >
                                                                         <div className="truncate text-[11px] text-muted-foreground">
                                                                             {pillar.label}
@@ -245,7 +256,7 @@ export default function Index({ scorecards }: Props) {
                                                                         <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted">
                                                                             <div
                                                                                 className={`h-full ${scoreBarColor(val)}`}
-                                                                                style={{ width: `${Math.max(0, Math.min(100, val))}%` }}
+                                                                                style={{ width: `${clampedVal}%` }}
                                                                             />
                                                                         </div>
                                                                     </div>
