@@ -112,6 +112,19 @@ class SyncVehicleTrips extends Command
                 isset($trip['endLon']) ? (float) $trip['endLon'] : null
             );
 
+            // Inside your trip sync loop where $trip data from Traccar is processed:
+
+            $startFuelLiters = isset($trip['startFuel']) ? (float) $trip['startFuel'] : null;
+            $endFuelLiters = isset($trip['endFuel']) ? (float) $trip['endFuel'] : null;
+
+            // Fallback: If Traccar's trip summary returns 0 or null for spentFuel,
+            // calculate it from Teltonika CAN io107 (stored in route points) or trip attributes if available.
+            $spentFuel = (isset($trip['spentFuel']) && (float) $trip['spentFuel'] > 0) 
+                ? (float) $trip['spentFuel'] 
+                : null;
+
+            // If still null/zero, we can fallback to calculating it from the route points during score calculation
+
                 VehicleTrip::query()->updateOrCreate(
                     [
                         'vehicle_id' => $vehicle->id,
@@ -140,8 +153,10 @@ class SyncVehicleTrips extends Command
                                 $trip['maxSpeed'] ?? null
                             ),
 
-                        'fuel_consumed' =>
-                            $trip['spentFuel'] ?? null,
+                        // 'fuel_consumed' =>
+                        //     $trip['spentFuel'] ?? null,
+
+                        'fuel_consumed' => $spentFuel,
 
                         'trip_date' =>
                             $startTime->toDateString(),

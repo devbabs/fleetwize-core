@@ -404,20 +404,35 @@ class CalculateTripScores extends Command
             : $trip->end_odometer;
 
         // 5. Exact Fuel Burned in Liters (io107 in 0.1L units -> Liters)
-        $firstFuelPoint = $points->first(fn ($p) => ($p->fuel_consumption ?? $p->raw_payload['attributes']['io107'] ?? null) !== null);
-        $lastFuelPoint = $points->reverse()->first(fn ($p) => ($p->fuel_consumption ?? $p->raw_payload['attributes']['io107'] ?? null) !== null);
 
-        $startFuelConsumed = $firstFuelPoint
-            ? ($firstFuelPoint->fuel_consumption ?? round(((float) $firstFuelPoint->raw_payload['attributes']['io107']) * 0.1, 1))
-            : null;
+        // $firstFuelPoint = $points->first(fn ($p) => ($p->fuel_consumption ?? $p->raw_payload['attributes']['io107'] ?? null) !== null);
+        // $lastFuelPoint = $points->reverse()->first(fn ($p) => ($p->fuel_consumption ?? $p->raw_payload['attributes']['io107'] ?? null) !== null);
 
-        $endFuelConsumed = $lastFuelPoint
-            ? ($lastFuelPoint->fuel_consumption ?? round(((float) $lastFuelPoint->raw_payload['attributes']['io107']) * 0.1, 1))
-            : null;
+        // $startFuelConsumed = $firstFuelPoint
+        //     ? ($firstFuelPoint->fuel_consumption ?? round(((float) $firstFuelPoint->raw_payload['attributes']['io107']) * 0.1, 1))
+        //     : null;
+
+        // $endFuelConsumed = $lastFuelPoint
+        //     ? ($lastFuelPoint->fuel_consumption ?? round(((float) $lastFuelPoint->raw_payload['attributes']['io107']) * 0.1, 1))
+        //     : null;
+
+        // $tripFuelBurned = ($startFuelConsumed !== null && $endFuelConsumed !== null && $endFuelConsumed >= $startFuelConsumed)
+        //     ? round($endFuelConsumed - $startFuelConsumed, 2)
+        //     : $trip->fuel_consumed;
+
+        // Extract Teltonika CAN start/end odometer (io87) and exact fuel burned (io107) across the trip
+        $firstPoint = $points->first();
+        $lastPoint = $points->last();
+
+        $startFuelConsumed = $firstPoint?->fuel_consumption 
+            ?? (isset($firstPoint?->raw_payload['attributes']['io107']) ? round(((float) $firstPoint->raw_payload['attributes']['io107']) * 0.1, 1) : null);
+
+        $endFuelConsumed = $lastPoint?->fuel_consumption 
+            ?? (isset($lastPoint?->raw_payload['attributes']['io107']) ? round(((float) $lastPoint->raw_payload['attributes']['io107']) * 0.1, 1) : null);
 
         $tripFuelBurned = ($startFuelConsumed !== null && $endFuelConsumed !== null && $endFuelConsumed >= $startFuelConsumed)
             ? round($endFuelConsumed - $startFuelConsumed, 2)
-            : $trip->fuel_consumed;
+            : ($trip->fuel_consumed > 0 ? $trip->fuel_consumed : 0.0);
 
         // 6. Ensure trip is linked to the vehicle's assigned driver
         $driverId = $trip->company_user_id
