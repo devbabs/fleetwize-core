@@ -293,43 +293,6 @@ class MaintenanceController extends Controller
         return back();
     }
 
-    // public function storeRecord(Request $request): RedirectResponse
-    // {
-    //     $company = $this->currentCompany($request);
-    //     $vehicle = $company->vehicles()->findOrFail((string) $request->route('vehicle'));
-
-    //     $validated = $request->validate([
-    //         'maintenance_schedule_id' => ['required', 'integer'],
-    //         'maintained_at' => ['required', 'date'],
-    //         'odometer_km' => ['required', 'integer', 'min:0'],
-    //         'notes' => ['nullable', 'string', 'max:1000'],
-    //     ]);
-
-    //     // Ensure the schedule belongs to this vehicle
-    //     $schedule = $vehicle->maintenanceSchedules()->findOrFail($validated['maintenance_schedule_id']);
-
-    //     $vehicle->maintenanceRecords()->create([
-    //         'maintenance_schedule_id' => $schedule->id,
-    //         'maintained_at' => $validated['maintained_at'],
-    //         'odometer_km' => $validated['odometer_km'],
-    //         'notes' => $validated['notes'] ?? null,
-    //     ]);
-
-    //     // Automatically acknowledge open alerts for this schedule
-    //     MaintenanceAlert::query()
-    //         ->where('vehicle_id', $vehicle->id)
-    //         ->where('maintenance_schedule_id', $schedule->id)
-    //         ->where('acknowledged', false)
-    //         ->update(['acknowledged' => true]);
-
-    //     Inertia::flash('toast', [
-    //         'type' => 'success',
-    //         'message' => "{$schedule->name} logged as completed. Next interval reset.",
-    //     ]);
-
-    //     return back();
-    // }
-
     public function storeRecord(Request $request): RedirectResponse
     {
         $company = $this->currentCompany($request);
@@ -345,28 +308,38 @@ class MaintenanceController extends Controller
         ]);
 
         $result = DB::transaction(function () use ($vehicle, $validated) {
-
-            // Lock the schedule to prevent concurrent duplicate submissions.
             $schedule = $vehicle->maintenanceSchedules()
                 ->whereKey($validated['maintenance_schedule_id'])
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // Prevent the same service from being logged twice.
-            $existingRecord = $vehicle->maintenanceRecords()
+            // 1. Exact duplicate check (same schedule, same date, same odometer)
+            $exactDuplicate = $vehicle->maintenanceRecords()
                 ->where('maintenance_schedule_id', $schedule->id)
                 ->whereDate('maintained_at', $validated['maintained_at'])
                 ->where('odometer_km', $validated['odometer_km'])
                 ->exists();
 
-            if ($existingRecord) {
+            if ($exactDuplicate) {
                 return [
-                    'duplicate' => true,
+                    'status' => 'duplicate',
                     'schedule_name' => $schedule->name,
                 ];
             }
 
-            // Create the maintenance history record.
+            // 2. Prevent logging again on the exact same day for the same schedule
+            $alreadyLoggedToday = $vehicle->maintenanceRecords()
+                ->where('maintenance_schedule_id', $schedule->id)
+                ->whereDate('maintained_at', $validated['maintained_at'])
+                ->exists();
+
+            if ($alreadyLoggedToday) {
+                return [
+                    'status' => 'already_today',
+                    'schedule_name' => $schedule->name,
+                ];
+            }
+
             $vehicle->maintenanceRecords()->create([
                 'maintenance_schedule_id' => $schedule->id,
                 'maintained_at' => $validated['maintained_at'],
@@ -374,12 +347,10 @@ class MaintenanceController extends Controller
                 'notes' => $validated['notes'] ?? null,
             ]);
 
-            // Reset the maintenance schedule's odometer baseline.
             $schedule->update([
                 'baseline_odometer_km' => $validated['odometer_km'],
             ]);
 
-            // Acknowledge open alerts for this schedule.
             MaintenanceAlert::query()
                 ->where('vehicle_id', $vehicle->id)
                 ->where('maintenance_schedule_id', $schedule->id)
@@ -387,15 +358,15 @@ class MaintenanceController extends Controller
                 ->update(['acknowledged' => true]);
 
             return [
-                'duplicate' => false,
+                'status' => 'created',
                 'schedule_name' => $schedule->name,
             ];
         });
 
-        if ($result['duplicate']) {
+        if ($result['status'] !== 'created') {
             Inertia::flash('toast', [
                 'type' => 'info',
-                'message' => 'This service has already been logged.',
+                'message' => "A service record for '{$result['schedule_name']}' has already been logged for this date.",
             ]);
 
             return back();

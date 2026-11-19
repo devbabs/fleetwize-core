@@ -224,6 +224,30 @@ class CalculateTripScores extends Command
             ?? $trip->vehicle?->driver_id
             ?? $trip->vehicle?->company_user_id;
 
+        // Inside CalculateTripScores::calculateTripScore(VehicleTrip $trip)
+        $fuelReadings = $points
+            ->map(function ($p) {
+                if ($p->fuel_consumption !== null && (float) $p->fuel_consumption > 0) {
+                    return (float) $p->fuel_consumption;
+                }
+                $io107 = data_get($p->raw_payload, 'attributes.io107');
+                return $io107 !== null ? round(((float) $io107) * 0.1, 2) : null;
+            })
+            ->filter(fn ($val) => $val !== null)
+            ->values();
+
+        $computedFuel = null;
+        if ($fuelReadings->count() >= 2) {
+            $delta = round((float) $fuelReadings->last() - (float) $fuelReadings->first(), 2);
+            if ($delta >= 0) {
+                $computedFuel = $delta;
+            }
+        }
+
+        $finalFuelConsumed = $computedFuel !== null
+            ? $computedFuel
+            : ((float) ($trip->fuel_consumed ?? 0) > 0 ? (float) $trip->fuel_consumed : 0.0);
+
         $trip->update([
             'company_user_id' => $driverId,
             'score' => $score,
@@ -248,6 +272,7 @@ class CalculateTripScores extends Command
             'max_speed' => $effectiveMaxSpeed,
 
             'score_calculated_at' => now(),
+            'fuel_consumed' => $finalFuelConsumed,
         ]);
     }
 

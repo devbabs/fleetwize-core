@@ -153,6 +153,7 @@ type MaintenanceSchedule = {
     distanceIntervalKm: number | null;
     timeIntervalDays: number | null;
     active: boolean;
+    lastMaintainedAt?: string | null;
 };
 
 type MaintenanceRecord = {
@@ -1070,8 +1071,8 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                             Fuel used
                                         </dt>
                                         <dd className="mt-1 text-sm text-foreground">
-                                            {selectedTrip.fuelConsumed !== null
-                                                ? `${selectedTrip.fuelConsumed.toFixed(1)} L`
+                                            {selectedTrip.fuelConsumed !== null && selectedTrip.fuelConsumed !== undefined
+                                                ? `${Number(selectedTrip.fuelConsumed).toFixed(1)} L`
                                                 : '—'}
                                         </dd>
                                     </div>
@@ -1499,17 +1500,31 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                             </td>
 
                                             <td className="px-6 py-3 text-right">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={processingScheduleId !== null}
-                                                    onClick={() => handleCompleteService(schedule)}
-                                                >
-                                                    {processingScheduleId === schedule.id
-                                                        ? 'Logging...'
-                                                        : 'Log Service'}
-                                                </Button>
+                                                {(() => {
+                                                    const todayStr = new Date().toISOString().split('T')[0];
+                                                    const loggedToday = schedule.maintainedAt === todayStr;
+                                                    const isBusy = processingScheduleId !== null;
+
+                                                    if (loggedToday) {
+                                                        return (
+                                                            <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                                                Logged Today
+                                                            </span>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={isBusy}
+                                                            onClick={() => handleCompleteService(schedule)}
+                                                        >
+                                                            {processingScheduleId === schedule.id ? 'Logging...' : 'Log Service'}
+                                                        </Button>
+                                                    );
+                                                })()}
                                             </td>
                                         </tr>
                                     ))}
