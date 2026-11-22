@@ -362,6 +362,27 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
 
     const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
 
+    const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
+
+    const availableEventTypes = useMemo(() => {
+        const types = new Set<string>();
+        (vehicle.events ?? []).forEach((event) => {
+            if (event.eventType) {
+                types.add(event.eventType);
+            }
+        });
+        return Array.from(types).sort();
+    }, [vehicle.events]);
+
+    const filteredEvents = useMemo(() => {
+        if (eventTypeFilter === 'all') {
+            return vehicle.events ?? [];
+        }
+        return (vehicle.events ?? []).filter(
+            (event) => event.eventType === eventTypeFilter
+        );
+    }, [vehicle.events, eventTypeFilter]);
+
     const startEditingSchedule = (schedule: MaintenanceScheduleItem) => {
         setEditingScheduleId(schedule.id);
         scheduleForm.setData({
@@ -1234,78 +1255,92 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
             </Dialog>
 
             {tab === 'Alarms/Alerts' ? (
-                <Card className="overflow-hidden py-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                                <tr>
-                                    <th className="px-6 py-3 font-medium">
-                                        Event
-                                    </th>
-
-                                    <th className="px-6 py-3 font-medium">
-                                        Logged
-                                    </th>
-
-                                    <th className="px-6 py-3 font-medium">
-                                        Details
-                                    </th>
-
-                                    <th className="px-6 py-3 font-medium">
-                                        Status
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-border">
-                                {vehicle.events.map((event) => (
-                                    <tr key={event.id}>
-                                        <td className="px-6 py-3">
-                                            <span className="font-medium text-foreground">
-                                                {eventTypeLabels[event.eventType] ??
-                                                    event.eventType}
-                                            </span>
-                                        </td>
-
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {formatDateTime(event.logTime)}
-                                        </td>
-
-                                        <td className="px-6 py-3 text-muted-foreground">
-                                            {event.alarm ??
-                                                (event.attributes?.message
-                                                    ? String(event.attributes.message)
-                                                    : '—')}
-                                        </td>
-
-                                        <td className="px-6 py-3">
-                                            {event.eventType === 'alarm' ? (
-                                                <Badge className="border-transparent bg-brand-green/15 text-brand-green">
-                                                    Alarm
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant="outline">
-                                                    Event
-                                                </Badge>
-                                            )}
-                                        </td>
-                                    </tr>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <Select
+                            value={eventTypeFilter}
+                            onValueChange={setEventTypeFilter}
+                        >
+                            <SelectTrigger className="w-[240px]">
+                                <SelectValue placeholder="Filter by event type" />
+                            </SelectTrigger>
+                            <SelectContent className="z-[9999]">
+                                <SelectItem value="all">All Event Types</SelectItem>
+                                {availableEventTypes.map((type) => (
+                                    <SelectItem key={type} value={type}>
+                                        {eventTypeLabels[type] ?? type}
+                                    </SelectItem>
                                 ))}
+                            </SelectContent>
+                        </Select>
 
-                                {vehicle.events.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={4}
-                                            className="px-6 py-10 text-center text-muted-foreground"
-                                        >
-                                            No events logged yet.
-                                        </td>
-                                    </tr>
-                                ) : null}
-                            </tbody>
-                        </table>
+                        <span className="text-xs text-muted-foreground">
+                            Showing {filteredEvents.length} of {vehicle.events.length} events
+                        </span>
                     </div>
-                </Card>
+
+                    <Card className="overflow-hidden py-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
+                                    <tr>
+                                        <th className="px-6 py-3 font-medium">Event</th>
+                                        <th className="px-6 py-3 font-medium">Logged</th>
+                                        <th className="px-6 py-3 font-medium">Details</th>
+                                        <th className="px-6 py-3 font-medium">Status</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody className="divide-y divide-border">
+                                    {filteredEvents.map((event) => (
+                                        <tr key={event.id}>
+                                            <td className="px-6 py-3">
+                                                <span className="font-medium text-foreground">
+                                                    {eventTypeLabels[event.eventType] ??
+                                                        event.eventType}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {formatDateTime(event.logTime)}
+                                            </td>
+
+                                            <td className="px-6 py-3 text-muted-foreground">
+                                                {event.attributes?.message
+                                                    ? String(event.attributes.message)
+                                                    : event.alarm ?? '—'}
+                                            </td>
+
+                                            <td className="px-6 py-3">
+                                                {event.eventType === 'alarm' ||
+                                                event.eventType === 'deviceOverspeed' ? (
+                                                    <Badge variant="destructive">
+                                                        Alarm
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline">
+                                                        Event
+                                                    </Badge>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {filteredEvents.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={4}
+                                                className="px-6 py-10 text-center text-muted-foreground"
+                                            >
+                                                No events match the selected filter.
+                                            </td>
+                                        </tr>
+                                    ) : null}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                </div>
             ) : null}
 
 

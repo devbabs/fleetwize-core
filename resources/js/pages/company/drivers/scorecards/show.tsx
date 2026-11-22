@@ -143,7 +143,7 @@ export default function Show({
         {
             label: 'Speeding',
             score: selected_scorecard?.speeding_score,
-            metricText: `${speedingEvents} trips over limit`,
+            metricText: `${speedingEvents} trips over limit (80km/h)`,
             hint: 'Max speed vs. speed limit',
         },
         {
