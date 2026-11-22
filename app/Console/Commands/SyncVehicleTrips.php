@@ -156,6 +156,20 @@ class SyncVehicleTrips extends Command
                     $attributes['fuel_consumed'] = $spentFuel;
                 }
 
+                $existingTrip = VehicleTrip::query()
+                    ->where('vehicle_id', $vehicle->id)
+                    ->where('start_time', $startTime)
+                    ->first();
+
+                $tripExtended = $existingTrip
+                    && $existingTrip->end_time
+                    && $existingTrip->end_time->ne($endTime);
+
+                if ($tripExtended) {
+                    $attributes['route_synced_at'] = null;
+                    $attributes['score_calculated_at'] = null;
+                }
+
                 VehicleTrip::query()->updateOrCreate(
                     [
                         'vehicle_id' => $vehicle->id,
