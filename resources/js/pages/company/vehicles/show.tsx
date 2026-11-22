@@ -346,6 +346,53 @@ const eventTypeLabels: Record<string, string> = {
     maintenance: 'Maintenance',
 };
 
+const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
+
+const startEditingSchedule = (schedule: MaintenanceScheduleItem) => {
+    setEditingScheduleId(schedule.id);
+    scheduleForm.setData({
+        name: schedule.name,
+        distance_interval_km:
+            schedule.distanceIntervalKm !== null ? String(schedule.distanceIntervalKm) : '',
+        time_interval_days:
+            schedule.timeIntervalDays !== null ? String(schedule.timeIntervalDays) : '',
+        baseline_odometer_km:
+            schedule.baselineOdometerKm !== null
+                ? String(schedule.baselineOdometerKm)
+                : String(currentLiveOdometer),
+    });
+    scheduleForm.clearErrors();
+};
+
+const cancelEditingSchedule = () => {
+    setEditingScheduleId(null);
+    scheduleForm.reset();
+    scheduleForm.clearErrors();
+};
+
+const handleSaveSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (editingScheduleId !== null) {
+        scheduleForm.patch(
+            `/vehicles/${vehicle.id}/maintenance-schedules/${editingScheduleId}`,
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setEditingScheduleId(null);
+                    scheduleForm.reset();
+                },
+            }
+        );
+        return;
+    }
+
+    scheduleForm.post(`/vehicles/${vehicle.id}/maintenance-schedules`, {
+        preserveScroll: true,
+        onSuccess: () => scheduleForm.reset(),
+    });
+};
+
 // const sendTrackerCommand = (action: 'immobilize' | 'restore' | 'scan_dtc') => {
 //     router.post(
 //         `/vehicles/${vehicle.id}/command`,
@@ -1303,7 +1350,9 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <CardTitle className="text-base">
-                                    Add Maintenance Schedule
+                                    {editingScheduleId !== null
+                                        ? 'Edit Maintenance Schedule'
+                                        : 'Add Maintenance Schedule'}
                                 </CardTitle>
                                 <p className="text-sm text-muted-foreground">
                                     Current Vehicle Odometer:{' '}
@@ -1344,7 +1393,7 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
 
                         <CardContent>
                             <form
-                                onSubmit={handleCreateSchedule}
+                                onSubmit={handleSaveSchedule}
                                 className="grid grid-cols-1 gap-4 sm:grid-cols-5"
                             >
                                 <div>
@@ -1409,14 +1458,23 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                     />
                                 </div>
 
-                                <div className="flex items-end">
+                                <div className="flex items-end gap-2">
                                     <Button
                                         type="submit"
                                         disabled={scheduleForm.processing}
                                         className="w-full"
                                     >
-                                        Save Schedule
+                                        {editingScheduleId !== null ? 'Update Schedule' : 'Save Schedule'}
                                     </Button>
+                                    {editingScheduleId !== null ? (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={cancelEditingSchedule}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    ) : null}
                                 </div>
                             </form>
                             {Object.keys(scheduleForm.errors).length > 0 && (
@@ -1494,37 +1552,48 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                                     {schedule.status === 'overdue'
                                                         ? 'Overdue'
                                                         : schedule.status === 'due_soon'
-                                                        ? 'Due Soon (≤ 500 km)'
+                                                        ? 'Due Soon'
                                                         : 'Healthy'}
                                                 </Badge>
                                             </td>
 
                                             <td className="px-6 py-3 text-right">
-                                                {(() => {
-                                                    const todayStr = new Date().toISOString().split('T')[0];
-                                                    const loggedToday = schedule.maintainedAt === todayStr;
-                                                    const isBusy = processingScheduleId !== null;
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => startEditingSchedule(schedule)}
+                                                    >
+                                                        Edit
+                                                    </Button>
 
-                                                    if (loggedToday) {
+                                                    {(() => {
+                                                        const todayStr = new Date().toISOString().split('T')[0];
+                                                        const loggedToday = schedule.lastMaintainedAt === todayStr;
+                                                        const isBusy = processingScheduleId !== null;
+
+                                                        if (loggedToday) {
+                                                            return (
+                                                                <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                                                    Logged Today
+                                                                </span>
+                                                            );
+                                                        }
+
                                                         return (
-                                                            <span className="inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                                                Logged Today
-                                                            </span>
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                disabled={isBusy}
+                                                                onClick={() => handleCompleteService(schedule)}
+                                                            >
+                                                                {processingScheduleId === schedule.id ? 'Logging...' : 'Log Service'}
+                                                            </Button>
                                                         );
-                                                    }
-
-                                                    return (
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            disabled={isBusy}
-                                                            onClick={() => handleCompleteService(schedule)}
-                                                        >
-                                                            {processingScheduleId === schedule.id ? 'Logging...' : 'Log Service'}
-                                                        </Button>
-                                                    );
-                                                })()}
+                                                    })()}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
