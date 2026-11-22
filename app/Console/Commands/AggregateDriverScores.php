@@ -80,6 +80,19 @@ class AggregateDriverScores extends Command
         $hardCorneringScore = $this->weightedAverage($trips, 'hard_cornering_score', $totalDistance);
         $idlingScore = $this->weightedAverage($trips, 'idling_score', $totalDistance);
 
+        $totalDistance = round($trips->sum(fn ($trip) => (float) ($trip->distance_km ?? 0)), 2);
+        $durationSeconds = (int) $trips->sum(fn ($trip) => (int) ($trip->duration_seconds ?? 0));
+
+        // Total fuel burned (Liters) across all trips in this period
+        $totalFuelConsumed = round((float) $trips->sum(
+            fn ($trip) => (float) ($trip->fuel_consumed ?? 0)
+        ), 2);
+
+        // Fuel efficiency (km/L) when both distance and fuel are > 0
+        $fuelEfficiencyKmPerL = ($totalFuelConsumed > 0 && $totalDistance > 0)
+            ? round($totalDistance / $totalFuelConsumed, 2)
+            : null;
+
         $score = round(
             ($harshBrakingScore * 0.20)
             + ($harshAccelerationScore * 0.20)
@@ -110,6 +123,10 @@ class AggregateDriverScores extends Command
                 'score' => $idlingScore,
                 'idle_minutes' => $idleMinutes,
             ],
+            'fuel' => [
+                'consumed_liters' => $totalFuelConsumed,
+                'km_per_liter' => $fuelEfficiencyKmPerL,
+            ],
         ];
 
         DriverScorecard::updateOrCreate(
@@ -129,6 +146,7 @@ class AggregateDriverScores extends Command
                 'hard_cornering_score' => $hardCorneringScore,
                 'idling_score' => $idlingScore,
                 'distance_km' => $totalDistance,
+                'fuel_consumed' => $totalFuelConsumed,
                 'duration_seconds' => $durationSeconds,
                 'harsh_braking_events' => $harshBrakingEvents,
                 'harsh_acceleration_events' => $harshAccelerationEvents,

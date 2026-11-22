@@ -205,6 +205,29 @@ class CalculateTripScores extends Command
             ?? $trip->vehicle?->driver_id
             ?? $trip->vehicle?->company_user_id;
 
+            // Compute trip fuel consumed (Liters) from route points (fuel_consumption or Teltonika CAN io107 * 0.1)
+            $fuelReadings = $points
+                ->map(function ($p) {
+                    if ($p->fuel_consumption !== null) {
+                        return (float) $p->fuel_consumption;
+                    }
+                    $io107 = data_get($p->raw_payload, 'attributes.io107');
+
+                    return $io107 !== null ? round(((float) $io107) * 0.1, 2) : null;
+                })
+                ->filter(fn ($val) => $val !== null)
+                ->values();
+
+            $computedFuel = null;
+            if ($fuelReadings->count() >= 2) {
+                $delta = round((float) $fuelReadings->last() - (float) $fuelReadings->first(), 2);
+                if ($delta >= 0) {
+                    $computedFuel = $delta;
+                }
+            }
+
+            $finalFuelConsumed = $computedFuel ?? $trip->fuel_consumed;
+
         $trip->update([
             'company_user_id' => $driverId,
             'score' => $score,
@@ -224,6 +247,7 @@ class CalculateTripScores extends Command
             'hard_cornering_score' => $hardCorneringScore,
             'idling_score' => $idlingScore,
 
+            'fuel_consumed' => $finalFuelConsumed,
             'max_speed_km_per_hr' => $effectiveMaxSpeed,
             'max_speed' => $effectiveMaxSpeed,
             'score_calculated_at' => now(),
