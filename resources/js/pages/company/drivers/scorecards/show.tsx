@@ -160,6 +160,14 @@ export default function Show({
         },
     ];
 
+    const periodFuelConsumed =
+    selected_scorecard?.fuel_consumed !== null &&
+    selected_scorecard?.fuel_consumed !== undefined
+        ? Number(selected_scorecard.fuel_consumed)
+        : trips.some((t) => t.fuel_consumed !== null)
+        ? trips.reduce((sum, t) => sum + (t.fuel_consumed ?? 0), 0)
+        : null;
+
     return (
         <CompanyLayout title={`${driver.name} Driver Scorecard`}>
             <Head title={`${driver.name} Driver Scorecard`} />
@@ -242,17 +250,28 @@ export default function Show({
 
                 {/* Individual Trips for the Selected Period */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>
-                            Trips in This Period ({trips.length})
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Per-trip breakdown across all five driving behaviours for{' '}
-                            <span className="font-medium capitalize text-foreground">
-                                {selected_scorecard?.period_type ?? 'selected'}
-                            </span>{' '}
-                            ({selected_scorecard?.period_start ?? '-'} – {selected_scorecard?.period_end ?? '-'}).
-                        </p>
+                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <CardTitle>
+                                Trips in This Period ({trips.length})
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Per-trip breakdown across all five driving behaviours for{' '}
+                                <span className="font-medium capitalize text-foreground">
+                                    {selected_scorecard?.period_type ?? 'selected'}
+                                </span>{' '}
+                                ({selected_scorecard?.period_start ?? '-'} – {selected_scorecard?.period_end ?? '-'}).
+                            </p>
+                        </div>
+
+                        <div className="rounded-lg border bg-muted/30 px-4 py-2 text-right">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                                Total Fuel Consumed ({selected_scorecard?.period_type ?? 'period'})
+                            </div>
+                            <div className="text-lg font-bold tabular-nums text-foreground">
+                                {periodFuelConsumed !== null ? `${periodFuelConsumed.toFixed(1)} L` : '—'}
+                            </div>
+                        </div>
                     </CardHeader>
 
                     <CardContent className="p-0">
@@ -263,7 +282,6 @@ export default function Show({
                                         <th className="p-3 text-left">Trip Time</th>
                                         <th className="p-3 text-left">Vehicle</th>
                                         <th className="p-3 text-right">Distance</th>
-                                        <th className="p-3 text-right">Fuel</th>
                                         <th className="p-3 text-left">Overall</th>
                                         <th className="p-3 text-left">Braking</th>
                                         <th className="p-3 text-left">Accel</th>
@@ -277,7 +295,7 @@ export default function Show({
                                 <tbody className="divide-y">
                                     {trips.length === 0 ? (
                                         <tr>
-                                            <td colSpan={11} className="p-8 text-center text-muted-foreground">
+                                            <td colSpan={10} className="p-8 text-center text-muted-foreground">
                                                 No scored trips found in this period.
                                             </td>
                                         </tr>
@@ -320,12 +338,6 @@ export default function Show({
                                                     {trip.distance_km.toFixed(1)} km
                                                 </td>
 
-                                                <td className="p-3 text-right tabular-nums whitespace-nowrap">
-                                                    {trip.fuel_consumed !== null
-                                                        ? `${trip.fuel_consumed.toFixed(1)} L`
-                                                        : '—'}
-                                                </td>
-
                                                 <td className="p-3 whitespace-nowrap tabular-nums">
                                                     <span className={`font-semibold ${scoreToneClass(trip.score)}`}>
                                                         {trip.score}
@@ -360,106 +372,6 @@ export default function Show({
                                                 </td>
                                             </tr>
                                         ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Scorecard History Table */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Scorecard History</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Historical daily, weekly, and monthly scores across all five driving behaviours.
-                        </p>
-                    </CardHeader>
-
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
-                                        <th className="p-3 text-left">Period</th>
-                                        <th className="p-3 text-left">Overall</th>
-                                        <th className="p-3 text-left">Braking</th>
-                                        <th className="p-3 text-left">Accel</th>
-                                        <th className="p-3 text-left">Speeding</th>
-                                        <th className="p-3 text-left">Cornering</th>
-                                        <th className="p-3 text-left">Idling</th>
-                                        <th className="p-3 text-left">Grade</th>
-                                        <th className="p-3 text-right">Trips</th>
-                                        {/* 1. Added Action header */}
-                                        <th className="p-3 text-right">Action</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody className="divide-y">
-                                    {scorecards.length === 0 ? (
-                                        <tr>
-                                            {/* 2. Updated colSpan from 9 to 10 */}
-                                            <td colSpan={10} className="p-8 text-center text-muted-foreground">
-                                                No historical scorecards recorded for this driver yet.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        scorecards.map((scorecard) => {
-                                            const isSelected = scorecard.id === selected_scorecard?.id;
-
-                                            return (
-                                                /* 3a. Highlight active row */
-                                                <tr
-                                                    key={scorecard.id}
-                                                    className={isSelected ? 'bg-muted/40' : 'hover:bg-muted/30'}
-                                                >
-                                                    <td className="p-3 whitespace-nowrap">
-                                                        <div className="font-medium capitalize">
-                                                            {scorecard.period_type}
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {scorecard.period_start ?? '-'} – {scorecard.period_end ?? '-'}
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="p-3 whitespace-nowrap tabular-nums">
-                                                        <span className="font-semibold">{scorecard.score}</span>
-                                                        <span className="text-xs text-muted-foreground">/100</span>
-                                                    </td>
-
-                                                    <td className="p-3 tabular-nums">{scorecard.harsh_braking_score}</td>
-                                                    <td className="p-3 tabular-nums">{scorecard.harsh_acceleration_score}</td>
-                                                    <td className="p-3 tabular-nums">{scorecard.speeding_score}</td>
-                                                    <td className="p-3 tabular-nums">{scorecard.hard_cornering_score}</td>
-                                                    <td className="p-3 tabular-nums">{scorecard.idling_score}</td>
-
-                                                    <td className="p-3">
-                                                        <Badge variant={gradeBadgeVariant(scorecard.grade)}>
-                                                            {scorecard.grade}
-                                                        </Badge>
-                                                    </td>
-
-                                                    <td className="p-3 text-right tabular-nums">
-                                                        {scorecard.trip_count}
-                                                    </td>
-
-                                                    {/* 3b. Added View link */}
-                                                    <td className="p-3 text-right whitespace-nowrap">
-                                                        {isSelected ? (
-                                                            <span className="text-xs font-medium text-muted-foreground">
-                                                                Viewing
-                                                            </span>
-                                                        ) : (
-                                                            <Button asChild size="sm" variant="outline">
-                                                                <Link href={`/drivers/${driver.id}/scorecards?scorecard=${scorecard.id}`}>
-                                                                    View
-                                                                </Link>
-                                                            </Button>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
                                     )}
                                 </tbody>
                             </table>
