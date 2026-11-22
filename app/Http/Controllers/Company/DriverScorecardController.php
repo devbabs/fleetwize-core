@@ -110,6 +110,11 @@ class DriverScorecardController extends Controller
             ])
             ->values();
 
+        $selectedId = $request->integer('scorecard');
+        $selectedScorecard = $selectedId
+            ? ($scorecards->firstWhere('id', $selectedId) ?? $scorecards->first())
+            : $scorecards->first();
+
         return Inertia::render('company/drivers/scorecards/show', [
             'driver' => [
                 'id' => $driverModel->id,
@@ -119,7 +124,7 @@ class DriverScorecardController extends Controller
                     ($driverModel->user?->last_name ?? '')
                 ) ?: "Driver #{$driverModel->id}",
             ],
-            'latest_scorecard' => $scorecards->first(),
+            'latest_scorecard' => $selectedScorecard,
             'scorecards' => $scorecards,
         ]);
     }

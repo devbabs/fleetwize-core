@@ -12,17 +12,21 @@ use Carbon\CarbonInterface;
 
 class AggregateDriverScores extends Command
 {
-    protected $signature = 'tracker:aggregate-driver-scores';
+    protected $signature = 'tracker:aggregate-driver-scores
+                            {--days=2 : Number of past days to aggregate for daily scorecards}';
 
     protected $description = 'Generate daily, weekly and monthly driver scorecards across the 5 core driving behaviours';
 
     public function handle(): int
     {
         $now = now();
+        $days = max(2, (int) $this->option('days'));
 
-        // Daily: yesterday + today
-        $this->aggregatePeriod('daily', $now->copy()->subDay()->startOfDay(), $now->copy()->subDay()->endOfDay());
-        $this->aggregatePeriod('daily', $now->copy()->startOfDay(), $now->copy()->endOfDay());
+        // Daily: last N days including today
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $day = $now->copy()->subDays($i);
+            $this->aggregatePeriod('daily', $day->copy()->startOfDay(), $day->copy()->endOfDay());
+        }
 
         // Weekly: last week + current week
         $this->aggregatePeriod('weekly', $now->copy()->subWeek()->startOfWeek(), $now->copy()->subWeek()->endOfWeek());

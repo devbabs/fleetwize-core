@@ -273,7 +273,7 @@ export default function Index({ scorecards }: Props) {
 
                                                     <td className="p-3 text-right">
                                                         <Button asChild size="sm" variant="outline">
-                                                            <Link href={`/drivers/${scorecard.driver_id}/scorecards`}>
+                                                            <Link href={`/drivers/${scorecard.driver_id}/scorecards?scorecard=${scorecard.id}`}>
                                                                 View
                                                             </Link>
                                                         </Button>
