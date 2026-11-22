@@ -346,53 +346,6 @@ const eventTypeLabels: Record<string, string> = {
     maintenance: 'Maintenance',
 };
 
-const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
-
-const startEditingSchedule = (schedule: MaintenanceScheduleItem) => {
-    setEditingScheduleId(schedule.id);
-    scheduleForm.setData({
-        name: schedule.name,
-        distance_interval_km:
-            schedule.distanceIntervalKm !== null ? String(schedule.distanceIntervalKm) : '',
-        time_interval_days:
-            schedule.timeIntervalDays !== null ? String(schedule.timeIntervalDays) : '',
-        baseline_odometer_km:
-            schedule.baselineOdometerKm !== null
-                ? String(schedule.baselineOdometerKm)
-                : String(currentLiveOdometer),
-    });
-    scheduleForm.clearErrors();
-};
-
-const cancelEditingSchedule = () => {
-    setEditingScheduleId(null);
-    scheduleForm.reset();
-    scheduleForm.clearErrors();
-};
-
-const handleSaveSchedule = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (editingScheduleId !== null) {
-        scheduleForm.patch(
-            `/vehicles/${vehicle.id}/maintenance-schedules/${editingScheduleId}`,
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setEditingScheduleId(null);
-                    scheduleForm.reset();
-                },
-            }
-        );
-        return;
-    }
-
-    scheduleForm.post(`/vehicles/${vehicle.id}/maintenance-schedules`, {
-        preserveScroll: true,
-        onSuccess: () => scheduleForm.reset(),
-    });
-};
-
 // const sendTrackerCommand = (action: 'immobilize' | 'restore' | 'scan_dtc') => {
 //     router.post(
 //         `/vehicles/${vehicle.id}/command`,
@@ -406,6 +359,53 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
     const [vehicle, setVehicle] = useState(initialVehicle);
     const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
     const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+
+    const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null);
+
+    const startEditingSchedule = (schedule: MaintenanceScheduleItem) => {
+        setEditingScheduleId(schedule.id);
+        scheduleForm.setData({
+            name: schedule.name,
+            distance_interval_km:
+                schedule.distanceIntervalKm !== null ? String(schedule.distanceIntervalKm) : '',
+            time_interval_days:
+                schedule.timeIntervalDays !== null ? String(schedule.timeIntervalDays) : '',
+            baseline_odometer_km:
+                schedule.baselineOdometerKm !== null
+                    ? String(schedule.baselineOdometerKm)
+                    : String(currentLiveOdometer),
+        });
+        scheduleForm.clearErrors();
+    };
+
+    const cancelEditingSchedule = () => {
+        setEditingScheduleId(null);
+        scheduleForm.reset();
+        scheduleForm.clearErrors();
+    };
+
+    const handleSaveSchedule = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (editingScheduleId !== null) {
+            scheduleForm.patch(
+                `/vehicles/${vehicle.id}/maintenance-schedules/${editingScheduleId}`,
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        setEditingScheduleId(null);
+                        scheduleForm.reset();
+                    },
+                }
+            );
+            return;
+        }
+
+        scheduleForm.post(`/vehicles/${vehicle.id}/maintenance-schedules`, {
+            preserveScroll: true,
+            onSuccess: () => scheduleForm.reset(),
+        });
+    };
 
     const {
         data: documentData,
