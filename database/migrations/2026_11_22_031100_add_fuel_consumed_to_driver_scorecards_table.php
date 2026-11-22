@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::table('driver_scorecards', function (Blueprint $table) {
             //
+            if (! Schema::hasColumn('driver_scorecards', 'fuel_consumed')) {
+                $table->decimal('fuel_consumed', 8, 2)->nullable()->after('distance_km');
+            }
         });
     }
 
@@ -23,6 +26,7 @@ return new class extends Migration
     {
         Schema::table('driver_scorecards', function (Blueprint $table) {
             //
+            $table->dropColumn('fuel_consumed');
         });
     }
 };
