@@ -54,7 +54,7 @@ class CalculateTripScores extends Command
 
         $speedLimit = (float) ($this->option('speed-limit')
             ?? $trip->vehicle?->speed_limit
-            ?? 85);
+            ?? 80);
 
         $harshBraking = 0;
         $harshAcceleration = 0;
