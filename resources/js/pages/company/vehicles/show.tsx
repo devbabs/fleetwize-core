@@ -390,35 +390,35 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
         return Array.from(types).sort();
     }, [vehicle.events]);
 
-    const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
+    // const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
 
-    const availableEventTypes = useMemo(() => {
-        const types = new Set<string>();
-        (vehicle.events ?? []).forEach((event) => {
-            if (event.eventType) {
-                types.add(event.eventType);
-            }
-        });
-        return Array.from(types).sort();
-    }, [vehicle.events]);
+    // const availableEventTypes = useMemo(() => {
+    //     const types = new Set<string>();
+    //     (vehicle.events ?? []).forEach((event) => {
+    //         if (event.eventType) {
+    //             types.add(event.eventType);
+    //         }
+    //     });
+    //     return Array.from(types).sort();
+    // }, [vehicle.events]);
 
-    const filteredEvents = useMemo(() => {
-        if (eventTypeFilter === 'all') {
-            return vehicle.events ?? [];
-        }
-        return (vehicle.events ?? []).filter(
-            (event) => event.eventType === eventTypeFilter
-        );
-    }, [vehicle.events, eventTypeFilter]);
+    // const filteredEvents = useMemo(() => {
+    //     if (eventTypeFilter === 'all') {
+    //         return vehicle.events ?? [];
+    //     }
+    //     return (vehicle.events ?? []).filter(
+    //         (event) => event.eventType === eventTypeFilter
+    //     );
+    // }, [vehicle.events, eventTypeFilter]);
 
-    const filteredEvents = useMemo(() => {
-        if (eventTypeFilter === 'all') {
-            return vehicle.events ?? [];
-        }
-        return (vehicle.events ?? []).filter(
-            (event) => event.eventType === eventTypeFilter
-        );
-    }, [vehicle.events, eventTypeFilter]);
+    // const filteredEvents = useMemo(() => {
+    //     if (eventTypeFilter === 'all') {
+    //         return vehicle.events ?? [];
+    //     }
+    //     return (vehicle.events ?? []).filter(
+    //         (event) => event.eventType === eventTypeFilter
+    //     );
+    // }, [vehicle.events, eventTypeFilter]);
 
     const startEditingSchedule = (schedule: MaintenanceScheduleItem) => {
         setEditingScheduleId(schedule.id);
