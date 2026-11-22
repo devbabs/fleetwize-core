@@ -16,6 +16,13 @@ import { cn } from '@/lib/utils';
 
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
 
+import { useMemo, useState } from 'react';
+import {
+    getEventTypeLabel,
+    resolveEventDefinition,
+    type AlarmDefinition,
+} from '@/lib/alarm-definitions';
+
 type Trip = {
     id: number;
     startTime: string | null;
@@ -354,6 +361,16 @@ const eventTypeLabels: Record<string, string> = {
 //     );
 // };
 
+function eventSeverityBadge(severity: AlarmDefinition['severity'], label: string) {
+    if (severity === 'critical') {
+        return <Badge variant="destructive">{label}</Badge>;
+    }
+    if (severity === 'warning') {
+        return <Badge variant="secondary">{label}</Badge>;
+    }
+    return <Badge variant="outline">{label}</Badge>;
+}
+
 export default function VehicleShow({ vehicle: initialVehicle, documentOptions = [], }: { vehicle: VehicleDetail; documentOptions?: DocumentOption[];}) {
     const [tab, setTab] = useState<Tab>('Overview');
     const [vehicle, setVehicle] = useState(initialVehicle);
@@ -373,6 +390,27 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
         });
         return Array.from(types).sort();
     }, [vehicle.events]);
+
+    const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
+
+    const availableEventTypes = useMemo(() => {
+        const types = new Set<string>();
+        (vehicle.events ?? []).forEach((event) => {
+            if (event.eventType) {
+                types.add(event.eventType);
+            }
+        });
+        return Array.from(types).sort();
+    }, [vehicle.events]);
+
+    const filteredEvents = useMemo(() => {
+        if (eventTypeFilter === 'all') {
+            return vehicle.events ?? [];
+        }
+        return (vehicle.events ?? []).filter(
+            (event) => event.eventType === eventTypeFilter
+        );
+    }, [vehicle.events, eventTypeFilter]);
 
     const filteredEvents = useMemo(() => {
         if (eventTypeFilter === 'all') {
@@ -1256,27 +1294,35 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
 
             {tab === 'Alarms/Alerts' ? (
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-4">
-                        <Select
-                            value={eventTypeFilter}
-                            onValueChange={setEventTypeFilter}
-                        >
-                            <SelectTrigger className="w-[240px]">
-                                <SelectValue placeholder="Filter by event type" />
-                            </SelectTrigger>
-                            <SelectContent className="z-[9999]">
-                                <SelectItem value="all">All Event Types</SelectItem>
-                                {availableEventTypes.map((type) => (
-                                    <SelectItem key={type} value={type}>
-                                        {eventTypeLabels[type] ?? type}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            <Select
+                                value={eventTypeFilter}
+                                onValueChange={setEventTypeFilter}
+                            >
+                                <SelectTrigger className="w-[240px]">
+                                    <SelectValue placeholder="Filter by event type" />
+                                </SelectTrigger>
+                                <SelectContent className="z-[9999]">
+                                    <SelectItem value="all">All Event Types</SelectItem>
+                                    {availableEventTypes.map((type) => (
+                                        <SelectItem key={type} value={type}>
+                                            {getEventTypeLabel(type)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
 
-                        <span className="text-xs text-muted-foreground">
-                            Showing {filteredEvents.length} of {vehicle.events.length} events
-                        </span>
+                            <span className="text-xs text-muted-foreground">
+                                Showing {filteredEvents.length} of {vehicle.events.length} recent events
+                            </span>
+                        </div>
+
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={`/alarms?vehicle_id=${vehicle.id}`}>
+                                View all in Alarms &amp; Alerts
+                            </Link>
+                        </Button>
                     </div>
 
                     <Card className="overflow-hidden py-0">
@@ -1284,52 +1330,48 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                             <table className="w-full text-sm">
                                 <thead className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
                                     <tr>
-                                        <th className="px-6 py-3 font-medium">Event</th>
+                                        <th className="px-6 py-3 font-medium">Event / Alarm</th>
                                         <th className="px-6 py-3 font-medium">Logged</th>
-                                        <th className="px-6 py-3 font-medium">Details</th>
-                                        <th className="px-6 py-3 font-medium">Status</th>
+                                        <th className="px-6 py-3 font-medium">Meaning &amp; Trigger Condition</th>
                                     </tr>
                                 </thead>
 
                                 <tbody className="divide-y divide-border">
-                                    {filteredEvents.map((event) => (
-                                        <tr key={event.id}>
-                                            <td className="px-6 py-3">
-                                                <span className="font-medium text-foreground">
-                                                    {eventTypeLabels[event.eventType] ??
-                                                        event.eventType}
-                                                </span>
-                                            </td>
+                                    {filteredEvents.map((event) => {
+                                        const def = resolveEventDefinition(event);
 
-                                            <td className="px-6 py-3 text-muted-foreground">
-                                                {formatDateTime(event.logTime)}
-                                            </td>
+                                        return (
+                                            <tr key={event.id}>
+                                                <td className="px-6 py-3 whitespace-nowrap">
+                                                    {eventSeverityBadge(
+                                                        def.severity,
+                                                        getEventTypeLabel(event.eventType)
+                                                    )}
+                                                </td>
 
-                                            <td className="px-6 py-3 text-muted-foreground">
-                                                {event.attributes?.message
-                                                    ? String(event.attributes.message)
-                                                    : event.alarm ?? '—'}
-                                            </td>
+                                                <td className="px-6 py-3 whitespace-nowrap text-muted-foreground">
+                                                    {formatDateTime(event.logTime)}
+                                                </td>
 
-                                            <td className="px-6 py-3">
-                                                {event.eventType === 'alarm' ||
-                                                event.eventType === 'deviceOverspeed' ? (
-                                                    <Badge variant="destructive">
-                                                        Alarm
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="outline">
-                                                        Event
-                                                    </Badge>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                <td className="px-6 py-3">
+                                                    <p className="font-medium text-foreground">
+                                                        {def.meaning}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Trigger: {def.trigger}
+                                                        {event.attributes?.message
+                                                            ? ` (${String(event.attributes.message)})`
+                                                            : ''}
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
 
                                     {filteredEvents.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan={4}
+                                                colSpan={3}
                                                 className="px-6 py-10 text-center text-muted-foreground"
                                             >
                                                 No events match the selected filter.
@@ -1342,7 +1384,6 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                     </Card>
                 </div>
             ) : null}
-
 
             {tab === 'Maintenance' ? (
                 <div className="space-y-6">
