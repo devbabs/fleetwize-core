@@ -49,6 +49,36 @@ interface Props {
     scorecards: ScorecardRecord[];
 }
 
+interface TripScoreItem {
+    id: number;
+    vehicle_name: string;
+    license_plate: string | null;
+    start_time: string | null;
+    end_time: string | null;
+    distance_km: number;
+    fuel_consumed: number | null;
+    max_speed: number | null;
+    score: number;
+    grade: string;
+    harsh_braking_score: number;
+    harsh_acceleration_score: number;
+    speeding_score: number;
+    hard_cornering_score: number;
+    idling_score: number;
+    harsh_braking_events: number;
+    harsh_acceleration_events: number;
+    overspeed_events: number;
+    harsh_cornering_events: number;
+    idle_minutes: number;
+}
+
+interface Props {
+    driver: DriverInfo;
+    selected_scorecard: ScorecardRecord | null;
+    trips: TripScoreItem[];
+    scorecards: ScorecardRecord[];
+}
+
 function gradeBadgeVariant(grade: string): 'default' | 'secondary' | 'outline' | 'destructive' {
     if (grade === 'A') return 'default';
     if (grade === 'B') return 'secondary';
@@ -68,62 +98,63 @@ function scoreToneClass(value: number | null | undefined): string {
 
 export default function Show({
     driver,
-    latest_scorecard,
+    selected_scorecard,
+    trips,
     scorecards,
 }: Props) {
     const brakingEvents =
-        latest_scorecard?.harsh_braking_events ??
-        latest_scorecard?.score_breakdown?.harsh_braking?.events ??
+        selected_scorecard?.harsh_braking_events ??
+        selected_scorecard?.score_breakdown?.harsh_braking?.events ??
         0;
 
     const accelerationEvents =
-        latest_scorecard?.harsh_acceleration_events ??
-        latest_scorecard?.score_breakdown?.harsh_acceleration?.events ??
+        selected_scorecard?.harsh_acceleration_events ??
+        selected_scorecard?.score_breakdown?.harsh_acceleration?.events ??
         0;
 
     const speedingEvents =
-        latest_scorecard?.overspeed_events ??
-        latest_scorecard?.score_breakdown?.speeding?.events ??
+        selected_scorecard?.overspeed_events ??
+        selected_scorecard?.score_breakdown?.speeding?.events ??
         0;
 
     const corneringEvents =
-        latest_scorecard?.harsh_cornering_events ??
-        latest_scorecard?.score_breakdown?.hard_cornering?.events ??
+        selected_scorecard?.harsh_cornering_events ??
+        selected_scorecard?.score_breakdown?.hard_cornering?.events ??
         0;
 
     const idleMinutes =
-        latest_scorecard?.idle_minutes ??
-        latest_scorecard?.score_breakdown?.idling?.idle_minutes ??
+        selected_scorecard?.idle_minutes ??
+        selected_scorecard?.score_breakdown?.idling?.idle_minutes ??
         0;
 
     const behaviourCards = [
         {
             label: 'Harsh Braking',
-            score: latest_scorecard?.harsh_braking_score,
+            score: selected_scorecard?.harsh_braking_score,
             metricText: `${brakingEvents} events`,
             hint: 'Sudden deceleration',
         },
         {
             label: 'Harsh Acceleration',
-            score: latest_scorecard?.harsh_acceleration_score,
+            score: selected_scorecard?.harsh_acceleration_score,
             metricText: `${accelerationEvents} events`,
             hint: 'Rapid throttle launches',
         },
         {
             label: 'Speeding',
-            score: latest_scorecard?.speeding_score,
+            score: selected_scorecard?.speeding_score,
             metricText: `${speedingEvents} trips over limit`,
             hint: 'Max speed vs. speed limit',
         },
         {
             label: 'Hard Cornering',
-            score: latest_scorecard?.hard_cornering_score,
+            score: selected_scorecard?.hard_cornering_score,
             metricText: `${corneringEvents} events`,
             hint: 'Sharp turns at speed',
         },
         {
             label: 'Idling',
-            score: latest_scorecard?.idling_score,
+            score: selected_scorecard?.idling_score,
             metricText: `${idleMinutes} mins`,
             hint: 'Stationary engine-on time',
         },
@@ -151,16 +182,16 @@ export default function Show({
                         </p>
                     </div>
 
-                    {latest_scorecard && (
+                    {selected_scorecard && (
                         <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2.5">
                             <div>
-                                <div className="text-xs text-muted-foreground">Latest Period</div>
+                                <div className="text-xs text-muted-foreground">Selected Period</div>
                                 <div className="text-sm font-medium capitalize">
-                                    {latest_scorecard.period_type} ({latest_scorecard.period_start ?? '-'} – {latest_scorecard.period_end ?? '-'})
+                                    {selected_scorecard.period_type} ({selected_scorecard.period_start ?? '-'} – {selected_scorecard.period_end ?? '-'})
                                 </div>
                             </div>
-                            <Badge variant={gradeBadgeVariant(latest_scorecard.grade)}>
-                                Grade {latest_scorecard.grade}
+                            <Badge variant={gradeBadgeVariant(selected_scorecard.grade)}>
+                                Grade {selected_scorecard.grade}
                             </Badge>
                         </div>
                     )}
@@ -175,14 +206,14 @@ export default function Show({
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className={`text-3xl font-bold tabular-nums ${scoreToneClass(latest_scorecard?.score)}`}>
-                                {latest_scorecard?.score ?? '—'}
-                                {latest_scorecard && (
+                            <div className={`text-3xl font-bold tabular-nums ${scoreToneClass(selected_scorecard?.score)}`}>
+                                {selected_scorecard?.score ?? '—'}
+                                {selected_scorecard && (
                                     <span className="text-sm font-normal text-muted-foreground"> / 100</span>
                                 )}
                             </div>
                             <div className="mt-1 text-xs text-muted-foreground">
-                                {latest_scorecard?.trip_count ?? 0} trips evaluated
+                                {selected_scorecard?.trip_count ?? 0} trips evaluated
                             </div>
                         </CardContent>
                     </Card>
@@ -209,6 +240,133 @@ export default function Show({
                     ))}
                 </div>
 
+                {/* Individual Trips for the Selected Period */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>
+                            Trips in This Period ({trips.length})
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Per-trip breakdown across all five driving behaviours for{' '}
+                            <span className="font-medium capitalize text-foreground">
+                                {selected_scorecard?.period_type ?? 'selected'}
+                            </span>{' '}
+                            ({selected_scorecard?.period_start ?? '-'} – {selected_scorecard?.period_end ?? '-'}).
+                        </p>
+                    </CardHeader>
+
+                    <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
+                                        <th className="p-3 text-left">Trip Time</th>
+                                        <th className="p-3 text-left">Vehicle</th>
+                                        <th className="p-3 text-right">Distance</th>
+                                        <th className="p-3 text-right">Fuel</th>
+                                        <th className="p-3 text-left">Overall</th>
+                                        <th className="p-3 text-left">Braking</th>
+                                        <th className="p-3 text-left">Accel</th>
+                                        <th className="p-3 text-left">Speeding</th>
+                                        <th className="p-3 text-left">Cornering</th>
+                                        <th className="p-3 text-left">Idling</th>
+                                        <th className="p-3 text-left">Grade</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody className="divide-y">
+                                    {trips.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={11} className="p-8 text-center text-muted-foreground">
+                                                No scored trips found in this period.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        trips.map((trip) => (
+                                            <tr key={trip.id} className="hover:bg-muted/30">
+                                                <td className="p-3 whitespace-nowrap">
+                                                    <div className="font-medium">
+                                                        {trip.start_time
+                                                            ? new Date(trip.start_time).toLocaleTimeString([], {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit',
+                                                            })
+                                                            : '—'}
+                                                        {' – '}
+                                                        {trip.end_time
+                                                            ? new Date(trip.end_time).toLocaleTimeString([], {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit',
+                                                            })
+                                                            : '—'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {trip.start_time
+                                                            ? new Date(trip.start_time).toLocaleDateString()
+                                                            : ''}
+                                                    </div>
+                                                </td>
+
+                                                <td className="p-3 whitespace-nowrap">
+                                                    <div className="font-medium">{trip.vehicle_name}</div>
+                                                    {trip.license_plate && (
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {trip.license_plate}
+                                                        </div>
+                                                    )}
+                                                </td>
+
+                                                <td className="p-3 text-right tabular-nums whitespace-nowrap">
+                                                    {trip.distance_km.toFixed(1)} km
+                                                </td>
+
+                                                <td className="p-3 text-right tabular-nums whitespace-nowrap">
+                                                    {trip.fuel_consumed !== null
+                                                        ? `${trip.fuel_consumed.toFixed(1)} L`
+                                                        : '—'}
+                                                </td>
+
+                                                <td className="p-3 whitespace-nowrap tabular-nums">
+                                                    <span className={`font-semibold ${scoreToneClass(trip.score)}`}>
+                                                        {trip.score}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">/100</span>
+                                                </td>
+
+                                                <td className="p-3 tabular-nums" title={`${trip.harsh_braking_events} events`}>
+                                                    {trip.harsh_braking_score}
+                                                </td>
+
+                                                <td className="p-3 tabular-nums" title={`${trip.harsh_acceleration_events} events`}>
+                                                    {trip.harsh_acceleration_score}
+                                                </td>
+
+                                                <td className="p-3 tabular-nums" title={`${trip.overspeed_events} violations`}>
+                                                    {trip.speeding_score}
+                                                </td>
+
+                                                <td className="p-3 tabular-nums" title={`${trip.harsh_cornering_events} events`}>
+                                                    {trip.hard_cornering_score}
+                                                </td>
+
+                                                <td className="p-3 tabular-nums" title={`${trip.idle_minutes} mins`}>
+                                                    {trip.idling_score}
+                                                </td>
+
+                                                <td className="p-3">
+                                                    <Badge variant={gradeBadgeVariant(trip.grade)}>
+                                                        {trip.grade}
+                                                    </Badge>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Scorecard History Table */}
                 <Card>
                     <CardHeader>
@@ -232,50 +390,76 @@ export default function Show({
                                         <th className="p-3 text-left">Idling</th>
                                         <th className="p-3 text-left">Grade</th>
                                         <th className="p-3 text-right">Trips</th>
+                                        {/* 1. Added Action header */}
+                                        <th className="p-3 text-right">Action</th>
                                     </tr>
                                 </thead>
 
                                 <tbody className="divide-y">
                                     {scorecards.length === 0 ? (
                                         <tr>
-                                            <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                                            {/* 2. Updated colSpan from 9 to 10 */}
+                                            <td colSpan={10} className="p-8 text-center text-muted-foreground">
                                                 No historical scorecards recorded for this driver yet.
                                             </td>
                                         </tr>
                                     ) : (
-                                        scorecards.map((scorecard) => (
-                                            <tr key={scorecard.id} className="hover:bg-muted/30">
-                                                <td className="p-3 whitespace-nowrap">
-                                                    <div className="font-medium capitalize">
-                                                        {scorecard.period_type}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {scorecard.period_start ?? '-'} – {scorecard.period_end ?? '-'}
-                                                    </div>
-                                                </td>
+                                        scorecards.map((scorecard) => {
+                                            const isSelected = scorecard.id === selected_scorecard?.id;
 
-                                                <td className="p-3 whitespace-nowrap tabular-nums">
-                                                    <span className="font-semibold">{scorecard.score}</span>
-                                                    <span className="text-xs text-muted-foreground">/100</span>
-                                                </td>
+                                            return (
+                                                /* 3a. Highlight active row */
+                                                <tr
+                                                    key={scorecard.id}
+                                                    className={isSelected ? 'bg-muted/40' : 'hover:bg-muted/30'}
+                                                >
+                                                    <td className="p-3 whitespace-nowrap">
+                                                        <div className="font-medium capitalize">
+                                                            {scorecard.period_type}
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {scorecard.period_start ?? '-'} – {scorecard.period_end ?? '-'}
+                                                        </div>
+                                                    </td>
 
-                                                <td className="p-3 tabular-nums">{scorecard.harsh_braking_score}</td>
-                                                <td className="p-3 tabular-nums">{scorecard.harsh_acceleration_score}</td>
-                                                <td className="p-3 tabular-nums">{scorecard.speeding_score}</td>
-                                                <td className="p-3 tabular-nums">{scorecard.hard_cornering_score}</td>
-                                                <td className="p-3 tabular-nums">{scorecard.idling_score}</td>
+                                                    <td className="p-3 whitespace-nowrap tabular-nums">
+                                                        <span className="font-semibold">{scorecard.score}</span>
+                                                        <span className="text-xs text-muted-foreground">/100</span>
+                                                    </td>
 
-                                                <td className="p-3">
-                                                    <Badge variant={gradeBadgeVariant(scorecard.grade)}>
-                                                        {scorecard.grade}
-                                                    </Badge>
-                                                </td>
+                                                    <td className="p-3 tabular-nums">{scorecard.harsh_braking_score}</td>
+                                                    <td className="p-3 tabular-nums">{scorecard.harsh_acceleration_score}</td>
+                                                    <td className="p-3 tabular-nums">{scorecard.speeding_score}</td>
+                                                    <td className="p-3 tabular-nums">{scorecard.hard_cornering_score}</td>
+                                                    <td className="p-3 tabular-nums">{scorecard.idling_score}</td>
 
-                                                <td className="p-3 text-right tabular-nums">
-                                                    {scorecard.trip_count}
-                                                </td>
-                                            </tr>
-                                        ))
+                                                    <td className="p-3">
+                                                        <Badge variant={gradeBadgeVariant(scorecard.grade)}>
+                                                            {scorecard.grade}
+                                                        </Badge>
+                                                    </td>
+
+                                                    <td className="p-3 text-right tabular-nums">
+                                                        {scorecard.trip_count}
+                                                    </td>
+
+                                                    {/* 3b. Added View link */}
+                                                    <td className="p-3 text-right whitespace-nowrap">
+                                                        {isSelected ? (
+                                                            <span className="text-xs font-medium text-muted-foreground">
+                                                                Viewing
+                                                            </span>
+                                                        ) : (
+                                                            <Button asChild size="sm" variant="outline">
+                                                                <Link href={`/drivers/${driver.id}/scorecards?scorecard=${scorecard.id}`}>
+                                                                    View
+                                                                </Link>
+                                                            </Button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                     )}
                                 </tbody>
                             </table>
