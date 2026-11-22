@@ -20,7 +20,7 @@ import {
     getEventTypeLabel,
     resolveEventDefinition,
     type AlarmDefinition,
-} from '@/lib/alarm-definitions';
+} from '@/lib/alarm-definition';
 
 type Trip = {
     id: number;
