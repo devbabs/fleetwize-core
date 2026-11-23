@@ -177,13 +177,13 @@
             // A. Teltonika Green Driving Event (AVL ID 253: 1=Harsh Accel, 2=Harsh Brake, 3=Harsh Cornering)
             if (isset($attr['io253']) && (int) $attr['io253'] > 0) {
                 [$type, $desc] = match ((int) $attr['io253']) {
-                    1 => ['hardAcceleration', 'Driver Behavior: Harsh acceleration detected (Green Driving)'],
-                    2 => ['hardBraking', 'Driver Behavior: Harsh braking detected (Green Driving)'],
-                    3 => ['hardCornering', 'Driver Behavior: Harsh cornering detected (Green Driving)'],
-                    default => ['greenDriving', 'Driver Behavior: Harsh driving maneuver detected'],
+                    1 => ['hardAcceleration', 'Harsh acceleration detected by accelerometer (Green Driving)'],
+                    2 => ['hardBraking', 'Harsh braking detected by accelerometer (Green Driving)'],
+                    3 => ['hardCornering', 'Harsh cornering detected by accelerometer (Green Driving)'],
+                    default => ['greenDriving', 'Harsh driving maneuver detected'],
                 };
 
-                VehicleAlarm::firstOrCreate(
+                \App\Models\VehicleAlarm::firstOrCreate(
                     [
                         'vehicle_id' => $vehicle->id,
                         'alarm_type' => $type,
@@ -196,9 +196,9 @@
                 );
             }
 
-            // B. Teltonika Unplug / Power Disconnect Detection (AVL ID 252 == 1)
+            // B. Tracker Unplugged / Main Power Cut (AVL ID 252 === 1)
             if (isset($attr['io252']) && (int) $attr['io252'] === 1) {
-                VehicleAlarm::firstOrCreate(
+                \App\Models\VehicleAlarm::firstOrCreate(
                     [
                         'vehicle_id' => $vehicle->id,
                         'alarm_type' => 'powerCut',
@@ -206,42 +206,133 @@
                     ],
                     [
                         'obd_device_id' => $deviceId,
-                        'alarm_description' => 'Critical: Tracker unplugged or main vehicle power disconnected (running on backup battery)',
+                        'alarm_description' => 'Critical: Tracker unplugged or main vehicle power disconnected (running on backup battery).',
                     ]
                 );
             }
 
-            // C. Engine Overheating Alert (Coolant Temp >= 105 °C)
-            if ($state->coolant_temp !== null && $state->coolant_temp >= 105.0) {
-                VehicleAlarm::firstOrCreate(
-                    [
-                        'vehicle_id' => $vehicle->id,
-                        'alarm_type' => 'highCoolantTemp',
-                        'gps_time' => $gpsTime,
-                    ],
-                    [
-                        'obd_device_id' => $deviceId,
-                        'alarm_description' => "Critical: Engine overheating detected ({$state->coolant_temp} °C)",
-                    ]
+            // C. CAN Dashboard Check Engine Light / MIL (io123 Bit 15)
+            $controlFlags = isset($attr['io123']) ? (int) $attr['io123'] : 0;
+            $checkEngineLightOn = (($controlFlags >> 15) & 1) === 1;
+
+            if ($checkEngineLightOn) {
+                $this->recordHealthAlertAndFault(
+                    vehicle: $vehicle,
+                    deviceId: $deviceId,
+                    gpsTime: $gpsTime,
+                    alarmType: 'checkEngineLight',
+                    faultCode: 'CAN-MIL',
+                    description: 'Check Engine Light (MIL) active on vehicle CAN bus. Scan ECU with an OBD-II tool for specific DTC codes.',
+                    severity: 4,
+                    cooldownMinutes: 360, // 6 hours
                 );
             }
 
-            // D. Low Vehicle Battery Alert (< 11.8V) — debounced once per 6 hours per vehicle
-            if ($state->battery_voltage !== null && $state->battery_voltage > 6.0 && $state->battery_voltage < 11.8) {
-                $recentBatteryAlarm = VehicleAlarm::where('vehicle_id', $vehicle->id)
-                    ->where('alarm_type', 'lowBattery')
-                    ->where('created_at', '>=', now()->subHours(6))
-                    ->exists();
+            // D. Engine Overheating (Coolant Temp >= 105.0 °C from io115 * 0.1)
+            $coolantTemp = $state->coolant_temp
+                ?? (isset($attr['io115']) ? round(((float) $attr['io115']) * 0.1, 1) : null);
 
-                if (! $recentBatteryAlarm) {
-                    VehicleAlarm::create([
-                        'vehicle_id' => $vehicle->id,
-                        'obd_device_id' => $deviceId,
-                        'alarm_type' => 'lowBattery',
-                        'alarm_description' => "Warning: Low vehicle battery voltage ({$state->battery_voltage}V)",
-                        'gps_time' => $gpsTime,
-                    ]);
-                }
+            if ($coolantTemp !== null && $coolantTemp >= 105.0) {
+                $this->recordHealthAlertAndFault(
+                    vehicle: $vehicle,
+                    deviceId: $deviceId,
+                    gpsTime: $gpsTime,
+                    alarmType: 'highCoolantTemp',
+                    faultCode: 'CAN-TEMP',
+                    description: "Critical: Engine overheating detected ({$coolantTemp} °C, threshold >= 105.0 °C).",
+                    severity: 5,
+                    cooldownMinutes: 30,
+                );
+            }
+
+            // E. Alternator / Charging Fault (Ignition ON, RPM > 500, Voltage < 12.6V)
+            $batteryVoltage = $state->battery_voltage
+                ?? (isset($attr['power']) ? (float) $attr['power'] : null);
+            $engineRpm = $state->engine_rpm
+                ?? (isset($attr['io85']) ? (int) $attr['io85'] : null);
+
+            if (
+                $state->ignition_on === true
+                && $engineRpm !== null
+                && $engineRpm > 500
+                && $batteryVoltage !== null
+                && $batteryVoltage > 6.0
+                && $batteryVoltage < 12.6
+            ) {
+                $this->recordHealthAlertAndFault(
+                    vehicle: $vehicle,
+                    deviceId: $deviceId,
+                    gpsTime: $gpsTime,
+                    alarmType: 'alternatorFault',
+                    faultCode: 'CAN-ALT',
+                    description: "Warning: Alternator not charging properly ({$batteryVoltage}V at {$engineRpm} RPM; expected >= 13.0V).",
+                    severity: 4,
+                    cooldownMinutes: 60,
+                );
+            }
+
+            // F. Weak Vehicle Battery (Ignition OFF, Voltage < 11.8V)
+            if (
+                $state->ignition_on === false
+                && $batteryVoltage !== null
+                && $batteryVoltage > 6.0
+                && $batteryVoltage < 11.8
+            ) {
+                $this->recordHealthAlertAndFault(
+                    vehicle: $vehicle,
+                    deviceId: $deviceId,
+                    gpsTime: $gpsTime,
+                    alarmType: 'lowBattery',
+                    faultCode: 'CAN-BATT',
+                    description: "Warning: Weak vehicle starter battery ({$batteryVoltage}V while engine off; threshold < 11.8V).",
+                    severity: 3,
+                    cooldownMinutes: 360, // 6 hours
+                );
+            }
+        }
+
+        protected function recordHealthAlertAndFault(
+            Vehicle $vehicle,
+            ?string $deviceId,
+            string $gpsTime,
+            string $alarmType,
+            string $faultCode,
+            string $description,
+            int $severity,
+            int $cooldownMinutes,
+        ): void {
+            $recentAlarmExists = \App\Models\VehicleAlarm::query()
+                ->where('vehicle_id', $vehicle->id)
+                ->where('alarm_type', $alarmType)
+                ->where('created_at', '>=', now()->subMinutes($cooldownMinutes))
+                ->exists();
+
+            if (! $recentAlarmExists) {
+                \App\Models\VehicleAlarm::create([
+                    'vehicle_id' => $vehicle->id,
+                    'obd_device_id' => $deviceId,
+                    'alarm_type' => $alarmType,
+                    'alarm_description' => $description,
+                    'gps_time' => $gpsTime,
+                ]);
+            }
+
+            $recentFaultExists = \App\Models\VehicleFault::query()
+                ->where('vehicle_id', $vehicle->id)
+                ->where('obd_code', $faultCode)
+                ->where('created_at', '>=', now()->subMinutes($cooldownMinutes))
+                ->exists();
+
+            if (! $recentFaultExists) {
+                \App\Models\VehicleFault::create([
+                    'vehicle_id' => $vehicle->id,
+                    'obd_device_id' => $deviceId,
+                    'obd_code' => $faultCode,
+                    'obd_description' => $description,
+                    'meaning' => $description,
+                    'severity' => $severity,
+                    'log_time' => $gpsTime,
+                ]);
             }
         }
     }

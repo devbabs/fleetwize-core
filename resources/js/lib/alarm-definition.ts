@@ -191,6 +191,18 @@ export const ALARM_SUBTYPE_DEFINITIONS: Record<string, AlarmDefinition> = {
         trigger: 'RF jamming detected by cellular modem.',
         severity: 'critical',
     },
+    checkEngineLight: {
+        label: 'Check Engine Light (MIL)',
+        meaning: 'Dashboard Check Engine / Malfunction Indicator Lamp is active.',
+        trigger: 'CAN Control State Flags (io123) MIL bit active.',
+        severity: 'critical',
+    },
+    alternatorFault: {
+        label: 'Alternator / Charging Fault',
+        meaning: 'Vehicle alternator is undercharging the battery while the engine is running.',
+        trigger: 'Ignition ON, RPM > 500, and vehicle voltage < 12.6V.',
+        severity: 'critical',
+    },
 };
 
 export function getEventTypeLabel(type: string): string {
