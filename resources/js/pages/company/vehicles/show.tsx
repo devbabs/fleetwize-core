@@ -96,6 +96,7 @@ type VehicleDetail = {
     category: string;
     status: string;
     mileage: number;
+    totalFuelConsumed?: number | null;
     vin: string | null;
     trackerImei: string | null;
     trackerPhoneNumber: string | null;
@@ -352,14 +353,6 @@ const eventTypeLabels: Record<string, string> = {
     maintenance: 'Maintenance',
 };
 
-// const sendTrackerCommand = (action: 'immobilize' | 'restore' | 'scan_dtc') => {
-//     router.post(
-//         `/vehicles/${vehicle.id}/command`,
-//         { action },
-//         { preserveScroll: true }
-//     );
-// };
-
 function eventSeverityBadge(severity: AlarmDefinition['severity'], label: string) {
     if (severity === 'critical') {
         return <Badge variant="destructive">{label}</Badge>;
@@ -398,36 +391,6 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
             (event) => event.eventType === eventTypeFilter
         );
     }, [vehicle.events, eventTypeFilter]);
-
-    // const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
-
-    // const availableEventTypes = useMemo(() => {
-    //     const types = new Set<string>();
-    //     (vehicle.events ?? []).forEach((event) => {
-    //         if (event.eventType) {
-    //             types.add(event.eventType);
-    //         }
-    //     });
-    //     return Array.from(types).sort();
-    // }, [vehicle.events]);
-
-    // const filteredEvents = useMemo(() => {
-    //     if (eventTypeFilter === 'all') {
-    //         return vehicle.events ?? [];
-    //     }
-    //     return (vehicle.events ?? []).filter(
-    //         (event) => event.eventType === eventTypeFilter
-    //     );
-    // }, [vehicle.events, eventTypeFilter]);
-
-    // const filteredEvents = useMemo(() => {
-    //     if (eventTypeFilter === 'all') {
-    //         return vehicle.events ?? [];
-    //     }
-    //     return (vehicle.events ?? []).filter(
-    //         (event) => event.eventType === eventTypeFilter
-    //     );
-    // }, [vehicle.events, eventTypeFilter]);
 
     const startEditingSchedule = (schedule: MaintenanceScheduleItem) => {
         setEditingScheduleId(schedule.id);
@@ -810,11 +773,13 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         </CardHeader>
                         <CardContent>
                             <p className="text-2xl font-semibold text-foreground">
-                                {vehicle.liveState?.fuelConsumed !== null && vehicle.liveState?.fuelConsumed !== undefined
+                                {vehicle.totalFuelConsumed !== null && vehicle.totalFuelConsumed !== undefined
+                                    ? `${vehicle.totalFuelConsumed.toFixed(1)} L`
+                                    : vehicle.liveState?.fuelConsumed !== null && vehicle.liveState?.fuelConsumed !== undefined
                                     ? `${vehicle.liveState.fuelConsumed.toFixed(1)} L`
                                     : '—'}
                             </p>
-                            <p className="mt-1 text-xs text-muted-foreground">Total fuel burned since install</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Total fuel burned across all trips</p>
                         </CardContent>
                     </Card>
 
@@ -1643,14 +1608,14 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
 
                                             <td className="px-6 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Button
+                                                    {/* <Button
                                                         type="button"
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => startEditingSchedule(schedule)}
                                                     >
                                                         Edit
-                                                    </Button>
+                                                    </Button> */}
 
                                                     {(() => {
                                                         const todayStr = new Date().toISOString().split('T')[0];

@@ -318,6 +318,7 @@ class VehicleController extends Controller
         $company = $this->currentCompany($request);
 
         $model = $company->vehicles()
+            ->withSum('trips', 'fuel_consumed')
             ->with([
                 'trackerState',
                 'trips' => fn ($query) => $query->latest('start_time')->limit(20),
@@ -443,7 +444,9 @@ class VehicleController extends Controller
                         'driverName' => $trip->driver_name,
                     ];
                 }),
-
+                'totalFuelConsumed' => $model->trips_sum_fuel_consumed !== null
+                    ? round((float) $model->trips_sum_fuel_consumed, 1)
+                    : null,
                 'faults' => $model->faults->map(fn ($fault) => [
                     'id' => $fault->id,
                     'code' => $fault->obd_code,
