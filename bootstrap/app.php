@@ -54,38 +54,38 @@ return Application::configure(basePath: dirname(__DIR__))
             'tracker-webhook-secret' => EnsureValidTrackerWebhookSecret::class,
         ]);
     })
-    // ->withSchedule(function (Schedule $schedule): void {
-    //     $schedule->command(SyncVehicleTrips::class)
-    //         ->everyFifteenMinutes()
-    //         ->withoutOverlapping()
-    //         ->runInBackground();
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command(SyncVehicleTrips::class)
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
 
-    //     $schedule->command(SyncVehicleEvents::class)
-    //         ->everyFifteenMinutes()
-    //         ->withoutOverlapping()
-    //         ->runInBackground();
+        $schedule->command(SyncVehicleEvents::class)
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
 
-    //     $schedule->command(SyncVehicleRoutes::class)
-    //         ->everyFiveMinutes()
-    //         ->withoutOverlapping()
-    //         ->runInBackground();
+        $schedule->command(SyncVehicleRoutes::class)
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
 
-    //     $schedule->command(
-    //         CalculateTripScores::class
-    //     )->everyFifteenMinutes();
+        $schedule->command(
+            CalculateTripScores::class
+        )->everyFifteenMinutes();
 
-    //     $schedule->command(
-    //         AggregateDriverScores::class
-    //     )->hourly();
+        $schedule->command(
+            AggregateDriverScores::class
+        )->hourly();
 
-    //     $schedule->command(CheckMaintenanceSchedules::class)
-    //         ->everyFifteenMinutes();
+        $schedule->command(CheckMaintenanceSchedules::class)
+            ->everyFifteenMinutes();
 
-    //     // $schedule->command(SendTrackerCommand::class)
-    //     //     ->hourly()
-    //     //     ->withoutOverlapping()
-    //     //     ->runInBackground();
-    // })
+        // $schedule->command(SendTrackerCommand::class)
+        //     ->hourly()
+        //     ->withoutOverlapping()
+        //     ->runInBackground();
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
