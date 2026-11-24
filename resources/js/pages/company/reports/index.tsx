@@ -1,5 +1,16 @@
 import { Head } from '@inertiajs/react';
-import { Calendar, FileSpreadsheet, FileText, Truck, Gauge, MapPin, ShieldCheck, AlertTriangle } from 'lucide-react';
+import {
+    AlertTriangle,
+    Calendar,
+    FileSpreadsheet,
+    FileText,
+    Fuel,
+    Gauge,
+    MapPin,
+    ShieldCheck,
+    Truck,
+    Wrench,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -24,29 +35,31 @@ interface ReportDefinition {
     icon: typeof Truck;
     requiresDateRange: boolean;
     supportsVehicleFilter: boolean;
+    supportsFleetStatusFilters?: boolean;
 }
 
 const AVAILABLE_REPORTS: ReportDefinition[] = [
     {
         id: 'fleet-summary',
-        title: 'Fleet Status Summary',
-        description: "Point-in-time snapshot of vehicle status, odometer, tracking state, and active DTC faults.",
+        title: 'Fleet Status & CAN Diagnostics',
+        description: 'Live snapshot of vehicle status, CAN odometer, fuel level, battery voltage, coolant temp, and open DTC faults.',
         icon: Truck,
         requiresDateRange: false,
         supportsVehicleFilter: false,
+        supportsFleetStatusFilters: true,
     },
     {
         id: 'trips',
         title: 'Trip & Journey Report',
-        description: 'Start/stop locations, travel distance (km), trip runtimes, and max/average speeds.',
+        description: 'Start/stop addresses, distance (km), driving duration, idle minutes, speeds, and per-trip safety grades.',
         icon: MapPin,
         requiresDateRange: true,
         supportsVehicleFilter: true,
     },
     {
         id: 'driver-scorecard',
-        title: 'DriverX Behavior Scorecard',
-        description: 'Driver safety rankings across harsh braking, cornering, rapid acceleration, and speeding.',
+        title: 'DriverX 5-Behavior Scorecard',
+        description: 'Driver safety rankings across Harsh Braking, Harsh Acceleration, Speeding, Hard Cornering, and Idling.',
         icon: ShieldCheck,
         requiresDateRange: true,
         supportsVehicleFilter: true,
@@ -54,53 +67,43 @@ const AVAILABLE_REPORTS: ReportDefinition[] = [
     {
         id: 'alarms',
         title: 'Alarm & Security Log',
-        description: 'Historical alert events: overspeed triggers, geo-fence breaches, and tracker disconnects.',
+        description: 'Historical alerts with severity levels: overspeed, overheating, low battery, geofence breaches, and unplugs.',
         icon: AlertTriangle,
         requiresDateRange: true,
         supportsVehicleFilter: true,
     },
     {
         id: 'idle-utilization',
-        title: 'Utilization & Idle Report',
-        description: 'Active operating hours vs stationary engine idling to monitor driver delay and fuel waste.',
+        title: 'Utilization & Idle Waste Report',
+        description: 'Active driving hours vs stationary idle minutes, idle percentage, and estimated idle fuel wastage.',
         icon: Gauge,
         requiresDateRange: true,
         supportsVehicleFilter: true,
     },
+    {
+        id: 'fuel',
+        title: 'Fuel & Spend Report',
+        description: 'Refueling logs, total litres dispensed, cost per litre, total fuel spend (₦), and odometer readings.',
+        icon: Fuel,
+        requiresDateRange: true,
+        supportsVehicleFilter: true,
+    },
+    {
+        id: 'maintenance',
+        title: 'Maintenance & Health Compliance',
+        description: 'Current odometer, open diagnostic faults, and scheduled or completed service entries per vehicle.',
+        icon: Wrench,
+        requiresDateRange: false,
+        supportsVehicleFilter: true,
+    },
 ];
 
-type Filters = {
-    category: string;
-    status: string;
-    connectivity: string;
-};
-
-function buildQuery(filters: Filters) {
-    const params = new URLSearchParams();
-
-    if (filters.category !== 'all') {
-params.set('category', filters.category);
-}
-
-    if (filters.status !== 'all') {
-params.set('status', filters.status);
-}
-
-    if (filters.connectivity !== 'all') {
-params.set('connectivity', filters.connectivity);
-}
-
-    const query = params.toString();
-
-    return query ? `?${query}` : '';
-}
-
-export default function ReportsIndex({ 
-    categories, 
-    vehicles = [] 
-}: { 
-    categories: string[]; 
-    vehicles: VehicleOption[]; 
+export default function ReportsIndex({
+    categories,
+    vehicles = [],
+}: {
+    categories: string[];
+    vehicles: VehicleOption[];
 }) {
     const [selectedReport, setSelectedReport] = useState<ReportDefinition | null>(null);
     const [format, setFormat] = useState<'pdf' | 'csv'>('pdf');
@@ -130,10 +133,14 @@ export default function ReportsIndex({
             params.set('vehicle_id', filters.vehicle_id);
         }
         if (filters.category !== 'all') params.set('category', filters.category);
-        if (filters.status !== 'all') params.set('status', filters.status);
-        if (filters.connectivity !== 'all') params.set('connectivity', filters.connectivity);
 
-        window.location.href = `/reports/${selectedReport.id}.${format}?${params.toString()}`;
+        if (selectedReport.supportsFleetStatusFilters) {
+            if (filters.status !== 'all') params.set('status', filters.status);
+            if (filters.connectivity !== 'all') params.set('connectivity', filters.connectivity);
+        }
+
+        const query = params.toString();
+        window.location.href = `/reports/${selectedReport.id}.${format}${query ? `?${query}` : ''}`;
         setSelectedReport(null);
     };
 
@@ -215,7 +222,7 @@ export default function ReportsIndex({
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="All Fleet Vehicles" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent position="popper" className="z-[9999] max-h-60">
                                         <SelectItem value="all">All Fleet Vehicles</SelectItem>
                                         {vehicles.map((v) => (
                                             <SelectItem key={v.id} value={String(v.id)}>
@@ -224,6 +231,44 @@ export default function ReportsIndex({
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        )}
+
+                        {selectedReport?.supportsFleetStatusFilters && (
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="grid gap-2">
+                                    <Label>Vehicle Status</Label>
+                                    <Select
+                                        value={filters.status}
+                                        onValueChange={(val) => setFilters((f) => ({ ...f, status: val }))}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent position="popper" className="z-[9999]">
+                                            <SelectItem value="all">All Statuses</SelectItem>
+                                            <SelectItem value="active">Active</SelectItem>
+                                            <SelectItem value="maintenance">In Maintenance</SelectItem>
+                                            <SelectItem value="inactive">Inactive</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Connectivity</Label>
+                                    <Select
+                                        value={filters.connectivity}
+                                        onValueChange={(val) => setFilters((f) => ({ ...f, connectivity: val }))}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent position="popper" className="z-[9999]">
+                                            <SelectItem value="all">All</SelectItem>
+                                            <SelectItem value="online">Online Only</SelectItem>
+                                            <SelectItem value="offline">Offline Only</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                         )}
 
@@ -236,13 +281,15 @@ export default function ReportsIndex({
                                 <SelectTrigger className="w-full">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent position="popper" className="z-[9999] max-h-60">
                                     <SelectItem value="all">All categories</SelectItem>
-                                    {categories.map((cat) => (
-                                        <SelectItem key={cat} value={cat} className="capitalize">
-                                            {cat}
-                                        </SelectItem>
-                                    ))}
+                                    {(categories ?? [])
+                                        .filter((cat) => typeof cat === 'string' && cat.trim() !== '')
+                                        .map((cat) => (
+                                            <SelectItem key={cat} value={cat} className="capitalize">
+                                                {cat}
+                                            </SelectItem>
+                                        ))}
                                 </SelectContent>
                             </Select>
                         </div>
