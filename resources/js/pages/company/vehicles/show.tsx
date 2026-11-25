@@ -726,6 +726,23 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                         </CardContent>
                     </Card>
 
+                    {/* 12. Last Reported Timestamp & Protocol */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm text-muted-foreground">Last Updated</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-base font-semibold text-foreground">
+                                {formatDateTime(vehicle.liveState?.reportedAt ?? null)}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {vehicle.liveState?.protocol
+                                    ? `Protocol: ${vehicle.liveState.protocol.toUpperCase()} · IMEI: ${vehicle.liveState?.uniqueId ?? '—'}`
+                                    : 'Live telemetry timestamp'}
+                            </p>
+                        </CardContent>
+                    </Card>
+
                     {/* 3. Current Speed (GPS + CAN OBD Speed) */}
                     <Card>
                         <CardHeader className="pb-2">
@@ -914,7 +931,7 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                     </Card>
 
                     {/* 12. Last Reported Timestamp & Protocol */}
-                    <Card>
+                    {/* <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-muted-foreground">Last Updated</CardTitle>
                         </CardHeader>
@@ -928,7 +945,7 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                     : 'Live telemetry timestamp'}
                             </p>
                         </CardContent>
-                    </Card>
+                    </Card> */}
 
                     <Card className="lg:col-span-3">
                         <CardHeader>
