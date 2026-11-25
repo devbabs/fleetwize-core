@@ -167,7 +167,7 @@ function VehicleForm({
                         <SelectTrigger id="category" className="w-full">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper" className="z-[9999]">
                             <SelectItem value="car">Car</SelectItem>
                             <SelectItem value="van">Van</SelectItem>
                             <SelectItem value="truck">Truck</SelectItem>
@@ -204,7 +204,7 @@ function VehicleForm({
                         <SelectTrigger id="status" className="w-full">
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper" className="z-[9999]">
                             <SelectItem value="active">Active</SelectItem>
                             <SelectItem value="maintenance">Maintenance</SelectItem>
                         </SelectContent>
