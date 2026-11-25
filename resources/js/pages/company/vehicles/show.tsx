@@ -1525,6 +1525,11 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
                                         </Button>
                                     ) : null}
                                 </div>
+                                {scheduleForm.errors.distance_interval_km && (
+                                    <p className="text-xs text-destructive">
+                                        {scheduleForm.errors.distance_interval_km}
+                                    </p>
+                                )}
                             </form>
                             {Object.keys(scheduleForm.errors).length > 0 && (
                                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">

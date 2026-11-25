@@ -277,11 +277,15 @@ class MaintenanceController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'distance_interval_km' => ['nullable', 'integer', 'min:1'],
-            'time_interval_days' => ['nullable', 'integer', 'min:1'],
-            'baseline_odometer_km' => ['required', 'integer', 'min:0'],
+            'distance_interval_km' => ['nullable', 'integer', 'min:1', 'required_without:time_interval_days'],
+            'time_interval_days' => ['nullable', 'integer', 'min:1', 'required_without:distance_interval_km'],
+            'baseline_odometer_km' => ['nullable', 'integer', 'min:0'],
             'active' => ['sometimes', 'boolean'],
         ]);
+
+        if (array_key_exists('baseline_odometer_km', $validated) && $validated['baseline_odometer_km'] === null) {
+            unset($validated['baseline_odometer_km']);
+        }
 
         $schedule->update($validated);
 
