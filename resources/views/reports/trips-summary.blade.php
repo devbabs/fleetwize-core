@@ -148,16 +148,16 @@
                 </span>
             </div>
 
-            <table class="data-table">
+            <table class="data-table" style="table-layout: fixed; width: 100%;">
                 <thead>
                     <tr>
-                        <th style="width: 15%;">Start / End Time</th>
-                        <th style="width: 35%;">Route (From &rarr; To)</th>
-                        <th style="width: 15%;">Driver</th>
+                        <th style="width: 14%;">Start / End</th>
+                        <th style="width: 31%;">Route (From &rarr; To)</th>
+                        <th style="width: 14%;">Driver</th>
                         <th style="width: 10%;" class="text-right">Distance</th>
-                        <th style="width: 8%;" class="text-right">Duration</th>
-                        <th style="width: 8%;" class="text-right">Avg Spd</th>
-                        <th style="width: 9%;" class="text-right">Max Spd</th>
+                        <th style="width: 9%;" class="text-right">Duration</th>
+                        <th style="width: 11%;" class="text-right">Avg Spd</th>
+                        <th style="width: 11%;" class="text-right">Max Spd</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -166,13 +166,22 @@
                             $totalTrips++;
                             $totalDistance += ($trip->distance_km ?? 0);
                             $durationMin = $trip->duration_seconds ? round($trip->duration_seconds / 60, 0) : null;
+                            $avgSpeed = $trip->average_speed_km_per_hr;
+                            $maxSpeed = ($trip->max_speed_km_per_hr !== null && $trip->max_speed_km_per_hr > 0)
+                                ? $trip->max_speed_km_per_hr
+                                : $avgSpeed;
+                            $driverName = $trip->companyUser?->user?->full_name
+                                ?? $trip->driver_name
+                                ?? $vehicle->current_driver_name
+                                ?? $vehicle->currentAssignment?->companyUser?->user?->full_name
+                                ?? 'Unassigned';
                         @endphp
                         <tr>
                             <td>
                                 <div><strong>{{ $trip->start_time?->format('M d, H:i') ?? '—' }}</strong></div>
                                 <div style="color: #64748b; font-size: 9px;">{{ $trip->end_time?->format('H:i') ?? '—' }}</div>
                             </td>
-                            <td class="route-col">
+                            <td class="route-col" style="word-wrap: break-word; overflow-wrap: break-word;">
                                 <div>
                                     <span style="color: #10b981; font-weight: bold;">&bull;</span>
                                     {{ $trip->start_address ?? ($trip->start_latitude ? number_format($trip->start_latitude, 4).', '.number_format($trip->start_longitude, 4) : 'Unknown Origin') }}
@@ -182,17 +191,11 @@
                                     {{ $trip->end_address ?? ($trip->end_latitude ? number_format($trip->end_latitude, 4).', '.number_format($trip->end_longitude, 4) : 'Unknown Destination') }}
                                 </div>
                             </td>
-                            @php
-                                $driverName = $trip->companyUser?->user?->full_name
-                                    ?? $trip->driver_name
-                                    ?? $vehicle->currentAssignment?->companyUser?->user?->full_name
-                                    ?? 'Unassigned';
-                            @endphp
-                            <td>{{ $driverName }}</td>
+                            <td style="word-wrap: break-word;">{{ $driverName }}</td>
                             <td class="text-right">{{ number_format($trip->distance_km ?? 0, 1) }} km</td>
                             <td class="text-right">{{ $durationMin !== null ? $durationMin.'m' : '—' }}</td>
-                            <td class="text-right">{{ $trip->average_speed_km_per_hr ? round($trip->average_speed_km_per_hr).' km/h' : '—' }}</td>
-                            <td class="text-right">{{ $trip->max_speed_km_per_hr ? round($trip->max_speed_km_per_hr).' km/h' : '—' }}</td>
+                            <td class="text-right">{{ $avgSpeed !== null && $avgSpeed > 0 ? round($avgSpeed).' km/h' : '—' }}</td>
+                            <td class="text-right">{{ $maxSpeed !== null && $maxSpeed > 0 ? round($maxSpeed).' km/h' : '—' }}</td>
                         </tr>
                     @endforeach
                 </tbody>

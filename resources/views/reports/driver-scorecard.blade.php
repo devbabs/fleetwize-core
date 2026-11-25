@@ -1,110 +1,63 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>DriverX Scorecard - {{ $company->name }}</title>
+    <meta charset="utf-8">
+    <title>DriverX 5-Behavior Scorecard</title>
     <style>
-        @page {
-            margin: 25mm 15mm 20mm 15mm;
-            size: a4 portrait;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #1e293b;
-            font-size: 11px;
-            line-height: 1.4;
-            margin: 0;
-            padding: 0;
-        }
-        .header {
-            border-bottom: 2px solid #0f172a;
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-        }
-        .header table {
-            width: 100%;
-        }
-        .company-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 0;
-        }
-        .report-subtitle {
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 3px;
-        }
-        .meta-table {
-            text-align: right;
-            font-size: 10px;
-            color: #475569;
-        }
-        .meta-table strong {
-            color: #0f172a;
-        }
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 16px;
-        }
-        .data-table th {
-            background-color: #f8fafc;
-            border-bottom: 1px solid #cbd5e1;
-            padding: 6px 8px;
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #475569;
-            text-align: left;
-        }
-        .data-table td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 10px;
-            vertical-align: middle;
-        }
-        .data-table tr:nth-child(even) td {
-            background-color: #fafafa;
-        }
-        .text-right {
-            text-align: right;
-        }
-        .text-center {
-            text-align: center;
-        }
-        .score-pill {
-            display: inline-block;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 9999px;
-            font-size: 10px;
-        }
-        .score-elite {
-            background-color: #dcfce7;
-            color: #15803d;
-        }
-        .score-standard {
-            background-color: #e0f2fe;
-            color: #0369a1;
-        }
-        .score-risk {
-            background-color: #fee2e2;
-            color: #b91c1c;
-        }
-        .footer {
-            position: fixed;
-            bottom: -10mm;
-            left: 0;
-            right: 0;
-            text-align: center;
-            font-size: 9px;
-            color: #94a3b8;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 6px;
-        }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #1e293b; }
+        h1 { font-size: 17px; margin-bottom: 4px; color: #0f172a; }
+        .meta { font-size: 10px; color: #64748b; margin-bottom: 14px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; }
+        th { background-color: #f1f5f9; font-weight: bold; font-size: 9px; text-transform: uppercase; }
+        .num { text-align: right; }
+        .empty { text-align: center; padding: 20px; color: #64748b; }
     </style>
 </head>
 <body>
-    <div class
+    <h1>{{ $company->name }} — DriverX 5-Behavior Scorecard</h1>
+    <div class="meta">
+        Period: {{ $start->format('M d, Y') }} to {{ $end->format('M d, Y') }} |
+        Generated: {{ $generatedAt->format('M d, Y H:i') }}
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Driver</th>
+                <th>Vehicle(s)</th>
+                <th class="num">Trips</th>
+                <th class="num">Dist (km)</th>
+                <th class="num">Score</th>
+                <th>Grade</th>
+                <th class="num">Braking</th>
+                <th class="num">Accel</th>
+                <th class="num">Speeding</th>
+                <th class="num">Cornering</th>
+                <th class="num">Idle (min)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($scorecards as $row)
+                <tr>
+                    <td>{{ $row['driver_name'] }}</td>
+                    <td>{{ $row['plate'] ?: '—' }}</td>
+                    <td class="num">{{ $row['trip_count'] }}</td>
+                    <td class="num">{{ number_format($row['distance_km'], 1) }}</td>
+                    <td class="num"><strong>{{ $row['score'] }}</strong></td>
+                    <td><strong>{{ $row['grade'] }}</strong></td>
+                    <td class="num">{{ $row['harsh_braking_score'] }} ({{ $row['harsh_braking_events'] }})</td>
+                    <td class="num">{{ $row['harsh_acceleration_score'] }} ({{ $row['harsh_acceleration_events'] }})</td>
+                    <td class="num">{{ $row['speeding_score'] }} ({{ $row['overspeed_events'] }})</td>
+                    <td class="num">{{ $row['hard_cornering_score'] }} ({{ $row['harsh_cornering_events'] }})</td>
+                    <td class="num">{{ $row['idle_minutes'] }}</td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="11" class="empty">No scored trips found for this period.</td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+</body>
+</html>
