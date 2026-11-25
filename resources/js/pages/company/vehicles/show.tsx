@@ -1608,14 +1608,14 @@ export default function VehicleShow({ vehicle: initialVehicle, documentOptions =
 
                                             <td className="px-6 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {/* <Button
+                                                    <Button
                                                         type="button"
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => startEditingSchedule(schedule)}
                                                     >
                                                         Edit
-                                                    </Button> */}
+                                                    </Button>
 
                                                     {(() => {
                                                         const todayStr = new Date().toISOString().split('T')[0];

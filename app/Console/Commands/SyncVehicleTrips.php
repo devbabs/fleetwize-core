@@ -8,6 +8,7 @@ use App\Models\VehicleTrip;
 use App\Services\Tracking\TraccarService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -191,9 +192,9 @@ class SyncVehicleTrips extends Command
         );
     }
 
-    protected function resolveTripAddress(TraccarService $traccar, ?string $address, ?float $latitude, ?float $longitude): ?string 
+    protected function resolveTripAddress(TraccarService $traccar, ?string $address, ?float $latitude, ?float $longitude): ?string
     {
-        if (!empty($address)) {
+        if (! empty($address)) {
             return $address;
         }
 
@@ -201,11 +202,22 @@ class SyncVehicleTrips extends Command
             return null;
         }
 
+        $cacheKey = sprintf('geocode:%.4f:%.4f', $latitude, $longitude);
+
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
         try {
-            return $traccar->reverseGeocode(
-                $latitude,
-                $longitude
-            );
+            $resolved = $traccar->reverseGeocode($latitude, $longitude);
+
+            if (! empty($resolved)) {
+                Cache::put($cacheKey, $resolved, now()->addDays(30));
+            }
+
+            usleep(1_100_000);
+
+            return $resolved;
         } catch (Throwable $e) {
             Log::warning('Failed to geocode trip address.', [
                 'latitude' => $latitude,
