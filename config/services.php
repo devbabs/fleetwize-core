@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'kudisms' => [
+        'url' => env('KUDISMS_BASE_URL', 'https://my.kudisms.net/api/sms'),
+        'token' => env('KUDISMS_TOKEN'),
+        'sender_id' => env('KUDISMS_SENDER_ID', 'PREMIERCOOL'),
+        'gateway' => env('KUDISMS_GATEWAY', '2'),
+    ],
+
 ];

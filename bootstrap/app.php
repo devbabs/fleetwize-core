@@ -2,11 +2,13 @@
 
 use App\Console\Commands\AggregateDriverScores;
 use App\Console\Commands\CalculateTripScores;
+use App\Console\Commands\CheckDocumentExpiries;
 use App\Console\Commands\CheckMaintenanceSchedules;
 use App\Console\Commands\SendTrackerCommand;
 use App\Console\Commands\SyncVehicleEvents;
 use App\Console\Commands\SyncVehicleRoutes;
 use App\Console\Commands\SyncVehicleTrips;
+use App\Http\Middleware\EnsureCompanyPermission;
 use App\Http\Middleware\EnsureCompanyTenant;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsAgent;
@@ -52,40 +54,46 @@ return Application::configure(basePath: dirname(__DIR__))
             'company' => EnsureCompanyTenant::class,
             'company-workshop' => EnsureWorkshopTenant::class,
             'tracker-webhook-secret' => EnsureValidTrackerWebhookSecret::class,
+            'company.permission' => EnsureCompanyPermission::class,
         ]);
     })
-    // ->withSchedule(function (Schedule $schedule): void {
-    //     $schedule->command(SyncVehicleTrips::class)
-    //         ->everyFifteenMinutes()
-    //         ->withoutOverlapping()
-    //         ->runInBackground();
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command(SyncVehicleTrips::class)
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
 
-    //     $schedule->command(SyncVehicleEvents::class)
-    //         ->everyFifteenMinutes()
-    //         ->withoutOverlapping()
-    //         ->runInBackground();
+        $schedule->command(SyncVehicleEvents::class)
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
 
-    //     $schedule->command(SyncVehicleRoutes::class)
-    //         ->everyFiveMinutes()
-    //         ->withoutOverlapping()
-    //         ->runInBackground();
+        $schedule->command(SyncVehicleRoutes::class)
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground();
 
-    //     $schedule->command(
-    //         CalculateTripScores::class
-    //     )->everyFifteenMinutes();
+        $schedule->command(
+            CalculateTripScores::class
+        )->everyFifteenMinutes();
 
-    //     $schedule->command(
-    //         AggregateDriverScores::class
-    //     )->hourly();
+        $schedule->command(
+            AggregateDriverScores::class
+        )->hourly();
 
-    //     $schedule->command(CheckMaintenanceSchedules::class)
-    //         ->everyFifteenMinutes();
+        $schedule->command(CheckMaintenanceSchedules::class)
+            ->everyFifteenMinutes();
 
-    //     // $schedule->command(SendTrackerCommand::class)
-    //     //     ->hourly()
-    //     //     ->withoutOverlapping()
-    //     //     ->runInBackground();
-    // })
+        $schedule->command(CheckDocumentExpiries::class)
+            ->dailyAt('08:00')
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        // $schedule->command(SendTrackerCommand::class)
+        //     ->hourly()
+        //     ->withoutOverlapping()
+        //     ->runInBackground();
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),

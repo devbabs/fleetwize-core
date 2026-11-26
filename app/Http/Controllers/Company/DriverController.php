@@ -7,12 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Models\CompanyUser;
 use App\Models\User;
 use App\Models\VehicleAssignment;
+use App\Services\SystemLogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Services\SystemLogService;
+use Obrainwave\AccessTree\Models\Role;
 
 class DriverController extends Controller
 {
@@ -163,46 +164,58 @@ class DriverController extends Controller
     {
         $company = $this->currentCompany($request);
 
+        // Use find() (not findOrFail) so missing/invalid role_id returns a 422 validation error instead of 404
+        $role = Role::query()
+            ->where('company_id', $company->id)
+            ->find($request->integer('role_id'));
+
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:50', 'unique:users,phone'],
             'password' => ['required', 'string', 'min:8'],
-            'role' => ['required', Rule::in(self::ROLES)],
+            'role_id' => ['required', 'integer', Rule::exists('roles', 'id')->where('company_id', $company->id)],
             'vehicle_id' => [
                 'nullable',
                 'integer',
                 Rule::exists('vehicles', 'id')->where('company_id', $company->id),
-                // Restrict vehicle assignment strictly to driver (or dispatch-rider)
-                Rule::prohibitedIf(fn () => ! in_array($request->input('role'), ['driver', 'dispatch-rider'], true)),
+                Rule::prohibitedIf(fn () => ! $role?->can_be_assigned_vehicle),
             ],
         ]);
 
-        $user = new User;
-        $user->first_name = $validated['first_name'];
-        $user->last_name = $validated['last_name'];
-        $user->email = $validated['email'];
-        $user->phone = $validated['phone'] ?? null;
-        $user->password = $validated['password'];
-        $user->email_verified_at = now();
-        $user->save();
+        [$user, $companyUser] = DB::transaction(function () use ($company, $role, $validated) {
+            $user = new User;
+            $user->first_name = $validated['first_name'];
+            $user->last_name = $validated['last_name'];
+            $user->email = $validated['email'];
+            $user->phone = $validated['phone'] ?? null;
+            $user->password = $validated['password'];
+            $user->email_verified_at = now();
+            $user->save();
 
-        $companyUser = new CompanyUser;
-        $companyUser->user_id = $user->id;
-        $companyUser->company_id = $company->id;
-        $companyUser->role = $validated['role'];
-        $companyUser->save();
+            $companyUser = new CompanyUser;
+            $companyUser->user_id = $user->id;
+            $companyUser->company_id = $company->id;
+            $companyUser->role_id = $role->id;
+            $companyUser->role = $role->slug; // keeps existing queries/display working smoothly
+            $companyUser->save();
 
-        if (! empty($validated['vehicle_id'])) {
-            $this->assignVehicle(
-                $company->id,
-                $companyUser->id,
-                (int) $validated['vehicle_id']
-            );
-        }
+            // Attach role in AccessTree's user_roles pivot table
+            $user->roles()->sync([$role->id]);
 
-        $roleLabel = CompanyUser::ROLE_LABELS[$companyUser->role] ?? $companyUser->role;
+            if (! empty($validated['vehicle_id'])) {
+                $this->assignVehicle(
+                    $company->id,
+                    $companyUser->id,
+                    (int) $validated['vehicle_id']
+                );
+            }
+
+            return [$user, $companyUser];
+        });
+
+        $roleLabel = $role->name;
 
         $systemLog->log(
             event: 'staff.created',
@@ -211,7 +224,8 @@ class DriverController extends Controller
             company: $company,
             metadata: [
                 'email' => $user->email,
-                'role' => $companyUser->role,
+                'role_id' => $role->id,
+                'role' => $role->slug,
                 'vehicle_id' => $validated['vehicle_id'] ?? null,
             ],
         );

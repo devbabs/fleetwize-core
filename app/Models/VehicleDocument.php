@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\DocumentReminderLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property int $id
@@ -81,6 +83,11 @@ class VehicleDocument extends Model
                     : 'valid';
             },
         );
+    }
+
+    public function reminderLogs(): HasMany
+    {
+        return $this->hasMany(DocumentReminderLog::class);
     }
 
     public function scopeExpiresSoon(Builder $query): Builder

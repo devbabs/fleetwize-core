@@ -23,6 +23,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Passkeys\Passkey;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\PersonalAccessToken;
+use Obrainwave\AccessTree\Models\Role;
+use Obrainwave\AccessTree\Traits\HasRole;
 
 /**
  * @property int $id
@@ -101,7 +103,7 @@ use Laravel\Sanctum\PersonalAccessToken;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable, HasRole;
 
     protected function casts(): array
     {
@@ -227,5 +229,35 @@ class User extends Authenticatable implements PasskeyUser
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
+    }
+
+    public function permissionsForCompany(Company $company): array
+    {
+        $companyUser = $this->companyUsers()
+            ->where('company_id', $company->id)
+            ->with('assignedRole.permissions')
+            ->first();
+
+        // System admin role inside the company always has full tenant access
+        if ($companyUser?->assignedRole?->is_system) {
+            return \Obrainwave\AccessTree\Models\Permission::query()
+                ->pluck('slug')
+                ->all();
+        }
+
+        // Fall back to AccessTree's user_roles filtered by company_id if multi-role per user is enabled
+        return $this->roles()
+            ->where('roles.company_id', $company->id)
+            ->with('permissions:id,slug')
+            ->get()
+            ->flatMap(fn (Role $role) => $role->permissions->pluck('slug'))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function hasCompanyPermission(Company $company, string $permission): bool
+    {
+        return in_array($permission, $this->permissionsForCompany($company), true);
     }
 }

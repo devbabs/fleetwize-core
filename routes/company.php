@@ -12,6 +12,7 @@ use App\Http\Controllers\Company\LiveTrackingController;
 use App\Http\Controllers\Company\MaintenanceController;
 use App\Http\Controllers\Company\PlaybackController;
 use App\Http\Controllers\Company\ReportController;
+use App\Http\Controllers\Company\RoleController;
 use App\Http\Controllers\Company\SettingsController;
 use App\Http\Controllers\Company\VehicleController;
 use App\Http\Controllers\Company\VehicleDocumentController;
@@ -95,6 +96,26 @@ Route::domain('{company_slug}.'.config('fleetwize.tenant_domain'))->group(functi
         Route::get('/drivers/{driver}/scorecards',[DriverScorecardController::class, 'show'])->name('drivers.scorecards.show');
 
         Route::post('/vehicles/{vehicle}/documents',[VehicleDocumentController::class, 'store'])->name('vehicles.documents.store');
+
+        Route::get('/roles', [RoleController::class, 'index'])
+            ->middleware('permission:roles.view')
+            ->name('roles.index');
+
+        Route::post('/roles', [RoleController::class, 'store'])
+            ->middleware('permission:roles.create')
+            ->name('roles.store');
+
+        Route::patch('/roles/{role}', [RoleController::class, 'update'])
+            ->middleware('permission:roles.update')
+            ->name('roles.update');
+
+        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])
+            ->middleware('permission:roles.delete')
+            ->name('roles.delete');
+
+        Route::post('/vehicles/{vehicle}/command', [VehicleController::class, 'sendCommand'])
+            ->middleware('permission:vehicles.send_command')
+            ->name('vehicles.command');
     });
     require __DIR__.'/company-workshop.php';
 });
