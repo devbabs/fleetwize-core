@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Document;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Spatie\LaravelPdf\Enums\Permission;
 
 class PermissionsSeeder extends Seeder
 {
