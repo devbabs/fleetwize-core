@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Obrainwave\AccessTree\Models\Role;
-use Spatie\LaravelPdf\Enums\Permission;
+use App\Models\Permission;
 
 /**
  * On-demand REST pulls against the self-hosted Traccar instance — used for

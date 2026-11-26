@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Obrainwave\AccessTree\Models\Role;
-use Spatie\LaravelPdf\Enums\Permission;
+use App\Models\Permission;
 
 class RoleController extends Controller
 {
