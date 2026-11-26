@@ -24,6 +24,7 @@ class RoleController extends Controller
 
         $roles = Role::query()
             ->where('company_id', $company->id)
+            ->where('status', true)
             ->with(['permissions:id,slug,name,module'])
             ->withCount('users')
             ->orderByDesc('is_system')
