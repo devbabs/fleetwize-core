@@ -136,12 +136,11 @@ class BackfillCompanyRoles extends Command
                     $companyUser->save();
 
                     // Preserve roles belonging to any other company this user belongs to
-                    $otherCompanyRoleIds = $user->roles()
-                        ->where('roles.company_id', '!=', $company->id)
-                        ->pluck('roles.id')
-                        ->all();
-
-                    $user->roles()->sync([...$otherCompanyRoleIds, $role->id]);
+                    DB::transaction(function () use ($companyUser, $role) {
+                        $companyUser->role_id = $role->id;
+                        $companyUser->role = $role->slug;
+                        $companyUser->save();
+                    });
                 });
 
                 $this->line("  Synced User #{$user->id} ({$user->email}) -> {$role->name} (role_id={$role->id})");
