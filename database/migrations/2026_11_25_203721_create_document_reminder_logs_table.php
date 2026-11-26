@@ -17,7 +17,6 @@ return new class extends Migration
             $table->date('expires_at');
             $table->string('milestone', 20); // 30_days, 14_days, 7_days, 3_days, expired
             $table->timestamp('sent_at');
-            $table->timestamps();
 
             $table->unique(
                 ['vehicle_document_id', 'expires_at', 'milestone'],
