@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use App\Models\Document;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use App\Models\Permission;
+use Obrainwave\AccessTree\Models\Permission;
 
 class PermissionsSeeder extends Seeder
 {

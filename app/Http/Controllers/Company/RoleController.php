@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Obrainwave\AccessTree\Models\Role;
-use App\Models\Permission;
+use Obrainwave\AccessTree\Models\Permission;
 
 class RoleController extends Controller
 {

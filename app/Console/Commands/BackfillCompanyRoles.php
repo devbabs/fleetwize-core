@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Obrainwave\AccessTree\Models\Role;
-use App\Models\Permission;
+use Obrainwave\AccessTree\Models\Permission;
 use Throwable;
 
 /**
