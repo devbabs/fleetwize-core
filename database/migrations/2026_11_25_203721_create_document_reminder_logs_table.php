@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('vehicle_document_id')->constrained()->cascadeOnDelete();
             $table->date('expires_at');
-            $table->string('milestone', 20); // 30_days, 14_days, 7_days, 3_days, expired
+            $table->string('milestone', 20);
             $table->timestamp('sent_at');
 
             $table->unique(
