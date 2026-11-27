@@ -43,6 +43,9 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+                'permissions' => ($request->user() && ($company = $request->attributes->get('company')))
+                    ? $request->user()->permissionsForCompany($company)
+                    : [],
             ],
             'portal' => $portal['portal'],
             'company' => $portal['company'],

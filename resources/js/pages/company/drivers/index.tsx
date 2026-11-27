@@ -37,9 +37,26 @@ type DriverFormValues = {
     email: string;
     phone: string;
     password: string;
-    role: string;
+    role_id: string;
     vehicle_id: string;
 };
+
+type RoleOption = {
+    id: number;
+    name: string;
+    slug: string;
+    canBeAssignedVehicle: boolean;
+};
+
+// Inside your component props: add roleOptions: RoleOption[]
+const defaultRoleId = roleOptions.find((r) => r.slug === 'driver')?.id ?? roleOptions[0]?.id ?? '';
+
+// In useForm:
+role_id: defaultRoleId ? String(defaultRoleId) : '',
+
+// Derive eligibility dynamically:
+const selectedRole = roleOptions.find((r) => String(r.id) === String(data.role_id));
+const canAssignVehicle = Boolean(selectedRole?.canBeAssignedVehicle);
 
 const ROLE_LABELS: Record<string, string> = {
     driver: 'Driver',
@@ -105,9 +122,12 @@ function CreateDriverDialog({ open, onOpenChange, vehicleOptions }: { open: bool
         email: '',
         phone: '',
         password: '',
-        role: 'driver',
+        role_id: defaultRoleId ? String(defaultRoleId) : '',
         vehicle_id: '',
     });
+
+    const selectedRole = roleOptions.find((r) => String(r.id) === String(data.role_id));
+    const canAssignVehicle = Boolean(selectedRole?.canBeAssignedVehicle);
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -163,48 +183,104 @@ function CreateDriverDialog({ open, onOpenChange, vehicleOptions }: { open: bool
                         </div>
                     </div>
 
-                    <div className={`grid ${data.role === 'driver' ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                    {/* <div className={`grid ${canAssignVehicle ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
                         <div className="grid gap-2">
-                            <Label htmlFor="role">Role</Label>
+                            <Label htmlFor="role_id">Role</Label>
 
                             <Select
-                                value={data.role}
+                                value={String(data.role_id)}
                                 onValueChange={(value) => {
-                                    setData('role', value);
+                                    setData('role_id', value);
 
-                                    // Only drivers can have an assigned vehicle
-                                    if (value !== 'driver') {
+                                    const nextRole = roleOptions.find((r) => String(r.id) === value);
+                                    if (!nextRole?.canBeAssignedVehicle) {
                                         setData('vehicle_id', null);
                                     }
                                 }}
                             >
-                                <SelectTrigger id="role" className="w-full">
-                                    <SelectValue />
+                                <SelectTrigger id="role_id" className="w-full">
+                                    <SelectValue placeholder="Select a role" />
                                 </SelectTrigger>
 
                                 <SelectContent className="z-[9999]">
-                                    {ROLES.map((role) => (
-                                        <SelectItem key={role.value} value={role.value}>
-                                            {role.label}
+                                    {roleOptions.map((role) => (
+                                        <SelectItem key={role.id} value={String(role.id)}>
+                                            {role.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+
+                            {errors.role_id ? (
+                                <p className="text-xs text-destructive">{errors.role_id}</p>
+                            ) : null}
                         </div>
 
-                        {data.role === 'driver' && (
+                        {canAssignVehicle ? (
                             <div className="grid gap-2">
                                 <Label>Assigned Vehicle</Label>
 
                                 <VehicleSelect
                                     value={data.vehicle_id}
-                                    onChange={(v) => {
-                                        setData('vehicle_id', v);
-                                    }}
+                                    onChange={(v) => setData('vehicle_id', v)}
                                     vehicleOptions={vehicleOptions}
                                 />
+
+                                {errors.vehicle_id ? (
+                                    <p className="text-xs text-destructive">{errors.vehicle_id}</p>
+                                ) : null}
                             </div>
-                        )}
+                        ) : null}
+                    </div> */}
+
+                    <div className={`grid ${canAssignVehicle ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
+                        <div className="grid gap-2">
+                            <Label htmlFor="role_id">Role</Label>
+
+                            <Select
+                                value={String(data.role_id)}
+                                onValueChange={(value) => {
+                                    setData('role_id', value);
+
+                                    const nextRole = roleOptions.find((r) => String(r.id) === value);
+                                    if (!nextRole?.canBeAssignedVehicle) {
+                                        setData('vehicle_id', null);
+                                    }
+                                }}
+                            >
+                                <SelectTrigger id="role_id" className="w-full">
+                                    <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+
+                                <SelectContent className="z-[9999]">
+                                    {roleOptions.map((role) => (
+                                        <SelectItem key={role.id} value={String(role.id)}>
+                                            {role.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            {errors.role_id ? (
+                                <p className="text-xs text-destructive">{errors.role_id}</p>
+                            ) : null}
+                        </div>
+
+                        {canAssignVehicle ? (
+                            <div className="grid gap-2">
+                                <Label>Assigned Vehicle</Label>
+
+                                <VehicleSelect
+                                    value={data.vehicle_id}
+                                    onChange={(v) => setData('vehicle_id', v)}
+                                    vehicleOptions={vehicleOptions}
+                                />
+
+                                {errors.vehicle_id ? (
+                                    <p className="text-xs text-destructive">{errors.vehicle_id}</p>
+                                ) : null}
+                            </div>
+                        ) : null}
                     </div>
 
                     <DialogFooter>
@@ -226,6 +302,7 @@ function EditDriverDialog({
     staff: StaffRow | null;
     onOpenChange: (open: boolean) => void;
     vehicleOptions: VehicleOption[];
+    roleOptions: RoleOption[];
 }) {
     const [first_name, last_name] = staff ? staff.name.split(/\s+/, 2) : ['', ''];
     const { data, setData, patch, processing, errors, reset, setDefaults } = useForm({
@@ -367,6 +444,7 @@ export default function DriversIndex({
     staff: Paginated<StaffRow>;
     filters: { search: string; role: string };
     vehicleOptions: VehicleOption[];
+    roleOptions: RoleOption[];
 }) {
     const [createOpen, setCreateOpen] = useState(false);
     const [editing, setEditing] = useState<StaffRow | null>(null);

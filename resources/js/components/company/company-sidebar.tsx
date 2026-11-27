@@ -14,6 +14,9 @@ import {
     Wrench,
 } from 'lucide-react';
 
+import { Shield } from 'lucide-react';
+import { usePermission } from '@/hooks/use-permission';
+
 import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
@@ -28,6 +31,8 @@ import {
 } from '@/components/ui/sidebar';
 import type { NavItem } from '@/types';
 
+const { can } = usePermission();
+
 const navItems: NavItem[] = [
     { title: 'Overview', href: '/overview', icon: LayoutDashboard },
     { title: 'Live Tracking', href: '/live-tracking', icon: MapPinned },
@@ -41,7 +46,8 @@ const navItems: NavItem[] = [
     { title: 'Issues', href: '/issues', icon: ClipboardList },
     { title: 'Reports', href: '/reports', icon: FileText },
     { title: 'Settings', href: '/settings', icon: Settings },
-    { title: 'System Logs', href: '/system-logs', icon: FileText },
+    { title: 'Roles', href: '/roles', icon: FileText },
+    { title: 'System Logs', href: '/system-logs', icon: Shield },
     { title: 'Driver Scorecard', href: '/drivers-scorecard', icon: FileText },
 ];
 
